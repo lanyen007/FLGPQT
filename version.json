@@ -1,5 +1,5 @@
 {
-  "version": "4.1.3",
+  "version": "4.1.4",
   "url": "https://github.com/lanyen007/FLGPQT/raw/main/PQT.exe",
-  "notes": "修改標籤順序。"
+  "notes": "第一次執行會安裝到 C:\\FLGPQT"
 }
