@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.2.2",
   "url": "https://github.com/lanyen007/FLGPQT/raw/main/Ricoh_UserCounter.exe",
-  "notes": "富利久公司資訊、白色圓圈藍色 7 圖示、系統匣常駐、風格選擇、自動 HTTP/HTTPS"
+  "notes": "登入流程改用 powershell.ps1：authForm / login.cgi、Base64 與明文、成功以不再出現 userid_work 判斷；IP 自行輸入；CSV 仍用民國日期資料夾與 SNMP 檔名"
 }
