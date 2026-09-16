@@ -1,5 +1,5 @@
 {
-  "version": "4.1.11",
+  "version": "4.1.12",
   "url": "https://github.com/lanyen007/FLGPQT/raw/main/PQT.exe",
-  "notes": "抄表日遇周六日，改為平日開機後自動查詢"
+  "notes": "版本更新頁可開關自動更新"
 }
