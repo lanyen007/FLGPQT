@@ -1,5 +1,5 @@
 {
-  "version": "4.1.12",
+  "version": "4.1.13",
   "url": "https://github.com/lanyen007/FLGPQT/raw/main/PQT.exe",
-  "notes": "版本更新頁可開關自動更新"
+  "notes": "RICOH 黑白機讀總張數，並修正設備位置亂碼"
 }
