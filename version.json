@@ -1,5 +1,5 @@
 {
-  "version": "4.1.15",
+  "version": "4.1.16",
   "url": "https://github.com/lanyen007/FLGPQT/raw/main/PQT.exe",
-  "notes": "修正 FUJI XEROX 設備位置亂碼（UTF-8 被 Big5 誤解、背景查詢未載入解碼函式）"
+  "notes": "版本更新頁的說明改為逐行顯示"
 }
