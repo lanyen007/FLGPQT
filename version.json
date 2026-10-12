@@ -1,5 +1,5 @@
 {
-  "version": "4.1.16",
+  "version": "4.1.19",
   "url": "https://github.com/lanyen007/FLGPQT/raw/main/PQT.exe",
-  "notes": "版本更新頁的說明改為逐行顯示"
+  "notes": "修正理光 MP C5504ex／MP 6054 等碳粉讀取；全錄碳粉改百分比；新增美樂達 C360i 抄表"
 }
