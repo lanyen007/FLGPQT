@@ -10,7 +10,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$script:AppVersion = "4.1.20"
+$script:AppVersion = "4.1.21"
 $script:InstallDir = "C:\FLGPQT"
 $script:DefaultUpdateUrl = "https://raw.githubusercontent.com/lanyen007/FLGPQT/main/version.json"
 $script:DefaultDownloadUrl = "https://github.com/lanyen007/FLGPQT/raw/main/PQT.exe"
@@ -696,7 +696,8 @@ function Get-DueScheduleAction {
     }
 
     foreach ($p in $periods) {
-        if ($fired -eq $p.Key) { continue }
+        $dayKey = "{0}|{1}" -f $p.Key, $today.ToString("yyyy-MM-dd")
+        if ($fired -eq $dayKey) { continue }
         $inWindow = $false
         foreach ($d in @($p.WindowDates)) {
             if ($d.Date -eq $today) { $inWindow = $true; break }
@@ -704,6 +705,7 @@ function Get-DueScheduleAction {
         if ($inWindow -and $Now -ge $todayAtT) {
             return @{
                 Period  = $p
+                FireKey = $dayKey
                 CatchUp = $false
                 Reason  = ("窗口日 {0}（{1}月抄表 {2} 日）" -f $today.ToString("MM-dd"), $p.Month, $Settings.Day)
             }
@@ -713,7 +715,7 @@ function Get-DueScheduleAction {
     $cutoff = $Now.Date.AddDays(-14)
     $weekendDue = $null
     foreach ($p in $periods) {
-        if ($fired -eq $p.Key) { continue }
+        if ($fired -eq $p.Key -or $fired.StartsWith($p.Key + "|")) { continue }
         if (-not (Test-WindowTouchesWeekend $p.WindowDates)) { continue }
         if ($Now -lt $p.FirstAt) { continue }
         if ($p.MissedAfter.AddDays(7) -lt $Now) { continue }
@@ -723,6 +725,7 @@ function Get-DueScheduleAction {
     if ($weekendDue) {
         return @{
             Period  = $weekendDue
+            FireKey = ("{0}|{1}" -f $weekendDue.Key, $Now.Date.ToString("yyyy-MM-dd"))
             CatchUp = $true
             Reason  = ("{0} 月抄表日遇周六日，開機後自動查詢" -f $weekendDue.Month)
         }
@@ -741,9 +744,9 @@ function Get-NextScheduledTime {
     $tp = Get-ScheduleTimeParts $Settings.ScheduleTime
     $fired = [string]$script:LastFiredPeriod
     foreach ($p in @(Get-SelectedPeriods -Settings $Settings -From $From)) {
-        if ($fired -eq $p.Key) { continue }
         foreach ($d in @($p.WindowDates)) {
             if (Test-IsWeekend $d) { continue }
+            if ($fired -eq ("{0}|{1}" -f $p.Key, $d.ToString("yyyy-MM-dd"))) { continue }
             $at = $d.Date.AddHours($tp.Hour).AddMinutes($tp.Minute)
             if ($at -ge $From) { return $at }
         }
@@ -1788,7 +1791,7 @@ function Complete-PqtQueryIfDone {
             Save-LastFiredPeriod $script:PendingPeriodKey
         } elseif ($script:CurrentSettings) {
             $due = Get-DueScheduleAction
-            if ($due) { Save-LastFiredPeriod $due.Period.Key }
+            if ($due) { Save-LastFiredPeriod $due.FireKey }
         }
         $script:PendingPeriodKey = $null
         Update-NextRunLabel
@@ -1820,9 +1823,9 @@ function Invoke-ScheduleCheck {
         Update-NextRunLabel
         return
     }
-    $script:PendingPeriodKey = [string]$due.Period.Key
+    $script:PendingPeriodKey = [string]$due.FireKey
     $kind = if ($due.CatchUp) { "補查" } else { "排程" }
-    Write-PqtLog ("{0}觸發（{1}，{2}），開始查詢並上傳" -f $kind, $due.Period.Key, $due.Reason)
+    Write-PqtLog ("{0}觸發（{1}，{2}），開始查詢並上傳" -f $kind, $due.FireKey, $due.Reason)
     Start-PqtQueryAsync
     if (-not $script:QueryBusy -and -not $script:QueryHandle) {
         $script:PendingPeriodKey = $null
@@ -2126,6 +2129,9 @@ function Show-ErrorBox {
 function Get-PqtChangelogText {
     $text = @"
 PQT007　　目前版本 $($script:AppVersion)
+
+【4.1.21】
+• 排程抄表改為連續三天都執行：抄表日前一天、當天、後一天各查一次（例：15 號→14、15、16；1 號→上月最後一天 30／31、1、2）
 
 【4.1.20】
 • 新增 Sharp MX-2600／MX-3600／MX-4100（含 N／FN）黑白、彩色合計抄表
