@@ -127,7 +127,7 @@
     <header>
       <div class="brand">
         <h1>FLG 檔案箱</h1>
-        <p>影印機／複合機小工具與 Ricoh 驅動下載</p>
+        <p>影印機／複合機小工具與 Ricoh／Sharp 驅動下載</p>
       </div>
       <div class="meta" id="lastUpdated">讀取版本資訊中…</div>
     </header>
@@ -143,10 +143,19 @@
 
     <section class="panel" aria-label="Ricoh 驅動程式">
       <h2>Ricoh 驅動程式（PowerShell）</h2>
-      <p class="hint">對應 <a href="https://printyen.blogspot.com/p/ricoh.html" target="_blank" rel="noopener">printyen Ricoh 下載頁</a>。貼上後可搜尋機型、下載到「下載\FLG-Drivers」，並可選擇安裝。</p>
+      <p class="hint">對應 <a href="https://printyen.blogspot.com/p/ricoh.html" target="_blank" rel="noopener">printyen Ricoh 下載頁</a>。貼上後可搜尋機型、下載到「下載\FLG-Drivers\Ricoh」，並可選擇安裝。</p>
       <div class="cmd-row">
         <code class="cmd" id="ricohCmd">irm https://lanyen007.github.io/FLGPQT/drivers/ricoh.ps1 | iex</code>
         <button type="button" class="btn btn-primary btn-copy" id="ricohCopyBtn" aria-label="複製 Ricoh 驅動指令">複製</button>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="Sharp 驅動程式">
+      <h2>Sharp 驅動程式（PowerShell）</h2>
+      <p class="hint">對應 <a href="https://printyen.blogspot.com/p/sharp.html" target="_blank" rel="noopener">printyen Sharp 下載頁</a>。貼上後可搜尋機型、下載到「下載\FLG-Drivers\Sharp」，並可選擇安裝。</p>
+      <div class="cmd-row">
+        <code class="cmd" id="sharpCmd">irm https://lanyen007.github.io/FLGPQT/drivers/sharp.ps1 | iex</code>
+        <button type="button" class="btn btn-primary btn-copy" id="sharpCopyBtn" aria-label="複製 Sharp 驅動指令">複製</button>
       </div>
     </section>
 
@@ -321,6 +330,7 @@
   }
   wireCopy("copyBtn", "installCmd");
   wireCopy("ricohCopyBtn", "ricohCmd");
+  wireCopy("sharpCopyBtn", "sharpCmd");
 })();
 </script>
 </body>
