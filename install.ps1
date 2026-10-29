@@ -4,11 +4,8 @@
 #   & ([scriptblock]::Create((irm https://lanyen007.github.io/FLGPQT/install.ps1))) PQT
 #   & ([scriptblock]::Create((irm https://lanyen007.github.io/FLGPQT/install.ps1))) 全部
 
-[CmdletBinding()]
-param(
-    [Parameter(Position = 0)]
-    [string]$Tool
-)
+$Tool = ''
+if ($args -and $args.Count -gt 0) { $Tool = [string]$args[0] }
 
 $ErrorActionPreference = 'Stop'
 try {
