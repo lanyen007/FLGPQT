@@ -1,0 +1,121 @@
+PQT007 4.1.20 變更說明（以 4.1.19 為基礎）
+
+【新增：Sharp MX-2600／MX-3600／MX-4100 黑白、彩色計數器】
+狀況：MX-2600N、MX-3600N、MX-4100N 等彩色機需要正確的黑白合計／彩色合計。
+舊版 Sharp 彩色機讀的是標準 Printer-MIB prtMarkerLifeCount（.43.10.2.1.4.1.1／.1.2），
+無法可靠拆成黑白與彩色（PrinterMS：Printer-MIB generally does NOT give mono-vs-color split）。
+
+修正後：
+1. 型號（hrDeviceDescr／Model Name）含 MX-2600、MX-3600、MX-4100（可有無連字號、含 N／FN 字尾）時，
+   改讀 Sharp 私有 MIB（enterprise 2385）合計頁數。
+2. MX-M*／BP-M* 黑白機先判斷，不會誤套到 MX-M2600。
+3. 其他 Sharp 彩色機、理光、全錄、美樂達路徑不變。
+
+【實作 OID（皆有公開來源，未在本機實機 snmpget）】
+
+■ 黑白合計（實作）
+  OID: 1.3.6.1.4.1.2385.1.1.19.2.1.3.5.4.61
+  回傳: Counter32，標籤 "Black & White Total Count"（影印+列印合計）
+  來源:
+  - https://www.printerms.com/en/resources/printer-oid-reference （Sharp Mono）
+  - https://www.copytechnet.com/forum/tech-support/sharp/174513-get-total-pages-counters-from-snmp （實測 BW fixed(8093)）
+  - https://community.librenms.org/t/custom-oid-to-device-dashboard/11744 （black printed pages）
+  - https://forum.checkmk.com/uploads/short-url/2VRwsHcWC2pf3HOgTGHGGdRXCcF.txt
+    （.3.5.4.61=Counter32:170311；對應 .4.5.4.61 STRING "Black & White Total Count"）
+
+■ 彩色合計（實作）
+  OID: 1.3.6.1.4.1.2385.1.1.19.2.1.3.5.4.63
+  回傳: Counter32，標籤 "Full Color Total Count"
+  來源:
+  - https://www.printerms.com/en/resources/printer-oid-reference （Sharp Color）
+  - https://www.copytechnet.com/forum/tech-support/sharp/174513-get-total-pages-counters-from-snmp （full colour fixed(53200)）
+  - https://community.librenms.org/t/custom-oid-to-device-dashboard/11744 （pages printed in color）
+  - Checkmk walk 同上（.3.5.4.63；.4.5.4.63 = "Full Color Total Count"）
+
+■ 碳粉餘量（同機種分支，Printer-MIB；Zabbix Sharp MX 範本槽位）
+  K: 1.3.6.1.2.1.43.11.1.1.9.1.4
+  C: 1.3.6.1.2.1.43.11.1.1.9.1.1
+  M: 1.3.6.1.2.1.43.11.1.1.9.1.2
+  Y: 1.3.6.1.2.1.43.11.1.1.9.1.3
+  來源:
+  - https://raw.githubusercontent.com/zabbix/community-templates/main/Printers/template_sharp_printer-c301w_and_mx-2640/6.0/template_sharp_printer-c301w_and_mx-2640.yaml
+  - PrinterMS Sharp Toner 說明 {4=K, 1=C, 2=M, 3=Y}
+
+■ 參考但未實作（拆項，非合計）
+  列印黑白 .3.1.4.61／彩色 .3.1.4.63；影印黑白 .3.4.4.61／彩色 .3.4.4.63
+  來源: https://thwack.solarwinds.com/discussion/37844/printer-mibs-needed
+  （THWACK 表列的是 .4.* 標籤 OID；實際計數值在平行的 .3.*，見 Checkmk walk）
+  合計頁已有 .3.5.4.61／.63，故抄表用合計即可，不必加總 print+copy。
+
+■ 不採用
+  Printer-MIB prtMarkerLifeCount 1.3.6.1.2.1.43.10.2.1.4.1.1
+  → 僅總印象數，無法拆黑白／彩色（PrinterMS 明文說明）。
+  舊版 Sharp 彩色用的 .43.10.2.1.4.1.2 亦無可靠「彩色合計」來源。
+
+【編譯】Windows：powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\Compile-PQT.ps1"（版本 4.1.20.0）
+
+【現場驗證建議】
+snmpget -v2c -c public 機器IP 1.3.6.1.4.1.2385.1.1.19.2.1.3.5.4.61
+snmpget -v2c -c public 機器IP 1.3.6.1.4.1.2385.1.1.19.2.1.3.5.4.63
+snmpwalk -v2c -c public 機器IP 1.3.6.1.4.1.2385.1.1.19.2.1.4.5
+對照面板「合計」黑白／彩色；不符時連同機型、面板數字、PQT 結果回傳。
+
+
+【新增／修正：全錄 FUJIFILM ApeosPrint 3060s／3960s 張數】
+目標機種（台灣常見「3060s／3960s」）：
+• ApeosPrint C3060 S — A3 彩色印表機（3060s）
+• ApeosPrint 3960 S — A3 黑白印表機（3960s；同系列 3360 S／4560 S）
+官方產品頁：
+  https://www.fujifilm.com/fb/ja/products/printers/color/apeosprint-c3560s-c3060s
+  https://www.fujifilm.com/fb/ja/products/printers/monochrome/apeosprint-4560s-3960s-3360s
+  台灣經銷：https://www.vinix.com.tw/product/153
+
+既有支援（4.1.19 前）：
+• 型號含 Xerox／FUJI／Apeos／DocuCentre → Xerox MIB
+• 黑白特例：ApeosPort*3060*／3560*、DocuCentre*3060* → 僅黑白 .20.34
+• 其餘全錄彩色 → 黑白 .20.34、彩色 .20.33
+缺口：DocuPrint 未列入偵測；ApeosPrint 3960 S 走彩色路徑；ApeosPort C3060 被 *3060* 誤判黑白。
+
+本次：
+1. $isXEROX 增加 DocuPrint／ApeosPrint。
+2. 彩色判斷：型號含 (ApeosPort|DocuCentre|ApeosPrint|Apeos|DocuPrint) + C + 數字 → 走彩色 OID。
+3. 黑白判斷：ApeosPrint 3360／3960／4560 S；Apeos／ApeosPort／DocuCentre 3060／3560／2560（無 C）。
+4. OID 不變（皆有來源，見下）。
+
+【全錄／FUJIFILM 張數 OID】
+
+■ 黑白（Printed Pages Mono）— 實作
+  OID: 1.3.6.1.4.1.253.8.53.13.2.1.6.1.20.34
+  回傳: Integer／計數，單色列印張數
+  來源:
+  - https://www.printerms.com/en/resources/printer-oid-reference （Xerox Mono total，Tier A）
+  - https://communitybackup.lansweeper.com/t5/forums/forumtopicprintpage/board-id/LansweeperReports/message-id/1004/print-single-message/true/page/1
+    （標示 FUJIFILM Business Innovation Corp. Printed Pages Mono）
+  - https://community.librenms.org/t/how-do-i-detect-printer-counter-and-copy-counts/1632 （Fuji-Xerox mono）
+  - https://jira.observium.org/browse/OBS-3116 （實測 snmpget INTEGER: 39086）
+  - https://www.reddit.com/r/sysadmin/comments/4trz5m/snmp_oid_for_color_pages_printed/
+
+■ 彩色（Printed Pages Colour）— 實作（彩色機）
+  OID: 1.3.6.1.4.1.253.8.53.13.2.1.6.1.20.33
+  回傳: Integer／計數，彩色列印張數
+  來源: 同上 Lansweeper／PrinterMS／LibreNMS／Observium（INTEGER: 54968）／Reddit
+
+■ 總張數（參考，PQT 畫面用黑白+彩色分欄，未單獨顯示總計）
+  OID: 1.3.6.1.4.1.253.8.53.13.2.1.6.1.20.1
+  回傳: 總印象數（xcmHrDevDetailValueInteger index 20.1）
+  來源: PrinterMS Xerox Total；https://github.com/alfonsrv/printer-monitoring/blob/master/Printer-Monitoring.py
+  備援: Printer-MIB prtMarkerLifeCount 1.3.6.1.2.1.43.10.2.1.4.1.1
+  （LibreNMS：Fuji-Xerox 上為 total prints+copies，無法拆色）
+
+■ sysObjectID 範例（識別用，非計數）
+  ApeosPort C3060: 1.3.6.1.4.1.297.1.11.93.1.39.8.5.1 （BMC Helix）
+  Apeos C3060: 1.3.6.1.4.1.297.1.11.93.2.1.11.5.3
+  Apeos 3060（黑白複合機）: 1.3.6.1.4.1.297.1.11.93.2.1.12.5.2／.5.3
+  來源: https://docs.helixops.ai/bin/IT-Operations-Management/Discovery/BMC-Discovery/Configipedia/What-you-can-discover/Supported-SNMP-Devices/Xerox-Corporation/
+  ※ ApeosPrint 3960 S／C3060 S 的公開 sysObjectID 未查到；抄表依 hrDeviceDescr 型號字串匹配。
+
+【現場驗證】
+snmpget -v2c -c public 機器IP 1.3.6.1.4.1.253.8.53.13.2.1.6.1.20.34
+snmpget -v2c -c public 機器IP 1.3.6.1.4.1.253.8.53.13.2.1.6.1.20.33
+snmpget -v2c -c public 機器IP 1.3.6.1.2.1.25.3.2.1.3.1
+對照面板計數器；3960 S 彩色 OID 應無意義（PQT 已 INTERNAL_SKIP）。
