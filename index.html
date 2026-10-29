@@ -127,7 +127,7 @@
     <header>
       <div class="brand">
         <h1>FLG 檔案箱</h1>
-        <p>影印機／複合機小工具下載</p>
+        <p>影印機／複合機小工具與 Ricoh 驅動下載</p>
       </div>
       <div class="meta" id="lastUpdated">讀取版本資訊中…</div>
     </header>
@@ -138,6 +138,15 @@
       <div class="cmd-row">
         <code class="cmd" id="installCmd">irm https://lanyen007.github.io/FLGPQT/install.ps1 | iex</code>
         <button type="button" class="btn btn-primary btn-copy" id="copyBtn" aria-label="複製安裝指令">複製</button>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="Ricoh 驅動程式">
+      <h2>Ricoh 驅動程式（PowerShell）</h2>
+      <p class="hint">對應 <a href="https://printyen.blogspot.com/p/ricoh.html" target="_blank" rel="noopener">printyen Ricoh 下載頁</a>。貼上後可搜尋機型、下載到「下載\FLG-Drivers」，並可選擇安裝。</p>
+      <div class="cmd-row">
+        <code class="cmd" id="ricohCmd">irm https://lanyen007.github.io/FLGPQT/drivers/ricoh.ps1 | iex</code>
+        <button type="button" class="btn btn-primary btn-copy" id="ricohCopyBtn" aria-label="複製 Ricoh 驅動指令">複製</button>
       </div>
     </section>
 
@@ -281,32 +290,37 @@
     });
   });
 
-  var copyBtn = document.getElementById("copyBtn");
-  var installCmd = document.getElementById("installCmd");
-  copyBtn.addEventListener("click", function () {
-    var text = installCmd.textContent;
-    function done() {
-      copyBtn.textContent = "已複製";
-      copyBtn.classList.add("copied");
-      setTimeout(function () {
-        copyBtn.textContent = "複製";
-        copyBtn.classList.remove("copied");
-      }, 1600);
-    }
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done).catch(function () {
-        fallbackCopy(text); done();
-      });
-    } else {
-      fallbackCopy(text); done();
-    }
-  });
   function fallbackCopy(text) {
     var ta = document.createElement("textarea");
     ta.value = text; document.body.appendChild(ta);
     ta.select(); try { document.execCommand("copy"); } catch (e) {}
     document.body.removeChild(ta);
   }
+  function wireCopy(btnId, cmdId) {
+    var copyBtn = document.getElementById(btnId);
+    var installCmd = document.getElementById(cmdId);
+    if (!copyBtn || !installCmd) return;
+    copyBtn.addEventListener("click", function () {
+      var text = installCmd.textContent;
+      function done() {
+        copyBtn.textContent = "已複製";
+        copyBtn.classList.add("copied");
+        setTimeout(function () {
+          copyBtn.textContent = "複製";
+          copyBtn.classList.remove("copied");
+        }, 1600);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function () {
+          fallbackCopy(text); done();
+        });
+      } else {
+        fallbackCopy(text); done();
+      }
+    });
+  }
+  wireCopy("copyBtn", "installCmd");
+  wireCopy("ricohCopyBtn", "ricohCmd");
 })();
 </script>
 </body>
