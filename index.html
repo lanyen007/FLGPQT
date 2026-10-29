@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FLG 檔案箱</title>
+<meta name="description" content="FLG 影印機工具下載：PQT、Ricoh 工具與一鍵安裝">
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --text: #1a1d26;
+    --muted: #5c6578;
+    --border: #e2e6ef;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --accent-soft: #eff4ff;
+    --ok: #059669;
+    --shadow: 0 1px 2px rgba(16,24,40,.04), 0 4px 16px rgba(16,24,40,.06);
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 28px 18px 56px; }
+  header {
+    display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+    gap: 12px; margin-bottom: 22px;
+  }
+  .brand h1 {
+    margin: 0; font-size: 1.75rem; letter-spacing: .02em;
+  }
+  .brand p { margin: 6px 0 0; color: var(--muted); font-size: .95rem; }
+  .meta { color: var(--muted); font-size: .85rem; text-align: right; }
+  .panel {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 18px 18px 16px; margin-bottom: 18px;
+  }
+  .panel h2 {
+    margin: 0 0 8px; font-size: 1.05rem;
+  }
+  .panel .hint { margin: 0 0 12px; color: var(--muted); font-size: .9rem; }
+  .cmd-row {
+    display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap;
+  }
+  .cmd {
+    flex: 1 1 280px; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: .82rem; background: #0f172a; color: #e2e8f0; border-radius: 10px;
+    padding: 12px 14px; overflow-x: auto; white-space: nowrap; border: none;
+    user-select: all;
+  }
+  .btn {
+    appearance: none; border: none; border-radius: 10px; cursor: pointer;
+    font: inherit; font-weight: 600; padding: 10px 16px; text-decoration: none;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    transition: background .15s, transform .1s;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-ghost {
+    background: var(--accent-soft); color: var(--accent);
+  }
+  .btn-ghost:hover { background: #dbe7ff; }
+  .btn-copy { white-space: nowrap; min-width: 88px; }
+  .btn-copy.copied { background: var(--ok); color: #fff; }
+  .toolbar {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    margin-bottom: 16px;
+  }
+  .search {
+    flex: 1 1 220px; padding: 11px 14px; border: 1px solid var(--border);
+    border-radius: 10px; font: inherit; background: var(--card);
+  }
+  .search:focus { outline: 2px solid #bfdbfe; border-color: var(--accent); }
+  .link-pdf {
+    color: var(--accent); font-weight: 600; text-decoration: none; font-size: .92rem;
+  }
+  .link-pdf:hover { text-decoration: underline; }
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 18px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .card.hidden { display: none; }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .card h3 { margin: 0; font-size: 1.12rem; }
+  .badge {
+    flex-shrink: 0; font-size: .78rem; font-weight: 700; color: var(--accent);
+    background: var(--accent-soft); padding: 3px 9px; border-radius: 999px;
+  }
+  .badge.unknown { color: var(--muted); background: #f1f3f7; }
+  .desc { margin: 0; color: var(--muted); font-size: .92rem; flex: 1; }
+  .notes {
+    margin: 0; font-size: .82rem; color: #475569; background: #f8fafc;
+    border-radius: 8px; padding: 8px 10px; border: 1px solid #eef2f7;
+    min-height: 2.6em;
+  }
+  .foot {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    gap: 10px; margin-top: 4px;
+  }
+  .size { color: var(--muted); font-size: .85rem; }
+  footer {
+    margin-top: 28px; text-align: center; color: var(--muted); font-size: .85rem;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+  @media (max-width: 520px) {
+    .wrap { padding: 18px 14px 40px; }
+    .brand h1 { font-size: 1.45rem; }
+    .meta { text-align: left; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <h1>FLG 檔案箱</h1>
+        <p>影印機／複合機小工具下載</p>
+      </div>
+      <div class="meta" id="lastUpdated">讀取版本資訊中…</div>
+    </header>
+
+    <section class="panel" aria-label="一鍵安裝">
+      <h2>一鍵安裝（PowerShell）</h2>
+      <p class="hint">在 Windows 開「終端機」或 PowerShell，貼上這行即可選工具安裝到本機。</p>
+      <div class="cmd-row">
+        <code class="cmd" id="installCmd">irm https://lanyen007.github.io/FLGPQT/install.ps1 | iex</code>
+        <button type="button" class="btn btn-primary btn-copy" id="copyBtn" aria-label="複製安裝指令">複製</button>
+      </div>
+    </section>
+
+    <div class="toolbar">
+      <input class="search" type="search" id="search" placeholder="搜尋工具名稱…" aria-label="搜尋工具">
+      <a class="link-pdf" href="https://lanyen007.github.io/pdf-tools/" target="_blank" rel="noopener">PDF 小工具 ↗</a>
+    </div>
+
+    <div class="grid" id="grid"></div>
+
+    <footer>
+      來源：<a href="https://github.com/lanyen007/FLGPQT" target="_blank" rel="noopener">github.com/lanyen007/FLGPQT</a>
+      · 自動更新仍走原本的 raw 網址，此頁僅供下載
+    </footer>
+  </div>
+<script>
+(function () {
+  var RAW = "https://raw.githubusercontent.com/lanyen007/FLGPQT/main/";
+  var DL = "https://github.com/lanyen007/FLGPQT/raw/main/";
+  var TOOLS = [
+    {
+      id: "pqt",
+      name: "PQT",
+      file: "PQT.exe",
+      versionJson: "version.json",
+      sizeBytes: 222208,
+      desc: "影印機計數器查詢上傳／排程抄表"
+    },
+    {
+      id: "ricohmfp",
+      name: "RicohMfpTool",
+      file: "RicohMfpTool.exe",
+      versionJson: "RicohMfpTool_version.json",
+      sizeBytes: 158720,
+      desc: "Ricoh 複合機輔助工具"
+    },
+    {
+      id: "ricohuc",
+      name: "Ricoh_UserCounter",
+      file: "Ricoh_UserCounter.exe",
+      versionJson: "Ricoh_UserCounter_version.json",
+      sizeBytes: 12679396,
+      desc: "Ricoh 使用者計數查詢"
+    },
+    {
+      id: "ucdl",
+      name: "UserCounterDownload",
+      file: "UserCounterDownload.exe",
+      versionJson: "UserCounterDownload_version.json",
+      sizeBytes: 50688,
+      desc: "使用者計數下載工具"
+    },
+    {
+      id: "flgdl",
+      name: "FLGPQT_Download",
+      file: "FLGPQT_Download.exe",
+      versionJson: "Download_version.json",
+      sizeBytes: 111104,
+      desc: "多個工具一鍵下載"
+    }
+  ];
+
+  function formatSize(n) {
+    if (!n || n < 0) return "—";
+    if (n < 1024) return n + " B";
+    if (n < 1024 * 1024) return (n / 1024).toFixed(n < 10240 ? 1 : 0) + " KB";
+    return (n / (1024 * 1024)).toFixed(1) + " MB";
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  var grid = document.getElementById("grid");
+  var lastUpdated = document.getElementById("lastUpdated");
+  var newest = null;
+
+  TOOLS.forEach(function (t) {
+    var card = document.createElement("article");
+    card.className = "card";
+    card.dataset.name = (t.name + " " + t.desc).toLowerCase();
+    card.innerHTML =
+      '<div class="card-top">' +
+        "<h3>" + escapeHtml(t.name) + "</h3>" +
+        '<span class="badge unknown" data-ver>—</span>' +
+      "</div>" +
+      '<p class="desc">' + escapeHtml(t.desc) + "</p>" +
+      '<p class="notes" data-notes>讀取更新說明…</p>' +
+      '<div class="foot">' +
+        '<span class="size">' + formatSize(t.sizeBytes) + '</span>' +
+        '<a class="btn btn-primary" href="' + DL + encodeURIComponent(t.file).replace(/%2F/g, "/") + '" download="' + escapeHtml(t.file) + '">下載</a>' +
+      "</div>";
+    // fix download URL encoding for simple filenames
+    card.querySelector("a.btn").href = DL + t.file;
+    grid.appendChild(card);
+
+    fetch(RAW + t.versionJson + "?t=" + Date.now(), { cache: "no-store" })
+      .then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (j) {
+        var ver = j && j.version ? String(j.version) : "";
+        var notes = j && j.notes ? String(j.notes) : "";
+        var badge = card.querySelector("[data-ver]");
+        var notesEl = card.querySelector("[data-notes]");
+        if (ver) {
+          badge.textContent = "v" + ver;
+          badge.classList.remove("unknown");
+        } else {
+          badge.textContent = "版本未知";
+        }
+        notesEl.textContent = notes || "（尚無更新說明）";
+        if (ver) {
+          var stamp = ver;
+          if (!newest || String(stamp) > String(newest)) newest = stamp;
+        }
+        lastUpdated.textContent = "版本資訊來自 GitHub raw · 本機時間 " +
+          new Date().toLocaleString("zh-TW", { hour12: false });
+      })
+      .catch(function () {
+        var notesEl = card.querySelector("[data-notes]");
+        notesEl.textContent = "無法讀取版本資訊（仍可直接下載）";
+        lastUpdated.textContent = "部分版本資訊讀取失敗 · " +
+          new Date().toLocaleString("zh-TW", { hour12: false });
+      });
+  });
+
+  document.getElementById("search").addEventListener("input", function (e) {
+    var q = (e.target.value || "").trim().toLowerCase();
+    Array.prototype.forEach.call(grid.children, function (card) {
+      var hay = card.dataset.name || "";
+      card.classList.toggle("hidden", q && hay.indexOf(q) === -1);
+    });
+  });
+
+  var copyBtn = document.getElementById("copyBtn");
+  var installCmd = document.getElementById("installCmd");
+  copyBtn.addEventListener("click", function () {
+    var text = installCmd.textContent;
+    function done() {
+      copyBtn.textContent = "已複製";
+      copyBtn.classList.add("copied");
+      setTimeout(function () {
+        copyBtn.textContent = "複製";
+        copyBtn.classList.remove("copied");
+      }, 1600);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(function () {
+        fallbackCopy(text); done();
+      });
+    } else {
+      fallbackCopy(text); done();
+    }
+  });
+  function fallbackCopy(text) {
+    var ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta);
+    ta.select(); try { document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+</body>
+</html>
