@@ -1,5 +1,5 @@
 {
-  "version": "4.1.19",
+  "version": "4.1.21",
   "url": "https://github.com/lanyen007/FLGPQT/raw/main/PQT.exe",
-  "notes": "修正理光 MP C5504ex／MP 6054 等碳粉讀取；全錄碳粉改百分比；新增美樂達 C360i 抄表"
+  "notes": "排程抄表改為連續三天都執行（抄表日前一天、當天、後一天）；含 4.1.20 Sharp／全錄計數器"
 }
