@@ -348,30 +348,78 @@ function After-Download {
     Start-Process explorer.exe -ArgumentList $dir
 }
 
-function Get-ModelList {
+function Get-SeriesList {
     param($Catalog)
+    if ($Catalog.series_list) {
+        return @($Catalog.series_list)
+    }
+    $series = @()
+    foreach ($d in $Catalog.drivers) {
+        $s = [string]$d.series
+        if ([string]::IsNullOrWhiteSpace($s)) { continue }
+        if ($series -notcontains $s) { $series += $s }
+    }
+    return $series
+}
+
+function Get-ModelList {
+    param(
+        $Catalog,
+        [string]$Series = ''
+    )
     $models = @()
     foreach ($d in $Catalog.drivers) {
         if ($d.kind -eq 'backup') { continue }
+        if ($Series -and [string]$d.series -ne $Series -and $Series -ne '全部') { continue }
         if ($models -notcontains $d.model) { $models += $d.model }
     }
     return $models
 }
 
 function Filter-Drivers {
-    param($Catalog, [string]$Keyword)
+    param(
+        $Catalog,
+        [string]$Keyword,
+        [string]$Series = ''
+    )
     $all = @($Catalog.drivers)
+    if ($Series -and $Series -ne '全部') {
+        $all = @($all | Where-Object { [string]$_.series -eq $Series })
+    }
     if ([string]::IsNullOrWhiteSpace($Keyword)) { return $all }
     $k = $Keyword.Trim()
     return @($all | Where-Object {
-        $_.model -like "*$k*" -or $_.title -like "*$k*" -or $_.type -like "*$k*" -or $_.filename -like "*$k*" -or $_.id -eq $k
+        $_.model -like "*$k*" -or $_.title -like "*$k*" -or $_.type -like "*$k*" -or $_.filename -like "*$k*" -or $_.id -eq $k -or ([string]$_.series -like "*$k*")
     })
 }
 
-function Show-ModelMenu {
-    param([string[]]$Models)
+function Show-SeriesMenu {
+    param([string[]]$SeriesList)
     Write-Host ''
-    Write-Host ("======== FLG {0} 驅動程式 ========" -f $FlgDriverBrand) -ForegroundColor White
+    Write-Host ("======== FLG {0} 驅動程式 · 選系列 ========" -f $FlgDriverBrand) -ForegroundColor White
+    Write-Host '請選擇系列：'
+    $i = 1
+    foreach ($s in $SeriesList) {
+        Write-Host ("  {0,2}) {1}" -f $i, $s)
+        $i++
+    }
+    Write-Host ("  {0,2}) 全部系列" -f $i)
+    Write-Host '   S) 搜尋關鍵字'
+    Write-Host '   0) 離開'
+    Write-Host ''
+}
+
+function Show-ModelMenu {
+    param(
+        [string[]]$Models,
+        [string]$SeriesLabel = ''
+    )
+    Write-Host ''
+    if ($SeriesLabel) {
+        Write-Host ("======== FLG {0} · {1} ========" -f $FlgDriverBrand, $SeriesLabel) -ForegroundColor White
+    } else {
+        Write-Host ("======== FLG {0} 驅動程式 ========" -f $FlgDriverBrand) -ForegroundColor White
+    }
     Write-Host '請選擇機型（輸入編號，或直接輸入關鍵字搜尋）：'
     $i = 1
     foreach ($m in $Models) {
@@ -379,6 +427,7 @@ function Show-ModelMenu {
         $i++
     }
     Write-Host '   S) 搜尋關鍵字'
+    Write-Host '   B) 返回系列'
     Write-Host '   0) 離開'
     Write-Host ''
 }
@@ -406,9 +455,33 @@ function Open-SourcePage {
 
 # ---- main ----
 $catalog = Get-JsonCatalog
-Write-Ok ("清單載入完成，共 {0} 筆（{1}／Blogger／試算表）" -f $catalog.count, $FlgDriverBrand)
+Write-Ok ("清單載入完成，共 {0} 筆（{1}）" -f $catalog.count, $FlgDriverBrand)
 
+$useSeries = ($FlgDriverBrand -eq 'Ricoh') -and ((Get-SeriesList -Catalog $catalog).Count -gt 0)
+$activeSeries = ''
 $models = Get-ModelList -Catalog $catalog
+
+function Invoke-DriverPick {
+    param($Items, [string]$Label)
+    if (-not $Items -or $Items.Count -eq 0) { Write-WarnMsg '沒有項目。'; return }
+    Show-DriverMenu -Items $Items -ModelName $Label
+    Write-Host '  P) 開啟原網頁說明'
+    $sel = Read-Host '請選擇'
+    if ($sel -eq '0' -or [string]::IsNullOrWhiteSpace($sel)) { return }
+    if ($sel -match '^(?i)p$') { Open-SourcePage -Item $Items[0]; return }
+    $n = 0
+    if (-not [int]::TryParse($sel, [ref]$n) -or $n -lt 1 -or $n -gt $Items.Count) {
+        Write-WarnMsg '無效選項。'; return
+    }
+    $chosen = $Items[$n - 1]
+    try {
+        $path = Download-DriverItem -Item $chosen
+        After-Download -Path $path
+    } catch {
+        Write-ErrMsg ("下載失敗：{0}" -f $_.Exception.Message)
+        Write-WarnMsg '可改開原網頁手動下載（輸入 P）。'
+    }
+}
 
 # Non-interactive query from args
 if ($Query) {
@@ -417,20 +490,10 @@ if ($Query) {
         Write-ErrMsg "找不到符合「$Query」的項目。"
         exit 1
     }
-    # If query matches a model exactly / solely, show submenu via auto-pick first model group
     $modelHits = @($hits | Where-Object { $_.model -like "*$Query*" } | Select-Object -ExpandProperty model -Unique)
     if ($modelHits.Count -eq 1) {
         $items = @($catalog.drivers | Where-Object { $_.model -eq $modelHits[0] })
-        Show-DriverMenu -Items $items -ModelName $modelHits[0]
-        $sel = Read-Host '請輸入編號'
-        if ($sel -eq '0' -or [string]::IsNullOrWhiteSpace($sel)) { exit 0 }
-        $n = 0
-        if (-not [int]::TryParse($sel, [ref]$n) -or $n -lt 1 -or $n -gt $items.Count) {
-            Write-ErrMsg '無效選項'; exit 1
-        }
-        $chosen = $items[$n - 1]
-        $path = Download-DriverItem -Item $chosen
-        After-Download -Path $path
+        Invoke-DriverPick -Items $items -Label $modelHits[0]
         exit 0
     }
     Write-Host "搜尋「$Query」結果："
@@ -452,8 +515,62 @@ if ($Query) {
 }
 
 while ($true) {
-    Show-ModelMenu -Models $models
+    if ($useSeries -and -not $activeSeries) {
+        $seriesList = Get-SeriesList -Catalog $catalog
+        Show-SeriesMenu -SeriesList $seriesList
+        $choice = Read-Host '請選擇'
+        if ([string]::IsNullOrWhiteSpace($choice) -or $choice -eq '0' -or $choice -match '^(?i)q|quit|exit|取消$') {
+            Write-Info '已離開。'
+            break
+        }
+        if ($choice -match '^(?i)s$') {
+            $kw = Read-Host ("輸入機型關鍵字（例如 {0}）" -f $FlgSearchHint)
+            $hits = Filter-Drivers -Catalog $catalog -Keyword $kw
+            if ($hits.Count -eq 0) { Write-WarnMsg '沒有符合的項目。'; continue }
+            $mlist = @($hits | Select-Object -ExpandProperty model -Unique)
+            if ($mlist.Count -eq 1) {
+                $items = @($catalog.drivers | Where-Object { $_.model -eq $mlist[0] })
+                Invoke-DriverPick -Items $items -Label $mlist[0]
+            } else {
+                Write-Host '符合的機型：'
+                $i = 1
+                foreach ($m in $mlist) { Write-Host ("  {0}) {1}" -f $i, $m); $i++ }
+                $ms = Read-Host '選機型編號'
+                $n = 0
+                if ([int]::TryParse($ms, [ref]$n) -and $n -ge 1 -and $n -le $mlist.Count) {
+                    $items = @($catalog.drivers | Where-Object { $_.model -eq $mlist[$n - 1] })
+                    Invoke-DriverPick -Items $items -Label $mlist[$n - 1]
+                } else { Write-WarnMsg '無效選項。' }
+            }
+            continue
+        }
+        $n = 0
+        if ([int]::TryParse($choice, [ref]$n)) {
+            if ($n -ge 1 -and $n -le $seriesList.Count) {
+                $activeSeries = $seriesList[$n - 1]
+            } elseif ($n -eq ($seriesList.Count + 1)) {
+                $activeSeries = '全部'
+            } else {
+                Write-WarnMsg '無效選項。'; continue
+            }
+        } else {
+            Write-WarnMsg '無效選項。'; continue
+        }
+        $models = Get-ModelList -Catalog $catalog -Series $activeSeries
+        continue
+    }
+
+    Show-ModelMenu -Models $models -SeriesLabel $(if ($activeSeries) { $activeSeries } else { '' })
     $choice = Read-Host '請選擇'
+    if ([string]::IsNullOrWhiteSpace($choice) -or $choice -eq '0' -or $choice -match '^(?i)q|quit|exit|取消$') {
+        Write-Info '已離開。'
+        break
+    }
+
+    if ($choice -match '^(?i)b$' -and $useSeries) {
+        $activeSeries = ''
+        continue
+    }
     if ([string]::IsNullOrWhiteSpace($choice) -or $choice -eq '0' -or $choice -match '^(?i)q|quit|exit|取消$') {
         Write-Info '已離開。'
         break
@@ -462,7 +579,7 @@ while ($true) {
     $selectedModel = $null
     if ($choice -match '^(?i)s$') {
         $kw = Read-Host ("輸入機型關鍵字（例如 {0}）" -f $FlgSearchHint)
-        $hits = Filter-Drivers -Catalog $catalog -Keyword $kw
+        $hits = Filter-Drivers -Catalog $catalog -Keyword $kw -Series $activeSeries
         if ($hits.Count -eq 0) { Write-WarnMsg '沒有符合的項目。'; continue }
         $mlist = @($hits | Select-Object -ExpandProperty model -Unique)
         if ($mlist.Count -eq 1) { $selectedModel = $mlist[0] }
@@ -482,7 +599,7 @@ while ($true) {
             $selectedModel = $models[$n - 1]
         } else {
             # treat as keyword
-            $hits = Filter-Drivers -Catalog $catalog -Keyword $choice
+            $hits = Filter-Drivers -Catalog $catalog -Keyword $choice -Series $activeSeries
             $mlist = @($hits | Select-Object -ExpandProperty model -Unique)
             if ($mlist.Count -eq 1) { $selectedModel = $mlist[0] }
             elseif ($mlist.Count -gt 1) {
@@ -503,7 +620,14 @@ while ($true) {
 
     if (-not $selectedModel) { continue }
 
-    $items = @($catalog.drivers | Where-Object { $_.model -eq $selectedModel })
+    if ($activeSeries -and $activeSeries -ne '全部') {
+        $items = @($catalog.drivers | Where-Object { $_.model -eq $selectedModel -and [string]$_.series -eq $activeSeries })
+        if ($items.Count -eq 0) {
+            $items = @($catalog.drivers | Where-Object { $_.model -eq $selectedModel })
+        }
+    } else {
+        $items = @($catalog.drivers | Where-Object { $_.model -eq $selectedModel })
+    }
     while ($true) {
         Show-DriverMenu -Items $items -ModelName $selectedModel
         Write-Host '  P) 開啟原網頁說明'

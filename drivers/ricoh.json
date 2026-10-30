@@ -1,21 +1,48 @@
 {
+  "brand": "Ricoh",
   "source": "https://printyen.blogspot.com/p/ricoh.html",
   "spreadsheet": "https://docs.google.com/spreadsheets/d/106BkPONVOQ1EMn2crrrPTal3r8lpwyTDzw9gu3fyqZo",
+  "official_note": "Official Asia-Pacific Traditional Chinese (ti) pages on support.ricoh.com; Universal Print + model packs. Installer language can be Traditional Chinese.",
   "updated": "2026-10-30",
-  "count": 54,
+  "count": 140,
+  "series_list": [
+    "繁體中文",
+    "02",
+    "03",
+    "04",
+    "IMC",
+    "MP黑白",
+    "其他"
+  ],
   "models": [
+    "IM C2000/C2500/C3000/C3500",
+    "IM C2010/C2510/C3010/C3510",
     "IM C3000",
     "IM C3500",
+    "IM C4500/C5500/C6000",
+    "IM C4510/C5510/C6010",
     "IM C6000",
     "MEGA備用",
+    "MP 2014",
+    "MP 2352/2852/3352",
+    "MP 2554/3054/3554/4054/5054/6054",
+    "MP 2555/3055/3555/4055/5055/6055",
+    "MP 4002/5002",
+    "MP C2003/C2503/C3003/C3503",
+    "MP C3002/C3502",
+    "MP C3004/C3504",
     "MP C3300",
     "MP C3502",
     "MP C3503",
     "MP C3504",
     "MP C4500",
+    "MP C4502/C5502",
     "MP C4503",
+    "MP C4503/C5503/C6003",
+    "MP C4504/C5504/C6004",
     "MP C5502",
     "MP C6004",
+    "Universal Print（全機型）",
     "九導一鍵包",
     "設定使用者代碼",
     "預設黑白"
@@ -32,7 +59,9 @@
       "host": "ricoh",
       "page": "https://printyen.blogspot.com/p/im-c4500c6000.html",
       "filename": "z05660L1c.exe",
-      "notes": "padding: 0px; text-align: left;\">"
+      "notes": "padding: 0px; text-align: left;\">",
+      "series": "IMC",
+      "source": "blogger"
     },
     {
       "id": "ricoh-2",
@@ -45,7 +74,9 @@
       "host": "ricoh",
       "page": "https://printyen.blogspot.com/p/im-c4500c6000.html",
       "filename": "z05512L1a.exe",
-      "notes": "padding: 0px; text-align: left;\">"
+      "notes": "padding: 0px; text-align: left;\">",
+      "series": "IMC",
+      "source": "blogger"
     },
     {
       "id": "ricoh-3",
@@ -58,7 +89,9 @@
       "host": "gdrive",
       "page": "https://printyen.blogspot.com/p/ricoh-im-c3000c3500.html",
       "filename": "RICOH_IM_C3000_32bit.exe",
-      "notes": "itemprop='description articleBody'>   RICOH  IM C3000/C3500 PCL6"
+      "notes": "itemprop='description articleBody'>   RICOH  IM C3000/C3500 PCL6",
+      "series": "IMC",
+      "source": "blogger"
     },
     {
       "id": "ricoh-4",
@@ -71,7 +104,9 @@
       "host": "gdrive",
       "page": "https://printyen.blogspot.com/p/ricoh-im-c3000c3500.html",
       "filename": "RICOH_IM_C3000_64bit.exe",
-      "notes": "itemprop='description articleBody'>   RICOH  IM C3000/C3500 PCL6            32位元"
+      "notes": "itemprop='description articleBody'>   RICOH  IM C3000/C3500 PCL6            32位元",
+      "series": "IMC",
+      "source": "blogger"
     },
     {
       "id": "ricoh-5",
@@ -84,7 +119,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/ricoh-im-c3000c3500.html",
       "filename": "RICOH_IM_C3000_32bit.exe",
-      "notes": "> RICOH  IM C3000/C3500 PCL6            32位元    64位元"
+      "notes": "> RICOH  IM C3000/C3500 PCL6            32位元    64位元",
+      "series": "IMC",
+      "source": "blogger"
     },
     {
       "id": "ricoh-6",
@@ -97,7 +134,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/ricoh-im-c3000c3500.html",
       "filename": "RICOH_IM_C3000_64bit.exe",
-      "notes": "load&id=1tLC9AsEB8zjbwiCo0WeisWLlxuU4IDi0\">32位元    64位元 RICOH_IM_C3000_32bit.exe"
+      "notes": "load&id=1tLC9AsEB8zjbwiCo0WeisWLlxuU4IDi0\">32位元    64位元 RICOH_IM_C3000_32bit.exe",
+      "series": "IMC",
+      "source": "blogger"
     },
     {
       "id": "ricoh-7",
@@ -110,7 +149,9 @@
       "host": "gdrive",
       "page": "https://printyen.blogspot.com/p/ricoh-im-c3000c3500.html",
       "filename": "RICOH_IM_C3000_32bit.exe",
-      "notes": "itemprop='description articleBody'>   RICOH  IM C3000/C3500 PCL6"
+      "notes": "itemprop='description articleBody'>   RICOH  IM C3000/C3500 PCL6",
+      "series": "IMC",
+      "source": "blogger"
     },
     {
       "id": "ricoh-8",
@@ -123,7 +164,9 @@
       "host": "gdrive",
       "page": "https://printyen.blogspot.com/p/ricoh-im-c3000c3500.html",
       "filename": "RICOH_IM_C3000_64bit.exe",
-      "notes": "itemprop='description articleBody'>   RICOH  IM C3000/C3500 PCL6            32位元"
+      "notes": "itemprop='description articleBody'>   RICOH  IM C3000/C3500 PCL6            32位元",
+      "series": "IMC",
+      "source": "blogger"
     },
     {
       "id": "ricoh-9",
@@ -136,7 +179,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/ricoh-im-c3000c3500.html",
       "filename": "RICOH_IM_C3000_32bit.exe",
-      "notes": "> RICOH  IM C3000/C3500 PCL6            32位元    64位元"
+      "notes": "> RICOH  IM C3000/C3500 PCL6            32位元    64位元",
+      "series": "IMC",
+      "source": "blogger"
     },
     {
       "id": "ricoh-10",
@@ -149,7 +194,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/ricoh-im-c3000c3500.html",
       "filename": "RICOH_IM_C3000_64bit.exe",
-      "notes": "load&id=1tLC9AsEB8zjbwiCo0WeisWLlxuU4IDi0\">32位元    64位元 RICOH_IM_C3000_32bit.exe"
+      "notes": "load&id=1tLC9AsEB8zjbwiCo0WeisWLlxuU4IDi0\">32位元    64位元 RICOH_IM_C3000_32bit.exe",
+      "series": "IMC",
+      "source": "blogger"
     },
     {
       "id": "ricoh-11",
@@ -162,7 +209,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_31.html",
       "filename": "MPC_3504_PCL_6_64.exe",
-      "notes": "ative; text-align: left; text-decoration-line: inherit; white-space: pre-wrap;\">"
+      "notes": "ative; text-align: left; text-decoration-line: inherit; white-space: pre-wrap;\">",
+      "series": "04",
+      "source": "blogger"
     },
     {
       "id": "ricoh-12",
@@ -175,7 +224,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_31.html",
       "filename": "MPC_3504_PCL_6_32.exe",
-      "notes": "ative; text-align: left; text-decoration-line: inherit; white-space: pre-wrap;\">"
+      "notes": "ative; text-align: left; text-decoration-line: inherit; white-space: pre-wrap;\">",
+      "series": "04",
+      "source": "blogger"
     },
     {
       "id": "ricoh-13",
@@ -188,7 +239,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_31.html",
       "filename": "MPC_3504_PCL_6.exe",
-      "notes": "; text-decoration-line: inherit; white-space: pre-wrap;\">  RICOH MP C3004/3504ex"
+      "notes": "; text-decoration-line: inherit; white-space: pre-wrap;\">  RICOH MP C3004/3504ex",
+      "series": "04",
+      "source": "blogger"
     },
     {
       "id": "ricoh-14",
@@ -201,7 +254,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_31.html",
       "filename": "RICOH_MP_C3504ex_64bit.exe",
-      "notes": "ormal; white-space-collapse: collapse;\"> RICOH MP C3004/3504ex  驅動程式 (MediaFire)"
+      "notes": "ormal; white-space-collapse: collapse;\"> RICOH MP C3004/3504ex  驅動程式 (MediaFire)",
+      "series": "04",
+      "source": "blogger"
     },
     {
       "id": "ricoh-15",
@@ -214,7 +269,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_31.html",
       "filename": "RICOH_MP_C3504_64bit.exe",
-      "notes": "normal; white-space-collapse: collapse;\">驅動程式 (MediaFire) RICOH_MP_C3504ex_64bit"
+      "notes": "normal; white-space-collapse: collapse;\">驅動程式 (MediaFire) RICOH_MP_C3504ex_64bit",
+      "series": "04",
+      "source": "blogger"
     },
     {
       "id": "ricoh-16",
@@ -227,7 +284,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_21.html",
       "filename": "RICOH MP C6004ex PCL 6.exe",
-      "notes": "itemprop='description articleBody'>   RICOH  MP C4504ex / C6004ex PCL6"
+      "notes": "itemprop='description articleBody'>   RICOH  MP C4504ex / C6004ex PCL6",
+      "series": "04",
+      "source": "blogger"
     },
     {
       "id": "ricoh-17",
@@ -240,7 +299,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_21.html",
       "filename": "z92106L16 (1).exe",
-      "notes": "L6            32位元    64位元 傳真"
+      "notes": "L6            32位元    64位元 傳真",
+      "series": "04",
+      "source": "blogger"
     },
     {
       "id": "ricoh-18",
@@ -253,7 +314,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_21.html",
       "filename": "z91956L16 (1).exe",
-      "notes": "/RICOH+MP+C6004ex+PCL+6.exe\" target=\"_blank\">32位元    64位元 傳真            一"
+      "notes": "/RICOH+MP+C6004ex+PCL+6.exe\" target=\"_blank\">32位元    64位元 傳真            一",
+      "series": "04",
+      "source": "blogger"
     },
     {
       "id": "ricoh-19",
@@ -266,7 +329,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_62.html",
       "filename": "RICOHtyb.exe",
-      "notes": "itemprop='description articleBody'>   RICOH  MP C3003/C3503 通用版"
+      "notes": "itemprop='description articleBody'>   RICOH  MP C3003/C3503 通用版",
+      "series": "03",
+      "source": "blogger"
     },
     {
       "id": "ricoh-20",
@@ -279,7 +344,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_62.html",
       "filename": "RICOH_MP_C3503_PCL_6.exe",
-      "notes": "='description articleBody'>   RICOH  MP C3003/C3503 通用版          32位元  64位元 PCL6"
+      "notes": "='description articleBody'>   RICOH  MP C3003/C3503 通用版          32位元  64位元 PCL6",
+      "series": "03",
+      "source": "blogger"
     },
     {
       "id": "ricoh-21",
@@ -292,7 +359,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_62.html",
       "filename": "PCFAX_32bit.exe",
-      "notes": "32位元  64位元 PCL6            32位元  64位元 電腦傳真"
+      "notes": "32位元  64位元 PCL6            32位元  64位元 電腦傳真",
+      "series": "03",
+      "source": "blogger"
     },
     {
       "id": "ricoh-22",
@@ -305,7 +374,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_62.html",
       "filename": "PCFAX_64bit.exe",
-      "notes": "位元  64位元 PCL6            32位元  64位元 電腦傳真      32位元"
+      "notes": "位元  64位元 PCL6            32位元  64位元 電腦傳真      32位元",
+      "series": "03",
+      "source": "blogger"
     },
     {
       "id": "ricoh-23",
@@ -318,7 +389,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_62.html",
       "filename": "RICOH_MP_C3503_PCL_6-TCP_IP-RICOH_MP_C3503_PCL_6-64Bit-for64bitOS-1.2.0.exe",
-      "notes": "RICOH_MP_C3503_PCL_6.exe/file\" target=\"_blank\">32位元  64位元 電腦傳真      32位元    64位元"
+      "notes": "RICOH_MP_C3503_PCL_6.exe/file\" target=\"_blank\">32位元  64位元 電腦傳真      32位元    64位元",
+      "series": "03",
+      "source": "blogger"
     },
     {
       "id": "ricoh-24",
@@ -331,7 +404,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_8.html",
       "filename": "RICOHtyb.exe",
-      "notes": "itemprop='description articleBody'>   RICOH  MP C4503/C5503 通用版"
+      "notes": "itemprop='description articleBody'>   RICOH  MP C4503/C5503 通用版",
+      "series": "03",
+      "source": "blogger"
     },
     {
       "id": "ricoh-25",
@@ -344,7 +419,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_8.html",
       "filename": "RICOH_MP_C4503_PCL6.exe",
-      "notes": "='description articleBody'>   RICOH  MP C4503/C5503 通用版          32位元  64位元 PCL6"
+      "notes": "='description articleBody'>   RICOH  MP C4503/C5503 通用版          32位元  64位元 PCL6",
+      "series": "03",
+      "source": "blogger"
     },
     {
       "id": "ricoh-26",
@@ -357,7 +434,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_8.html",
       "filename": "PCFAX_32bit.exe",
-      "notes": ";       32位元  64位元 PCL6            32位元  64位元 電腦傳真"
+      "notes": ";       32位元  64位元 PCL6            32位元  64位元 電腦傳真",
+      "series": "03",
+      "source": "blogger"
     },
     {
       "id": "ricoh-27",
@@ -370,7 +449,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_8.html",
       "filename": "PCFAX_64bit.exe",
-      "notes": "2位元  64位元 PCL6            32位元  64位元 電腦傳真      32位元"
+      "notes": "2位元  64位元 PCL6            32位元  64位元 電腦傳真      32位元",
+      "series": "03",
+      "source": "blogger"
     },
     {
       "id": "ricoh-28",
@@ -383,7 +464,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_4.html",
       "filename": "RICOHtyb.exe",
-      "notes": "itemprop='description articleBody'>   RICOH  MP C3502 通用版"
+      "notes": "itemprop='description articleBody'>   RICOH  MP C3502 通用版",
+      "series": "02",
+      "source": "blogger"
     },
     {
       "id": "ricoh-29",
@@ -396,7 +479,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_4.html",
       "filename": "RICOH_MP_C3502_X32.exe",
-      "notes": "description articleBody'>   RICOH  MP C3502 通用版          32/64位元通用版驅動程式已自動化 PCL6"
+      "notes": "description articleBody'>   RICOH  MP C3502 通用版          32/64位元通用版驅動程式已自動化 PCL6",
+      "series": "02",
+      "source": "blogger"
     },
     {
       "id": "ricoh-30",
@@ -409,7 +494,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_4.html",
       "filename": "RICOH_MP_C3502_X64.exe",
-      "notes": "502 通用版          32/64位元通用版驅動程式已自動化 PCL6            32位元"
+      "notes": "502 通用版          32/64位元通用版驅動程式已自動化 PCL6            32位元",
+      "series": "02",
+      "source": "blogger"
     },
     {
       "id": "ricoh-31",
@@ -422,7 +509,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_4.html",
       "filename": "PCFAX_32bit.exe",
-      "notes": ".exe/file\" target=\"_blank\">32/64位元通用版驅動程式已自動化 PCL6            32位元    64位元 電腦傳真"
+      "notes": ".exe/file\" target=\"_blank\">32/64位元通用版驅動程式已自動化 PCL6            32位元    64位元 電腦傳真",
+      "series": "02",
+      "source": "blogger"
     },
     {
       "id": "ricoh-32",
@@ -435,7 +524,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_4.html",
       "filename": "PCFAX_64bit.exe",
-      "notes": "rm6exb0/RICOH_MP_C3502_X32.exe/file\" target=\"_blank\">32位元    64位元 電腦傳真      32位元"
+      "notes": "rm6exb0/RICOH_MP_C3502_X32.exe/file\" target=\"_blank\">32位元    64位元 電腦傳真      32位元",
+      "series": "02",
+      "source": "blogger"
     },
     {
       "id": "ricoh-33",
@@ -448,7 +539,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_33.html",
       "filename": "RICOHtyb.exe",
-      "notes": "itemprop='description articleBody'>   RICOH  MP C4502/C5502 通用版"
+      "notes": "itemprop='description articleBody'>   RICOH  MP C4502/C5502 通用版",
+      "series": "02",
+      "source": "blogger"
     },
     {
       "id": "ricoh-34",
@@ -461,7 +554,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_33.html",
       "filename": "RICOH_MP_C5502_PCL6.exe",
-      "notes": "='description articleBody'>   RICOH  MP C4502/C5502 通用版          32位元  64位元 PCL6"
+      "notes": "='description articleBody'>   RICOH  MP C4502/C5502 通用版          32位元  64位元 PCL6",
+      "series": "02",
+      "source": "blogger"
     },
     {
       "id": "ricoh-35",
@@ -474,7 +569,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_33.html",
       "filename": "PCFAX_32bit.exe",
-      "notes": ";       32位元  64位元 PCL6            32位元  64位元 電腦傳真"
+      "notes": ";       32位元  64位元 PCL6            32位元  64位元 電腦傳真",
+      "series": "02",
+      "source": "blogger"
     },
     {
       "id": "ricoh-36",
@@ -487,7 +584,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_33.html",
       "filename": "PCFAX_64bit.exe",
-      "notes": "2位元  64位元 PCL6            32位元  64位元 電腦傳真      32位元"
+      "notes": "2位元  64位元 PCL6            32位元  64位元 電腦傳真      32位元",
+      "series": "02",
+      "source": "blogger"
     },
     {
       "id": "ricoh-37",
@@ -500,7 +599,9 @@
       "host": "gdrive",
       "page": "https://printyen.blogspot.com/p/blog-page_52.html",
       "filename": "",
-      "notes": "itemprop='description articleBody'>    RICOH  MP C2800/C3300 RPCS"
+      "notes": "itemprop='description articleBody'>    RICOH  MP C2800/C3300 RPCS",
+      "series": "其他",
+      "source": "blogger"
     },
     {
       "id": "ricoh-38",
@@ -513,7 +614,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_52.html",
       "filename": "RICOH_MPC_3300_X64_RPCS.exe",
-      "notes": "itemprop='description articleBody'>    RICOH  MP C2800/C3300 RPCS           32位元"
+      "notes": "itemprop='description articleBody'>    RICOH  MP C2800/C3300 RPCS           32位元",
+      "series": "其他",
+      "source": "blogger"
     },
     {
       "id": "ricoh-39",
@@ -526,7 +629,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_52.html",
       "filename": "RICOH_MP_C3300_PCL6.exe",
-      "notes": "> RPCS           32位元    64位元 PCL6"
+      "notes": "> RPCS           32位元    64位元 PCL6",
+      "series": "其他",
+      "source": "blogger"
     },
     {
       "id": "ricoh-40",
@@ -539,7 +644,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_52.html",
       "filename": "RICOH_MP_C3300_FAX.exe",
-      "notes": "e/file\" target=\"_blank\">64位元 PCL6            32位元    64位元 電腦傳真"
+      "notes": "e/file\" target=\"_blank\">64位元 PCL6            32位元    64位元 電腦傳真",
+      "series": "其他",
+      "source": "blogger"
     },
     {
       "id": "ricoh-41",
@@ -552,7 +659,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_71.html",
       "filename": "RICOH_MPC_4500_X32_RPCS.exe",
-      "notes": "itemprop='description articleBody'>   RICOH  MP C3500/C4500 以下空間為MediaFire RPCS"
+      "notes": "itemprop='description articleBody'>   RICOH  MP C3500/C4500 以下空間為MediaFire RPCS",
+      "series": "其他",
+      "source": "blogger"
     },
     {
       "id": "ricoh-42",
@@ -565,7 +674,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_71.html",
       "filename": "RICOH_MPC_4500_X64_RPCS.exe",
-      "notes": "ription articleBody'>   RICOH  MP C3500/C4500 以下空間為MediaFire RPCS           32位元"
+      "notes": "ription articleBody'>   RICOH  MP C3500/C4500 以下空間為MediaFire RPCS           32位元",
+      "series": "其他",
+      "source": "blogger"
     },
     {
       "id": "ricoh-43",
@@ -578,7 +689,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_71.html",
       "filename": "RICOH_MP_C4500PCL6.exe",
-      "notes": "eft;\">RPCS           32位元    64位元   PCL6"
+      "notes": "eft;\">RPCS           32位元    64位元   PCL6",
+      "series": "其他",
+      "source": "blogger"
     },
     {
       "id": "ricoh-44",
@@ -591,7 +704,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/blog-page_71.html",
       "filename": "PCFAX_32bit.exe",
-      "notes": "_blank\">32位元    64位元   PCL6            32位元  64位元 電腦傳真"
+      "notes": "_blank\">32位元    64位元   PCL6            32位元  64位元 電腦傳真",
+      "series": "其他",
+      "source": "blogger"
     },
     {
       "id": "ricoh-45",
@@ -604,7 +719,9 @@
       "host": "gdrive",
       "page": "https://printyen.blogspot.com/p/blog-page_71.html",
       "filename": "",
-      "notes": "le\" target=\"_blank\">64位元   PCL6            32位元  64位元 電腦傳真       32位元"
+      "notes": "le\" target=\"_blank\">64位元   PCL6            32位元  64位元 電腦傳真       32位元",
+      "series": "其他",
+      "source": "blogger"
     },
     {
       "id": "ricoh-46",
@@ -617,7 +734,9 @@
       "host": "gdrive",
       "page": "https://printyen.blogspot.com/p/blog-page_71.html",
       "filename": "",
-      "notes": "arget=\"_blank\">32位元    64位元 ※本執行檔為官方驅動改為自動安裝如有安全疑慮請勿下載 以下空間為GOOGLE RPCS"
+      "notes": "arget=\"_blank\">32位元    64位元 ※本執行檔為官方驅動改為自動安裝如有安全疑慮請勿下載 以下空間為GOOGLE RPCS",
+      "series": "其他",
+      "source": "blogger"
     },
     {
       "id": "ricoh-47",
@@ -630,7 +749,9 @@
       "host": "gdrive",
       "page": "https://printyen.blogspot.com/p/blog-page_71.html",
       "filename": "",
-      "notes": "k\">64位元 ※本執行檔為官方驅動改為自動安裝如有安全疑慮請勿下載 以下空間為GOOGLE RPCS          32bit"
+      "notes": "k\">64位元 ※本執行檔為官方驅動改為自動安裝如有安全疑慮請勿下載 以下空間為GOOGLE RPCS          32bit",
+      "series": "其他",
+      "source": "blogger"
     },
     {
       "id": "ricoh-48",
@@ -643,7 +764,9 @@
       "host": "gdrive",
       "page": "https://printyen.blogspot.com/p/blog-page_71.html",
       "filename": "",
-      "notes": "bsp;   32bit     64bit PCL6"
+      "notes": "bsp;   32bit     64bit PCL6",
+      "series": "其他",
+      "source": "blogger"
     },
     {
       "id": "ricoh-49",
@@ -656,7 +779,9 @@
       "host": "gdrive",
       "page": "https://printyen.blogspot.com/p/blog-page_71.html",
       "filename": "",
-      "notes": ";id=1WirlpaRWdm4aT8acSzDmAfTHIrsH97nk\">64bit PCL6           32bit     64bit 電腦傳真"
+      "notes": ";id=1WirlpaRWdm4aT8acSzDmAfTHIrsH97nk\">64bit PCL6           32bit     64bit 電腦傳真",
+      "series": "其他",
+      "source": "blogger"
     },
     {
       "id": "ricoh-50",
@@ -669,7 +794,9 @@
       "host": "gdrive",
       "page": "https://printyen.blogspot.com/p/blog-page_71.html",
       "filename": "",
-      "notes": "sp;      32bit     64bit 電腦傳真     32bit"
+      "notes": "sp;      32bit     64bit 電腦傳真     32bit",
+      "series": "其他",
+      "source": "blogger"
     },
     {
       "id": "guide-51",
@@ -682,7 +809,9 @@
       "host": "blogger",
       "page": "https://printyen.blogspot.com/p/ricoh_29.html",
       "filename": "",
-      "notes": "Blogger 圖文教學，開啟瀏覽器"
+      "notes": "Blogger 圖文教學，開啟瀏覽器",
+      "series": "其他",
+      "source": "blogger"
     },
     {
       "id": "ricoh-52",
@@ -695,7 +824,9 @@
       "host": "gdrive",
       "page": "https://printyen.blogspot.com/p/ricoh.html",
       "filename": "設定使用者代碼.pdf",
-      "notes": ""
+      "notes": "",
+      "series": "其他",
+      "source": "blogger"
     },
     {
       "id": "ricoh-53",
@@ -708,7 +839,9 @@
       "host": "mediafire",
       "page": "https://printyen.blogspot.com/p/ricoh.html",
       "filename": "影印機驅動程式(九導).exe",
-      "notes": "官方驅動改自動安裝；如有安全疑慮請勿下載"
+      "notes": "官方驅動改自動安裝；如有安全疑慮請勿下載",
+      "series": "其他",
+      "source": "blogger"
     },
     {
       "id": "mega-backup",
@@ -721,8 +854,1741 @@
       "host": "mega",
       "page": "https://printyen.blogspot.com/p/ricoh.html",
       "filename": "",
-      "notes": "無法直連下載，會開啟瀏覽器"
+      "notes": "無法直連下載，會開啟瀏覽器",
+      "series": "其他",
+      "source": "blogger"
+    },
+    {
+      "id": "official-55",
+      "model": "IM C2000/C2500/C3000/C3500",
+      "series": "IMC",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win64",
+      "title": "IM C2000/C2500/C3000/C3500 · PCL6 · Win64 · z06589L22.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001345/0001345822/V3400/z06589L22.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc2000/imc2000ti.htm",
+      "filename": "z06589L22.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "IM C2000",
+        "IM C2500",
+        "IM C3000",
+        "IM C3500"
+      ]
+    },
+    {
+      "id": "official-56",
+      "model": "Universal Print（全機型）",
+      "series": "繁體中文",
+      "kind": "driver",
+      "type": "PCL6-UPD",
+      "os": "Win64",
+      "title": "Universal Print · PCL6-UPD · Win64 · z07510L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346104/V44600/z07510L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc2000/imc2000ti.htm",
+      "filename": "z07510L24.exe",
+      "notes": "Ricoh Driver for Universal Print；多機型通用，安裝時可選繁體中文。",
+      "source": "official"
+    },
+    {
+      "id": "official-57",
+      "model": "IM C2000/C2500/C3000/C3500",
+      "series": "IMC",
+      "kind": "driver",
+      "type": "PCL6-UPD",
+      "os": "Win64",
+      "title": "IM C2000/C2500/C3000/C3500 · PCL6-UPD · Win64 · z07510L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346104/V44600/z07510L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc2000/imc2000ti.htm",
+      "filename": "z07510L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "IM C2000",
+        "IM C2500",
+        "IM C3000",
+        "IM C3500"
+      ]
+    },
+    {
+      "id": "official-58",
+      "model": "Universal Print（全機型）",
+      "series": "繁體中文",
+      "kind": "driver",
+      "type": "PS-UPD",
+      "os": "Win64",
+      "title": "Universal Print · PS-UPD · Win64 · z07513L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346099/V44600/z07513L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc2000/imc2000ti.htm",
+      "filename": "z07513L24.exe",
+      "notes": "Ricoh Driver for Universal Print；多機型通用，安裝時可選繁體中文。",
+      "source": "official"
+    },
+    {
+      "id": "official-59",
+      "model": "IM C2000/C2500/C3000/C3500",
+      "series": "IMC",
+      "kind": "driver",
+      "type": "PS-UPD",
+      "os": "Win64",
+      "title": "IM C2000/C2500/C3000/C3500 · PS-UPD · Win64 · z07513L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346099/V44600/z07513L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc2000/imc2000ti.htm",
+      "filename": "z07513L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "IM C2000",
+        "IM C2500",
+        "IM C3000",
+        "IM C3500"
+      ]
+    },
+    {
+      "id": "official-60",
+      "model": "IM C4500/C5500/C6000",
+      "series": "IMC",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win64",
+      "title": "IM C4500/C5500/C6000 · PCL6 · Win64 · z06588L22.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001345/0001345821/V3400/z06588L22.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc4500/imc4500ti.htm",
+      "filename": "z06588L22.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "IM C4500",
+        "IM C5500",
+        "IM C6000"
+      ]
+    },
+    {
+      "id": "official-61",
+      "model": "IM C4500/C5500/C6000",
+      "series": "IMC",
+      "kind": "driver",
+      "type": "PCL6-UPD",
+      "os": "Win64",
+      "title": "IM C4500/C5500/C6000 · PCL6-UPD · Win64 · z07510L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346104/V44600/z07510L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc4500/imc4500ti.htm",
+      "filename": "z07510L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "IM C4500",
+        "IM C5500",
+        "IM C6000"
+      ]
+    },
+    {
+      "id": "official-62",
+      "model": "IM C4500/C5500/C6000",
+      "series": "IMC",
+      "kind": "driver",
+      "type": "PS-UPD",
+      "os": "Win64",
+      "title": "IM C4500/C5500/C6000 · PS-UPD · Win64 · z07513L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346099/V44600/z07513L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc4500/imc4500ti.htm",
+      "filename": "z07513L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "IM C4500",
+        "IM C5500",
+        "IM C6000"
+      ]
+    },
+    {
+      "id": "official-63",
+      "model": "IM C2010/C2510/C3010/C3510",
+      "series": "IMC",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win64",
+      "title": "IM C2010/C2510/C3010/C3510 · PCL6 · Win64 · z07185L23.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346141/V1600/z07185L23.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc2010/imc2010ti.htm",
+      "filename": "z07185L23.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "IM C2010",
+        "IM C2510",
+        "IM C3010",
+        "IM C3510"
+      ]
+    },
+    {
+      "id": "official-64",
+      "model": "IM C2010/C2510/C3010/C3510",
+      "series": "IMC",
+      "kind": "driver",
+      "type": "PCL6-UPD",
+      "os": "Win64",
+      "title": "IM C2010/C2510/C3010/C3510 · PCL6-UPD · Win64 · z07510L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346104/V44600/z07510L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc2010/imc2010ti.htm",
+      "filename": "z07510L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "IM C2010",
+        "IM C2510",
+        "IM C3010",
+        "IM C3510"
+      ]
+    },
+    {
+      "id": "official-65",
+      "model": "IM C2010/C2510/C3010/C3510",
+      "series": "IMC",
+      "kind": "driver",
+      "type": "PS-UPD",
+      "os": "Win64",
+      "title": "IM C2010/C2510/C3010/C3510 · PS-UPD · Win64 · z07513L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346099/V44600/z07513L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc2010/imc2010ti.htm",
+      "filename": "z07513L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "IM C2010",
+        "IM C2510",
+        "IM C3010",
+        "IM C3510"
+      ]
+    },
+    {
+      "id": "official-66",
+      "model": "IM C4510/C5510/C6010",
+      "series": "IMC",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win64",
+      "title": "IM C4510/C5510/C6010 · PCL6 · Win64 · z07182L23.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346138/V1700/z07182L23.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc4510/imc4510ti.htm",
+      "filename": "z07182L23.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "IM C4510",
+        "IM C5510",
+        "IM C6010"
+      ]
+    },
+    {
+      "id": "official-67",
+      "model": "IM C4510/C5510/C6010",
+      "series": "IMC",
+      "kind": "driver",
+      "type": "PCL6-UPD",
+      "os": "Win64",
+      "title": "IM C4510/C5510/C6010 · PCL6-UPD · Win64 · z07510L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346104/V44600/z07510L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc4510/imc4510ti.htm",
+      "filename": "z07510L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "IM C4510",
+        "IM C5510",
+        "IM C6010"
+      ]
+    },
+    {
+      "id": "official-68",
+      "model": "IM C4510/C5510/C6010",
+      "series": "IMC",
+      "kind": "driver",
+      "type": "PS-UPD",
+      "os": "Win64",
+      "title": "IM C4510/C5510/C6010 · PS-UPD · Win64 · z07513L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346099/V44600/z07513L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc4510/imc4510ti.htm",
+      "filename": "z07513L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "IM C4510",
+        "IM C5510",
+        "IM C6010"
+      ]
+    },
+    {
+      "id": "official-69",
+      "model": "MP C3002/C3502",
+      "series": "02",
+      "kind": "driver",
+      "type": "PCL6-UPD",
+      "os": "Win64",
+      "title": "MP C3002/C3502 · PCL6-UPD · Win64 · z07510L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346104/V44600/z07510L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc300/mpc300ti.htm",
+      "filename": "z07510L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "MP C3002",
+        "MP C3502"
+      ]
+    },
+    {
+      "id": "official-70",
+      "model": "MP C3002/C3502",
+      "series": "02",
+      "kind": "driver",
+      "type": "PS-UPD",
+      "os": "Win64",
+      "title": "MP C3002/C3502 · PS-UPD · Win64 · z07513L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346099/V44600/z07513L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc300/mpc300ti.htm",
+      "filename": "z07513L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "MP C3002",
+        "MP C3502"
+      ]
+    },
+    {
+      "id": "official-71",
+      "model": "MP C3002/C3502",
+      "series": "02",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win64",
+      "title": "MP C3002/C3502 · PCL6 · Win64 · z05786L13.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001345/0001345415/V11000/z05786L13.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc300/mpc300ti.htm",
+      "filename": "z05786L13.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C3002",
+        "MP C3502"
+      ]
+    },
+    {
+      "id": "official-72",
+      "model": "MP C3002/C3502",
+      "series": "02",
+      "kind": "driver",
+      "type": "PS3",
+      "os": "Win64",
+      "title": "MP C3002/C3502 · PS3 · Win64 · z05858L9.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001343/0001343739/V1800/z05858L9.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc300/mpc300ti.htm",
+      "filename": "z05858L9.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C3002",
+        "MP C3502"
+      ]
+    },
+    {
+      "id": "official-73",
+      "model": "MP C3002/C3502",
+      "series": "02",
+      "kind": "driver",
+      "type": "WIA",
+      "os": "Win64",
+      "title": "MP C3002/C3502 · WIA · Win64 · z66720L16.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001267/0001267111/V10542/z66720L16.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc300/mpc300ti.htm",
+      "filename": "z66720L16.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C3002",
+        "MP C3502"
+      ]
+    },
+    {
+      "id": "official-74",
+      "model": "MP C3002/C3502",
+      "series": "02",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "MP C3002/C3502 · PC-FAX · Win64 · z96696en.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001330/0001330258/V178/z96696en.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc300/mpc300ti.htm",
+      "filename": "z96696en.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C3002",
+        "MP C3502"
+      ]
+    },
+    {
+      "id": "official-75",
+      "model": "MP C3002/C3502",
+      "series": "02",
+      "kind": "driver",
+      "type": "TWAIN",
+      "os": "Win64",
+      "title": "MP C3002/C3502 · TWAIN · Win64 · z56837L16.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001226/0001226545/V44101/z56837L16.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc300/mpc300ti.htm",
+      "filename": "z56837L16.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C3002",
+        "MP C3502"
+      ]
+    },
+    {
+      "id": "official-76",
+      "model": "MP C4502/C5502",
+      "series": "02",
+      "kind": "driver",
+      "type": "PCL6-UPD",
+      "os": "Win64",
+      "title": "MP C4502/C5502 · PCL6-UPD · Win64 · z07510L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346104/V44600/z07510L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc450/mpc450ti.htm",
+      "filename": "z07510L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "MP C4502",
+        "MP C5502"
+      ]
+    },
+    {
+      "id": "official-77",
+      "model": "MP C4502/C5502",
+      "series": "02",
+      "kind": "driver",
+      "type": "PS-UPD",
+      "os": "Win64",
+      "title": "MP C4502/C5502 · PS-UPD · Win64 · z07513L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346099/V44600/z07513L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc450/mpc450ti.htm",
+      "filename": "z07513L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "MP C4502",
+        "MP C5502"
+      ]
+    },
+    {
+      "id": "official-78",
+      "model": "MP C4502/C5502",
+      "series": "02",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win64",
+      "title": "MP C4502/C5502 · PCL6 · Win64 · z05854L13.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001345/0001345454/V11100/z05854L13.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc450/mpc450ti.htm",
+      "filename": "z05854L13.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C4502",
+        "MP C5502"
+      ]
+    },
+    {
+      "id": "official-79",
+      "model": "MP C4502/C5502",
+      "series": "02",
+      "kind": "driver",
+      "type": "PS3",
+      "os": "Win64",
+      "title": "MP C4502/C5502 · PS3 · Win64 · z05845L9.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001343/0001343743/V1900/z05845L9.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc450/mpc450ti.htm",
+      "filename": "z05845L9.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C4502",
+        "MP C5502"
+      ]
+    },
+    {
+      "id": "official-80",
+      "model": "MP C4502/C5502",
+      "series": "02",
+      "kind": "driver",
+      "type": "TWAIN",
+      "os": "Win64",
+      "title": "MP C4502/C5502 · TWAIN · Win64 · z56816L16.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001226/0001226506/V44101/z56816L16.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc450/mpc450ti.htm",
+      "filename": "z56816L16.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C4502",
+        "MP C5502"
+      ]
+    },
+    {
+      "id": "official-81",
+      "model": "MP C4502/C5502",
+      "series": "02",
+      "kind": "driver",
+      "type": "WIA",
+      "os": "Win64",
+      "title": "MP C4502/C5502 · WIA · Win64 · z66719L16.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001267/0001267110/V10542/z66719L16.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc450/mpc450ti.htm",
+      "filename": "z66719L16.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C4502",
+        "MP C5502"
+      ]
+    },
+    {
+      "id": "official-82",
+      "model": "MP C4502/C5502",
+      "series": "02",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "MP C4502/C5502 · PC-FAX · Win64 · z96696en.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001330/0001330258/V178/z96696en.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc450/mpc450ti.htm",
+      "filename": "z96696en.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C4502",
+        "MP C5502"
+      ]
+    },
+    {
+      "id": "official-83",
+      "model": "MP C2003/C2503/C3003/C3503",
+      "series": "03",
+      "kind": "driver",
+      "type": "PCL6-UPD",
+      "os": "Win64",
+      "title": "MP C2003/C2503/C3003/C3503 · PCL6-UPD · Win64 · z07510L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346104/V44600/z07510L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc2003/mpc2003ti.htm",
+      "filename": "z07510L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "MP C2003",
+        "MP C2503",
+        "MP C3003",
+        "MP C3503"
+      ]
+    },
+    {
+      "id": "official-84",
+      "model": "MP C2003/C2503/C3003/C3503",
+      "series": "03",
+      "kind": "driver",
+      "type": "PS-UPD",
+      "os": "Win64",
+      "title": "MP C2003/C2503/C3003/C3503 · PS-UPD · Win64 · z07513L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346099/V44600/z07513L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc2003/mpc2003ti.htm",
+      "filename": "z07513L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "MP C2003",
+        "MP C2503",
+        "MP C3003",
+        "MP C3503"
+      ]
+    },
+    {
+      "id": "official-85",
+      "model": "MP C2003/C2503/C3003/C3503",
+      "series": "03",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win64",
+      "title": "MP C2003/C2503/C3003/C3503 · PCL6 · Win64 · z06159L16.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001343/0001343703/V3100/z06159L16.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc2003/mpc2003ti.htm",
+      "filename": "z06159L16.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C2003",
+        "MP C2503",
+        "MP C3003",
+        "MP C3503"
+      ]
+    },
+    {
+      "id": "official-86",
+      "model": "MP C2003/C2503/C3003/C3503",
+      "series": "03",
+      "kind": "driver",
+      "type": "PS3",
+      "os": "Win64",
+      "title": "MP C2003/C2503/C3003/C3503 · PS3 · Win64 · z06309Lc.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001343/0001343836/V3100/z06309Lc.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc2003/mpc2003ti.htm",
+      "filename": "z06309Lc.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C2003",
+        "MP C2503",
+        "MP C3003",
+        "MP C3503"
+      ]
+    },
+    {
+      "id": "official-87",
+      "model": "MP C2003/C2503/C3003/C3503",
+      "series": "03",
+      "kind": "driver",
+      "type": "TWAIN",
+      "os": "Win64",
+      "title": "MP C2003/C2503/C3003/C3503 · TWAIN · Win64 · z07344L20.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346239/V58300/z07344L20.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc2003/mpc2003ti.htm",
+      "filename": "z07344L20.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C2003",
+        "MP C2503",
+        "MP C3003",
+        "MP C3503"
+      ]
+    },
+    {
+      "id": "official-88",
+      "model": "MP C2003/C2503/C3003/C3503",
+      "series": "03",
+      "kind": "driver",
+      "type": "WIA",
+      "os": "Win64",
+      "title": "MP C2003/C2503/C3003/C3503 · WIA · Win64 · z89245L17.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001317/0001317651/V10984/z89245L17.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc2003/mpc2003ti.htm",
+      "filename": "z89245L17.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C2003",
+        "MP C2503",
+        "MP C3003",
+        "MP C3503"
+      ]
+    },
+    {
+      "id": "official-89",
+      "model": "MP C2003/C2503/C3003/C3503",
+      "series": "03",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "MP C2003/C2503/C3003/C3503 · PC-FAX · Win64 · z07347L1f.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346242/V15500/z07347L1f.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc2003/mpc2003ti.htm",
+      "filename": "z07347L1f.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C2003",
+        "MP C2503",
+        "MP C3003",
+        "MP C3503"
+      ]
+    },
+    {
+      "id": "official-90",
+      "model": "MP C4503/C5503/C6003",
+      "series": "03",
+      "kind": "driver",
+      "type": "PCL6-UPD",
+      "os": "Win64",
+      "title": "MP C4503/C5503/C6003 · PCL6-UPD · Win64 · z07510L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346104/V44600/z07510L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc4503/mpc4503ti.htm",
+      "filename": "z07510L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "MP C4503",
+        "MP C5503",
+        "MP C6003"
+      ]
+    },
+    {
+      "id": "official-91",
+      "model": "MP C4503/C5503/C6003",
+      "series": "03",
+      "kind": "driver",
+      "type": "PS-UPD",
+      "os": "Win64",
+      "title": "MP C4503/C5503/C6003 · PS-UPD · Win64 · z07513L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346099/V44600/z07513L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc4503/mpc4503ti.htm",
+      "filename": "z07513L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "MP C4503",
+        "MP C5503",
+        "MP C6003"
+      ]
+    },
+    {
+      "id": "official-92",
+      "model": "MP C4503/C5503/C6003",
+      "series": "03",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win64",
+      "title": "MP C4503/C5503/C6003 · PCL6 · Win64 · z06208L16.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001343/0001343702/V3100/z06208L16.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc4503/mpc4503ti.htm",
+      "filename": "z06208L16.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C4503",
+        "MP C5503",
+        "MP C6003"
+      ]
+    },
+    {
+      "id": "official-93",
+      "model": "MP C4503/C5503/C6003",
+      "series": "03",
+      "kind": "driver",
+      "type": "PS3",
+      "os": "Win64",
+      "title": "MP C4503/C5503/C6003 · PS3 · Win64 · z06298Lc.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001343/0001343835/V3100/z06298Lc.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc4503/mpc4503ti.htm",
+      "filename": "z06298Lc.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C4503",
+        "MP C5503",
+        "MP C6003"
+      ]
+    },
+    {
+      "id": "official-94",
+      "model": "MP C4503/C5503/C6003",
+      "series": "03",
+      "kind": "driver",
+      "type": "TWAIN",
+      "os": "Win64",
+      "title": "MP C4503/C5503/C6003 · TWAIN · Win64 · z07344L20.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346239/V58300/z07344L20.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc4503/mpc4503ti.htm",
+      "filename": "z07344L20.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C4503",
+        "MP C5503",
+        "MP C6003"
+      ]
+    },
+    {
+      "id": "official-95",
+      "model": "MP C4503/C5503/C6003",
+      "series": "03",
+      "kind": "driver",
+      "type": "WIA",
+      "os": "Win64",
+      "title": "MP C4503/C5503/C6003 · WIA · Win64 · z89244L17.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001317/0001317650/V10994/z89244L17.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc4503/mpc4503ti.htm",
+      "filename": "z89244L17.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C4503",
+        "MP C5503",
+        "MP C6003"
+      ]
+    },
+    {
+      "id": "official-96",
+      "model": "MP C4503/C5503/C6003",
+      "series": "03",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "MP C4503/C5503/C6003 · PC-FAX · Win64 · z07347L1f.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346242/V15500/z07347L1f.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc4503/mpc4503ti.htm",
+      "filename": "z07347L1f.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C4503",
+        "MP C5503",
+        "MP C6003"
+      ]
+    },
+    {
+      "id": "official-97",
+      "model": "MP C3004/C3504",
+      "series": "04",
+      "kind": "driver",
+      "type": "PCL6-UPD",
+      "os": "Win64",
+      "title": "MP C3004/C3504 · PCL6-UPD · Win64 · z07510L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346104/V44600/z07510L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc3004/mpc3004ti.htm",
+      "filename": "z07510L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "MP C3004",
+        "MP C3504"
+      ]
+    },
+    {
+      "id": "official-98",
+      "model": "MP C3004/C3504",
+      "series": "04",
+      "kind": "driver",
+      "type": "PS-UPD",
+      "os": "Win64",
+      "title": "MP C3004/C3504 · PS-UPD · Win64 · z07513L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346099/V44600/z07513L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc3004/mpc3004ti.htm",
+      "filename": "z07513L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "MP C3004",
+        "MP C3504"
+      ]
+    },
+    {
+      "id": "official-99",
+      "model": "MP C3004/C3504",
+      "series": "04",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win64",
+      "title": "MP C3004/C3504 · PCL6 · Win64 · z06688L16.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001343/0001343373/V3200/z06688L16.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc3004/mpc3004ti.htm",
+      "filename": "z06688L16.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C3004",
+        "MP C3504"
+      ]
+    },
+    {
+      "id": "official-100",
+      "model": "MP C3004/C3504",
+      "series": "04",
+      "kind": "driver",
+      "type": "PS3",
+      "os": "Win64",
+      "title": "MP C3004/C3504 · PS3 · Win64 · z06707Lc.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001343/0001343438/V3200/z06707Lc.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc3004/mpc3004ti.htm",
+      "filename": "z06707Lc.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C3004",
+        "MP C3504"
+      ]
+    },
+    {
+      "id": "official-101",
+      "model": "MP C3004/C3504",
+      "series": "04",
+      "kind": "driver",
+      "type": "TWAIN",
+      "os": "Win64",
+      "title": "MP C3004/C3504 · TWAIN · Win64 · z07344L20.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346239/V58300/z07344L20.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc3004/mpc3004ti.htm",
+      "filename": "z07344L20.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C3004",
+        "MP C3504"
+      ]
+    },
+    {
+      "id": "official-102",
+      "model": "MP C3004/C3504",
+      "series": "04",
+      "kind": "driver",
+      "type": "WIA",
+      "os": "Win64",
+      "title": "MP C3004/C3504 · WIA · Win64 · z89264L17.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001317/0001317740/V101380/z89264L17.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc3004/mpc3004ti.htm",
+      "filename": "z89264L17.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C3004",
+        "MP C3504"
+      ]
+    },
+    {
+      "id": "official-103",
+      "model": "MP C3004/C3504",
+      "series": "04",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "MP C3004/C3504 · PC-FAX · Win64 · z07347L1f.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346242/V15500/z07347L1f.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc3004/mpc3004ti.htm",
+      "filename": "z07347L1f.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C3004",
+        "MP C3504"
+      ]
+    },
+    {
+      "id": "official-104",
+      "model": "MP C4504/C5504/C6004",
+      "series": "04",
+      "kind": "driver",
+      "type": "PCL6-UPD",
+      "os": "Win64",
+      "title": "MP C4504/C5504/C6004 · PCL6-UPD · Win64 · z07510L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346104/V44600/z07510L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc4504/mpc4504ti.htm",
+      "filename": "z07510L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "MP C4504",
+        "MP C5504",
+        "MP C6004"
+      ]
+    },
+    {
+      "id": "official-105",
+      "model": "MP C4504/C5504/C6004",
+      "series": "04",
+      "kind": "driver",
+      "type": "PS-UPD",
+      "os": "Win64",
+      "title": "MP C4504/C5504/C6004 · PS-UPD · Win64 · z07513L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346099/V44600/z07513L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc4504/mpc4504ti.htm",
+      "filename": "z07513L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "MP C4504",
+        "MP C5504",
+        "MP C6004"
+      ]
+    },
+    {
+      "id": "official-106",
+      "model": "MP C4504/C5504/C6004",
+      "series": "04",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win64",
+      "title": "MP C4504/C5504/C6004 · PCL6 · Win64 · z06687L16.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001343/0001343370/V3200/z06687L16.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc4504/mpc4504ti.htm",
+      "filename": "z06687L16.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C4504",
+        "MP C5504",
+        "MP C6004"
+      ]
+    },
+    {
+      "id": "official-107",
+      "model": "MP C4504/C5504/C6004",
+      "series": "04",
+      "kind": "driver",
+      "type": "PS3",
+      "os": "Win64",
+      "title": "MP C4504/C5504/C6004 · PS3 · Win64 · z06705Lc.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001343/0001343437/V3200/z06705Lc.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc4504/mpc4504ti.htm",
+      "filename": "z06705Lc.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C4504",
+        "MP C5504",
+        "MP C6004"
+      ]
+    },
+    {
+      "id": "official-108",
+      "model": "MP C4504/C5504/C6004",
+      "series": "04",
+      "kind": "driver",
+      "type": "TWAIN",
+      "os": "Win64",
+      "title": "MP C4504/C5504/C6004 · TWAIN · Win64 · z07344L20.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346239/V58300/z07344L20.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc4504/mpc4504ti.htm",
+      "filename": "z07344L20.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C4504",
+        "MP C5504",
+        "MP C6004"
+      ]
+    },
+    {
+      "id": "official-109",
+      "model": "MP C4504/C5504/C6004",
+      "series": "04",
+      "kind": "driver",
+      "type": "WIA",
+      "os": "Win64",
+      "title": "MP C4504/C5504/C6004 · WIA · Win64 · z89269L17.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001317/0001317741/V101380/z89269L17.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc4504/mpc4504ti.htm",
+      "filename": "z89269L17.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C4504",
+        "MP C5504",
+        "MP C6004"
+      ]
+    },
+    {
+      "id": "official-110",
+      "model": "MP C4504/C5504/C6004",
+      "series": "04",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "MP C4504/C5504/C6004 · PC-FAX · Win64 · z07347L1f.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346242/V15500/z07347L1f.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc4504/mpc4504ti.htm",
+      "filename": "z07347L1f.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP C4504",
+        "MP C5504",
+        "MP C6004"
+      ]
+    },
+    {
+      "id": "official-111",
+      "model": "MP 2352/2852/3352",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PCL6-UPD",
+      "os": "Win64",
+      "title": "MP 2352/2852/3352 · PCL6-UPD · Win64 · z07510L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346104/V44600/z07510L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp23/mp23ti.htm",
+      "filename": "z07510L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "MP 2352",
+        "MP 2852",
+        "MP 3352"
+      ]
+    },
+    {
+      "id": "official-112",
+      "model": "MP 2352/2852/3352",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PS-UPD",
+      "os": "Win64",
+      "title": "MP 2352/2852/3352 · PS-UPD · Win64 · z07513L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346099/V44600/z07513L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp23/mp23ti.htm",
+      "filename": "z07513L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "MP 2352",
+        "MP 2852",
+        "MP 3352"
+      ]
+    },
+    {
+      "id": "official-113",
+      "model": "MP 2352/2852/3352",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win64",
+      "title": "MP 2352/2852/3352 · PCL6 · Win64 · z06081L11.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001345/0001345568/V1800/z06081L11.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp23/mp23ti.htm",
+      "filename": "z06081L11.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP 2352",
+        "MP 2852",
+        "MP 3352"
+      ]
+    },
+    {
+      "id": "official-114",
+      "model": "MP 2352/2852/3352",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PS3",
+      "os": "Win64",
+      "title": "MP 2352/2852/3352 · PS3 · Win64 · z06079L9.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001345/0001345563/V1600/z06079L9.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp23/mp23ti.htm",
+      "filename": "z06079L9.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP 2352",
+        "MP 2852",
+        "MP 3352"
+      ]
+    },
+    {
+      "id": "official-115",
+      "model": "MP 2352/2852/3352",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "WIA",
+      "os": "Win64",
+      "title": "MP 2352/2852/3352 · WIA · Win64 · z66575L14.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001266/0001266986/V10382/z66575L14.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp23/mp23ti.htm",
+      "filename": "z66575L14.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP 2352",
+        "MP 2852",
+        "MP 3352"
+      ]
+    },
+    {
+      "id": "official-116",
+      "model": "MP 2352/2852/3352",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "MP 2352/2852/3352 · PC-FAX · Win64 · z96740en.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001330/0001330730/V178/z96740en.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp23/mp23ti.htm",
+      "filename": "z96740en.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP 2352",
+        "MP 2852",
+        "MP 3352"
+      ]
+    },
+    {
+      "id": "official-117",
+      "model": "MP 2352/2852/3352",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "TWAIN",
+      "os": "Win64",
+      "title": "MP 2352/2852/3352 · TWAIN · Win64 · z56818en.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001226/0001226511/V44001/z56818en.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp23/mp23ti.htm",
+      "filename": "z56818en.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP 2352",
+        "MP 2852",
+        "MP 3352"
+      ]
+    },
+    {
+      "id": "official-118",
+      "model": "MP 2554/3054/3554/4054/5054/6054",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PCL6-UPD",
+      "os": "Win64",
+      "title": "MP 2554/3054/3554/4054/5054/6054 · PCL6-UPD · Win64 · z07510L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346104/V44600/z07510L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp2554/mp2554ti.htm",
+      "filename": "z07510L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "MP 2554",
+        "MP 3054",
+        "MP 3554",
+        "MP 4054",
+        "MP 5054",
+        "MP 6054"
+      ]
+    },
+    {
+      "id": "official-119",
+      "model": "MP 2554/3054/3554/4054/5054/6054",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PS-UPD",
+      "os": "Win64",
+      "title": "MP 2554/3054/3554/4054/5054/6054 · PS-UPD · Win64 · z07513L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346099/V44600/z07513L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp2554/mp2554ti.htm",
+      "filename": "z07513L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "MP 2554",
+        "MP 3054",
+        "MP 3554",
+        "MP 4054",
+        "MP 5054",
+        "MP 6054"
+      ]
+    },
+    {
+      "id": "official-120",
+      "model": "MP 2554/3054/3554/4054/5054/6054",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win64",
+      "title": "MP 2554/3054/3554/4054/5054/6054 · PCL6 · Win64 · z06701L16.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001343/0001343303/V3200/z06701L16.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp2554/mp2554ti.htm",
+      "filename": "z06701L16.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP 2554",
+        "MP 3054",
+        "MP 3554",
+        "MP 4054",
+        "MP 5054",
+        "MP 6054"
+      ]
+    },
+    {
+      "id": "official-121",
+      "model": "MP 2554/3054/3554/4054/5054/6054",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PS3",
+      "os": "Win64",
+      "title": "MP 2554/3054/3554/4054/5054/6054 · PS3 · Win64 · z06712Lc.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001343/0001343442/V3200/z06712Lc.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp2554/mp2554ti.htm",
+      "filename": "z06712Lc.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP 2554",
+        "MP 3054",
+        "MP 3554",
+        "MP 4054",
+        "MP 5054",
+        "MP 6054"
+      ]
+    },
+    {
+      "id": "official-122",
+      "model": "MP 2554/3054/3554/4054/5054/6054",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "TWAIN",
+      "os": "Win64",
+      "title": "MP 2554/3054/3554/4054/5054/6054 · TWAIN · Win64 · z07344L20.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346239/V58300/z07344L20.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp2554/mp2554ti.htm",
+      "filename": "z07344L20.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP 2554",
+        "MP 3054",
+        "MP 3554",
+        "MP 4054",
+        "MP 5054",
+        "MP 6054"
+      ]
+    },
+    {
+      "id": "official-123",
+      "model": "MP 2554/3054/3554/4054/5054/6054",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "WIA",
+      "os": "Win64",
+      "title": "MP 2554/3054/3554/4054/5054/6054 · WIA · Win64 · z69595L17.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001274/0001274151/V101171/z69595L17.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp2554/mp2554ti.htm",
+      "filename": "z69595L17.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP 2554",
+        "MP 3054",
+        "MP 3554",
+        "MP 4054",
+        "MP 5054",
+        "MP 6054"
+      ]
+    },
+    {
+      "id": "official-124",
+      "model": "MP 2554/3054/3554/4054/5054/6054",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "MP 2554/3054/3554/4054/5054/6054 · PC-FAX · Win64 · z07347L1f.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346242/V15500/z07347L1f.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp2554/mp2554ti.htm",
+      "filename": "z07347L1f.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP 2554",
+        "MP 3054",
+        "MP 3554",
+        "MP 4054",
+        "MP 5054",
+        "MP 6054"
+      ]
+    },
+    {
+      "id": "official-125",
+      "model": "MP 2555/3055/3555/4055/5055/6055",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PCL6-UPD",
+      "os": "Win64",
+      "title": "MP 2555/3055/3555/4055/5055/6055 · PCL6-UPD · Win64 · z07510L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346104/V44600/z07510L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp2595/mp2595ti.htm",
+      "filename": "z07510L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "MP 2555",
+        "MP 3055",
+        "MP 3555",
+        "MP 4055",
+        "MP 5055",
+        "MP 6055"
+      ]
+    },
+    {
+      "id": "official-126",
+      "model": "MP 2555/3055/3555/4055/5055/6055",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PS-UPD",
+      "os": "Win64",
+      "title": "MP 2555/3055/3555/4055/5055/6055 · PS-UPD · Win64 · z07513L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346099/V44600/z07513L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp2595/mp2595ti.htm",
+      "filename": "z07513L24.exe",
+      "notes": "官方繁中區域頁 ti",
+      "source": "official",
+      "models_covered": [
+        "MP 2555",
+        "MP 3055",
+        "MP 3555",
+        "MP 4055",
+        "MP 5055",
+        "MP 6055"
+      ]
+    },
+    {
+      "id": "official-127",
+      "model": "MP 2555/3055/3555/4055/5055/6055",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win64",
+      "title": "MP 2555/3055/3555/4055/5055/6055 · PCL6 · Win64 · z06725L16.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001343/0001343274/V3300/z06725L16.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp2595/mp2595ti.htm",
+      "filename": "z06725L16.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP 2555",
+        "MP 3055",
+        "MP 3555",
+        "MP 4055",
+        "MP 5055",
+        "MP 6055"
+      ]
+    },
+    {
+      "id": "official-128",
+      "model": "MP 2555/3055/3555/4055/5055/6055",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PS3",
+      "os": "Win64",
+      "title": "MP 2555/3055/3555/4055/5055/6055 · PS3 · Win64 · z06809Lc.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001343/0001343248/V3300/z06809Lc.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp2595/mp2595ti.htm",
+      "filename": "z06809Lc.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP 2555",
+        "MP 3055",
+        "MP 3555",
+        "MP 4055",
+        "MP 5055",
+        "MP 6055"
+      ]
+    },
+    {
+      "id": "official-129",
+      "model": "MP 2555/3055/3555/4055/5055/6055",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "TWAIN",
+      "os": "Win64",
+      "title": "MP 2555/3055/3555/4055/5055/6055 · TWAIN · Win64 · z07344L20.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346239/V58300/z07344L20.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp2595/mp2595ti.htm",
+      "filename": "z07344L20.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP 2555",
+        "MP 3055",
+        "MP 3555",
+        "MP 4055",
+        "MP 5055",
+        "MP 6055"
+      ]
+    },
+    {
+      "id": "official-130",
+      "model": "MP 2555/3055/3555/4055/5055/6055",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "WIA",
+      "os": "Win64",
+      "title": "MP 2555/3055/3555/4055/5055/6055 · WIA · Win64 · z89199L17.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001313/0001313854/V101571/z89199L17.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp2595/mp2595ti.htm",
+      "filename": "z89199L17.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP 2555",
+        "MP 3055",
+        "MP 3555",
+        "MP 4055",
+        "MP 5055",
+        "MP 6055"
+      ]
+    },
+    {
+      "id": "official-131",
+      "model": "MP 2555/3055/3555/4055/5055/6055",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "MP 2555/3055/3555/4055/5055/6055 · PC-FAX · Win64 · z07347L1f.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346242/V15500/z07347L1f.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp2595/mp2595ti.htm",
+      "filename": "z07347L1f.exe",
+      "notes": "官方繁中區域頁 ti；機種專用包來自對應英文／多語頁，安裝程式內可選繁體中文",
+      "source": "official",
+      "models_covered": [
+        "MP 2555",
+        "MP 3055",
+        "MP 3555",
+        "MP 4055",
+        "MP 5055",
+        "MP 6055"
+      ]
+    },
+    {
+      "id": "official-132",
+      "model": "MP 4002/5002",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win64",
+      "title": "MP 4002/5002 · PCL6 · Win64 · z65679en.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001123/0001123287/V1700/z65679en.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/lan_u/model/mp40/mp40en.htm",
+      "filename": "z65679en.exe",
+      "notes": "官方頁（安裝時可選繁體中文）",
+      "source": "official",
+      "models_covered": [
+        "MP 4002",
+        "MP 5002"
+      ]
+    },
+    {
+      "id": "official-133",
+      "model": "MP 4002/5002",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PCL6-UPD",
+      "os": "Win64",
+      "title": "MP 4002/5002 · PCL6-UPD · Win64 · z07510L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346104/V44600/z07510L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/lan_u/model/mp40/mp40en.htm",
+      "filename": "z07510L24.exe",
+      "notes": "官方頁（安裝時可選繁體中文）",
+      "source": "official",
+      "models_covered": [
+        "MP 4002",
+        "MP 5002"
+      ]
+    },
+    {
+      "id": "official-134",
+      "model": "MP 4002/5002",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PS3",
+      "os": "Win64",
+      "title": "MP 4002/5002 · PS3 · Win64 · z72919en.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001283/0001283950/V600/z72919en.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/lan_u/model/mp40/mp40en.htm",
+      "filename": "z72919en.exe",
+      "notes": "官方頁（安裝時可選繁體中文）",
+      "source": "official",
+      "models_covered": [
+        "MP 4002",
+        "MP 5002"
+      ]
+    },
+    {
+      "id": "official-135",
+      "model": "MP 4002/5002",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PS-UPD",
+      "os": "Win64",
+      "title": "MP 4002/5002 · PS-UPD · Win64 · z07513L24.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346099/V44600/z07513L24.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/lan_u/model/mp40/mp40en.htm",
+      "filename": "z07513L24.exe",
+      "notes": "官方頁（安裝時可選繁體中文）",
+      "source": "official",
+      "models_covered": [
+        "MP 4002",
+        "MP 5002"
+      ]
+    },
+    {
+      "id": "official-136",
+      "model": "MP 4002/5002",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "MP 4002/5002 · PC-FAX · Win64 · z96740en.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001330/0001330730/V178/z96740en.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/lan_u/model/mp40/mp40en.htm",
+      "filename": "z96740en.exe",
+      "notes": "官方頁（安裝時可選繁體中文）",
+      "source": "official",
+      "models_covered": [
+        "MP 4002",
+        "MP 5002"
+      ]
+    },
+    {
+      "id": "official-137",
+      "model": "MP 4002/5002",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "TWAIN",
+      "os": "Win64",
+      "title": "MP 4002/5002 · TWAIN · Win64 · z58490en.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001233/0001233161/V42701/z58490en.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/lan_u/model/mp40/mp40en.htm",
+      "filename": "z58490en.exe",
+      "notes": "官方頁（安裝時可選繁體中文）",
+      "source": "official",
+      "models_covered": [
+        "MP 4002",
+        "MP 5002"
+      ]
+    },
+    {
+      "id": "official-138",
+      "model": "MP 2014",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "DDST",
+      "os": "Win64",
+      "title": "MP 2014 · DDST · Win64 · z92232en.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001321/0001321592/V100/z92232en.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp2014/mp2014en.htm",
+      "filename": "z92232en.exe",
+      "notes": "官方頁（安裝時可選繁體中文）",
+      "source": "official",
+      "models_covered": [
+        "MP 2014"
+      ]
+    },
+    {
+      "id": "official-139",
+      "model": "MP 2014",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "TWAIN",
+      "os": "Win64",
+      "title": "MP 2014 · TWAIN · Win64 · z99066L9.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001336/0001336152/V101/z99066L9.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp2014/mp2014en.htm",
+      "filename": "z99066L9.exe",
+      "notes": "官方頁（安裝時可選繁體中文）",
+      "source": "official",
+      "models_covered": [
+        "MP 2014"
+      ]
+    },
+    {
+      "id": "official-140",
+      "model": "MP 2014",
+      "series": "MP黑白",
+      "kind": "driver",
+      "type": "TWAIN-USB",
+      "os": "Win64",
+      "title": "MP 2014 · TWAIN-USB · Win64 · z99070L9.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001336/0001336156/V101/z99070L9.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mp2014/mp2014en.htm",
+      "filename": "z99070L9.exe",
+      "notes": "官方頁（安裝時可選繁體中文）",
+      "source": "official",
+      "models_covered": [
+        "MP 2014"
+      ]
     }
-  ],
-  "brand": "Ricoh"
+  ]
 }
