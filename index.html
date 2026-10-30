@@ -127,7 +127,7 @@
     <header>
       <div class="brand">
         <h1>FLG 檔案箱</h1>
-        <p>影印機／複合機小工具與 Ricoh／Sharp 驅動下載</p>
+        <p>影印機／複合機小工具與 Ricoh／FUJIFILM／Sharp 驅動下載</p>
       </div>
       <div class="meta" id="lastUpdated">讀取版本資訊中…</div>
     </header>
@@ -150,6 +150,15 @@
       </div>
     </section>
 
+
+    <section class="panel" aria-label="FUJIFILM 驅動程式">
+      <h2>FUJIFILM／全錄 驅動程式（PowerShell）</h2>
+      <p class="hint">對應官方 <a href="https://support-fb.fujifilm.com/" target="_blank" rel="noopener">FUJIFILM Business Innovation 支援站</a>（優先台灣）。可貼上後依系列／機型搜尋，下載到「下載\FLG-Drivers\FUJIFILM」，並可選擇安裝。含 Multi-model Print Driver 2。</p>
+      <div class="cmd-row">
+        <code class="cmd" id="fujiCmd">irm https://lanyen007.github.io/FLGPQT/drivers/fuji.ps1 | iex</code>
+        <button type="button" class="btn btn-primary btn-copy" id="fujiCopyBtn" aria-label="複製 FUJIFILM 驅動指令">複製</button>
+      </div>
+    </section>
 
     <section class="panel" aria-label="雲端安裝驅動">
       <h2>雲端安裝驅動（PowerShell）</h2>

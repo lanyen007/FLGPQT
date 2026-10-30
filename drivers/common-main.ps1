@@ -1,6 +1,6 @@
 # FLG 驅動程式一鍵下載（共用邏輯）
-# 由 ricoh-main.ps1 / sharp-main.ps1 設定 $FlgDriverBrand、$FlgDriverJson 後載入
-# 亦可直接：傳入第一個參數 brand（ricoh|sharp），其餘為搜尋關鍵字
+# 由 ricoh-main.ps1 / sharp-main.ps1 / fuji-main.ps1 設定 $FlgDriverBrand、$FlgDriverJson 後載入
+# 亦可直接：傳入第一個參數 brand（ricoh|sharp|fuji），其餘為搜尋關鍵字
 
 $ErrorActionPreference = 'Stop'
 try {
@@ -10,7 +10,7 @@ try {
 # Brand can be preset by wrapper, or first arg
 $argList = @($args)
 if (-not $FlgDriverBrand) {
-    if ($argList.Count -gt 0 -and $argList[0] -match '^(?i)(ricoh|sharp)$') {
+    if ($argList.Count -gt 0 -and $argList[0] -match '^(?i)(ricoh|sharp|fuji|fujifilm)$') {
         $FlgDriverBrand = $argList[0]
         $argList = @($argList | Select-Object -Skip 1)
     } else {
@@ -20,16 +20,21 @@ if (-not $FlgDriverBrand) {
 $FlgDriverBrand = [string]$FlgDriverBrand
 if (-not $FlgDriverJson) {
     if ($FlgDriverBrand -match '^(?i)sharp$') { $FlgDriverJson = 'sharp.json' }
+    elseif ($FlgDriverBrand -match '^(?i)(fuji|fujifilm)$') { $FlgDriverJson = 'fuji.json' }
     else { $FlgDriverJson = 'ricoh.json'; $FlgDriverBrand = 'Ricoh' }
 }
 if ($FlgDriverBrand -match '^(?i)sharp$') {
     $FlgDriverBrand = 'Sharp'
     $FlgDriverJson = 'sharp.json'
-    $FlgSearchHint = 'MX2600、M266、452'
+    if (-not $FlgSearchHint) { $FlgSearchHint = 'MX2600、M266、452' }
+} elseif ($FlgDriverBrand -match '^(?i)(fuji|fujifilm)$') {
+    $FlgDriverBrand = 'FUJIFILM'
+    $FlgDriverJson = 'fuji.json'
+    if (-not $FlgSearchHint) { $FlgSearchHint = 'C3070、Apeos、SC2022、MMD2' }
 } else {
     $FlgDriverBrand = 'Ricoh'
     $FlgDriverJson = 'ricoh.json'
-    $FlgSearchHint = 'C3503、IM C3000'
+    if (-not $FlgSearchHint) { $FlgSearchHint = 'C3503、IM C3000' }
 }
 
 $Query = ''
@@ -253,6 +258,12 @@ function Download-DriverItem {
             $path = Join-Path $modelDir $pref
             Invoke-WebRequest -Uri $url -OutFile $path -UseBasicParsing -MaximumRedirection 5 -UserAgent 'Mozilla/5.0'
         }
+        'fujifilm' {
+            if (-not $pref) { $pref = ([Uri]$url).Segments[-1] }
+            $path = Join-Path $modelDir $pref
+            $headers = @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'; 'Referer' = 'https://support-fb.fujifilm.com/' }
+            Invoke-WebRequest -Uri $url -OutFile $path -UseBasicParsing -MaximumRedirection 8 -Headers $headers
+        }
         default {
             if (-not $pref) { $pref = 'download.bin' }
             $path = Join-Path $modelDir $pref
@@ -457,7 +468,7 @@ function Open-SourcePage {
 $catalog = Get-JsonCatalog
 Write-Ok ("清單載入完成，共 {0} 筆（{1}）" -f $catalog.count, $FlgDriverBrand)
 
-$useSeries = ($FlgDriverBrand -eq 'Ricoh') -and ((Get-SeriesList -Catalog $catalog).Count -gt 0)
+$useSeries = (($FlgDriverBrand -eq 'Ricoh') -or ($FlgDriverBrand -eq 'FUJIFILM')) -and ((Get-SeriesList -Catalog $catalog).Count -gt 0)
 $activeSeries = ''
 $models = Get-ModelList -Catalog $catalog
 
