@@ -209,30 +209,24 @@ function Install-CloudDriverWindows($Driver, [string]$Ip, [string]$PrinterName) 
         Add-Printer -Name $PrinterName -DriverName $drvName -PortName $portName -ErrorAction Stop
         Write-Ok '印表機已新增'
 
-        if (-not $script:NonInteractive) {
-            $def = Read-Host '設為預設印表機？(Y/N，預設 N)'
-            if ($def -match '^[Yy]') {
-                try {
-                    $esc = $PrinterName.Replace("'", "''")
-                    $printer = Get-CimInstance -ClassName Win32_Printer -Filter ("Name='$esc'")
-                    Invoke-CimMethod -InputObject $printer -MethodName SetDefaultPrinter | Out-Null
-                    Write-Ok '已設為預設印表機'
-                } catch {
-                    try { (New-Object -ComObject WScript.Network).SetDefaultPrinter($PrinterName) | Out-Null; Write-Ok '已設為預設印表機' }
-                    catch { Write-WarnMsg ("設預設失敗：" + $_.Exception.Message) }
-                }
-            }
-            $test = Read-Host '列印測試頁？(Y/N，預設 N)'
-            if ($test -match '^[Yy]') {
-                try {
-                    $esc = $PrinterName.Replace("'", "''")
-                    $printer = Get-CimInstance -ClassName Win32_Printer -Filter ("Name='$esc'")
-                    $null = Invoke-CimMethod -InputObject $printer -MethodName PrintTestPage
-                    Write-Ok '已送出測試頁'
-                } catch {
-                    Write-WarnMsg ("測試頁失敗：" + $_.Exception.Message)
-                }
-            }
+        $esc = $PrinterName.Replace("'", "''")
+        try { Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Windows' -Name 'LegacyDefaultPrinterMode' -Value 1 -Type DWord -ErrorAction Stop } catch {}
+        try {
+            $printer = Get-CimInstance -ClassName Win32_Printer -Filter ("Name='$esc'")
+            Invoke-CimMethod -InputObject $printer -MethodName SetDefaultPrinter | Out-Null
+            Write-Ok '已設為預設印表機'
+        } catch {
+            try { (New-Object -ComObject WScript.Network).SetDefaultPrinter($PrinterName) | Out-Null; Write-Ok '已設為預設印表機' }
+            catch { Write-WarnMsg ("設預設失敗：" + $_.Exception.Message) }
+        }
+        Start-Sleep -Seconds 2
+        try {
+            $printer = Get-CimInstance -ClassName Win32_Printer -Filter ("Name='$esc'")
+            $null = Invoke-CimMethod -InputObject $printer -MethodName PrintTestPage
+            Write-Ok '已送出測試頁'
+        } catch {
+            try { Start-Process -FilePath 'rundll32.exe' -ArgumentList ('printui.dll,PrintUIEntry /k /n "' + $PrinterName + '"') -Wait; Write-Ok '已送出測試頁' }
+            catch { Write-WarnMsg ("測試頁失敗：" + $_.Exception.Message) }
         }
 
         Write-Host ''
@@ -306,8 +300,7 @@ try {
     } elseif ($script:NonInteractive) {
         $printerName = $defaultName
     } else {
-        $entered = Read-Host ("印表機名稱（直接 Enter = $defaultName）")
-        if ([string]::IsNullOrWhiteSpace($entered)) { $printerName = $defaultName } else { $printerName = $entered.Trim() }
+        $printerName = $defaultName
     }
 
     if (-not $script:NonInteractive) {
