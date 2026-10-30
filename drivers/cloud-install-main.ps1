@@ -209,6 +209,10 @@ function Install-CloudDriverWindows($Driver, [string]$Ip, [string]$PrinterName) 
         Add-Printer -Name $PrinterName -DriverName $drvName -PortName $portName -ErrorAction Stop
         Write-Ok '印表機已新增'
 
+        try {
+            Set-PrintConfiguration -PrinterName $PrinterName -Color $false -DuplexingMode OneSided -ErrorAction Stop
+            Write-Ok '已設定預設：黑白、單面'
+        } catch { Write-WarnMsg ("設定黑白單面失敗：" + $_.Exception.Message) }
         $esc = $PrinterName.Replace("'", "''")
         try { Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Windows' -Name 'LegacyDefaultPrinterMode' -Value 1 -Type DWord -ErrorAction Stop } catch {}
         try {
