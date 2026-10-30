@@ -1,0 +1,25 @@
+{
+  "brand": "Ricoh",
+  "updated": "2026-10-30T18:46:01+08:00",
+  "count": 1,
+  "drivers": [
+    {
+      "id": "ricoh-upd-pcl6-4.46.0.0",
+      "title": "Ricoh PCL6 Driver for Universal Print（Win64）",
+      "brand": "Ricoh",
+      "type": "PCL6-UPD",
+      "os": "Win64",
+      "version": "4.46.0.0",
+      "driver_ver_date": "07/31/2026",
+      "driver_name": "PCL6 Driver for Universal Print",
+      "driver_name_alt": "RICOH PCL6 UniversalDriver V4.46",
+      "inf": "disk1/oemsetup.inf",
+      "zip_name": "RICOH_PCL6_UPD_x64_4.46.0.0.zip",
+      "url": "https://github.com/lanyen007/FLGPQT/releases/download/drivers-ricoh-upd-pcl6-4.46.0.0/RICOH_PCL6_UPD_x64_4.46.0.0.zip",
+      "sha256": "c7761664ff39797bfa29b4857c47b77befde635c8e23f0a3bf9ae06d8dd32dfa",
+      "size": 35089063,
+      "release_tag": "drivers-ricoh-upd-pcl6-4.46.0.0",
+      "notes": "官方 Universal Print PCL6；多機型通用。來源 z07510L24.exe。安裝時建議選繁體中文。"
+    }
+  ]
+}

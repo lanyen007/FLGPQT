@@ -150,6 +150,17 @@
       </div>
     </section>
 
+
+    <section class="panel" aria-label="雲端安裝驅動">
+      <h2>雲端安裝驅動（PowerShell）</h2>
+      <p class="hint">Windows 管理員權限。自動下載 Ricoh <strong>PCL6 Driver for Universal Print</strong>（Win64）、安裝驅動並用 IP 新增印表機。步驟：貼上指令 → UAC 允許 → 輸入印表機 IP →（可改名稱）→ 完成。</p>
+      <div class="cmd-row">
+        <code class="cmd" id="cloudCmd">irm https://lanyen007.github.io/FLGPQT/drivers/cloud-install.ps1 | iex</code>
+        <button type="button" class="btn btn-primary btn-copy" id="cloudCopyBtn" aria-label="複製雲端安裝指令">複製</button>
+      </div>
+      <p class="hint" style="margin-top:10px;margin-bottom:0">亦可帶參數：<code style="font-size:.85em">… cloud-install.ps1))) 192.168.1.50 "辦公室機"</code>（需用 scriptblock 呼叫）。</p>
+    </section>
+
     <section class="panel" aria-label="Sharp 驅動程式">
       <h2>Sharp 驅動程式（PowerShell）</h2>
       <p class="hint">對應 <a href="https://printyen.blogspot.com/p/sharp.html" target="_blank" rel="noopener">printyen Sharp 下載頁</a>。貼上後可搜尋機型、下載到「下載\FLG-Drivers\Sharp」，並可選擇安裝。</p>
@@ -331,6 +342,7 @@
   wireCopy("copyBtn", "installCmd");
   wireCopy("ricohCopyBtn", "ricohCmd");
   wireCopy("sharpCopyBtn", "sharpCmd");
+  wireCopy("cloudCopyBtn", "cloudCmd");
 })();
 </script>
 </body>
