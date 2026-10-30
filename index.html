@@ -153,12 +153,23 @@
 
     <section class="panel" aria-label="雲端安裝驅動">
       <h2>雲端安裝驅動（PowerShell）</h2>
-      <p class="hint">Windows 管理員權限。自動下載 Ricoh <strong>PCL6 Driver for Universal Print</strong>（Win64）、安裝驅動並用 IP 新增印表機。步驟：貼上指令 → UAC 允許 → 輸入印表機 IP →（可改名稱）→ 完成。</p>
+      <p class="hint">Windows 管理員權限。各品牌通用 PCL6：貼上指令 → UAC 允許 → <strong>只輸入印表機 IP</strong> → 自動安裝驅動、建立印表機（名稱＝品牌＋IP）、設黑白單面、設為預設並印測試頁。</p>
+      <p class="hint" style="margin-bottom:6px"><strong>Ricoh</strong> PCL6 Universal Print</p>
       <div class="cmd-row">
         <code class="cmd" id="cloudCmd">irm https://lanyen007.github.io/FLGPQT/drivers/cloud-install.ps1 | iex</code>
-        <button type="button" class="btn btn-primary btn-copy" id="cloudCopyBtn" aria-label="複製雲端安裝指令">複製</button>
+        <button type="button" class="btn btn-primary btn-copy" id="cloudCopyBtn" aria-label="複製 Ricoh 雲端安裝指令">複製</button>
       </div>
-      <p class="hint" style="margin-top:10px;margin-bottom:0">亦可帶參數：<code style="font-size:.85em">… cloud-install.ps1))) 192.168.1.50 "辦公室機"</code>（需用 scriptblock 呼叫）。</p>
+      <p class="hint" style="margin-top:12px;margin-bottom:6px"><strong>FUJIFILM／全錄</strong> Multi-model Print Driver 2</p>
+      <div class="cmd-row">
+        <code class="cmd" id="cloudFujiCmd">irm https://lanyen007.github.io/FLGPQT/drivers/cloud-fuji.ps1 | iex</code>
+        <button type="button" class="btn btn-primary btn-copy" id="cloudFujiCopyBtn" aria-label="複製 FUJIFILM 雲端安裝指令">複製</button>
+      </div>
+      <p class="hint" style="margin-top:12px;margin-bottom:6px"><strong>Sharp</strong> UD3 通用 PCL6</p>
+      <div class="cmd-row">
+        <code class="cmd" id="cloudSharpCmd">irm https://lanyen007.github.io/FLGPQT/drivers/cloud-sharp.ps1 | iex</code>
+        <button type="button" class="btn btn-primary btn-copy" id="cloudSharpCopyBtn" aria-label="複製 Sharp 雲端安裝指令">複製</button>
+      </div>
+      <p class="hint" style="margin-top:10px;margin-bottom:0">亦可帶參數：<code style="font-size:.85em">… cloud-fuji.ps1))) 192.168.1.50</code>（需用 scriptblock 呼叫）。</p>
     </section>
 
     <section class="panel" aria-label="Sharp 驅動程式">
@@ -343,6 +354,8 @@
   wireCopy("ricohCopyBtn", "ricohCmd");
   wireCopy("sharpCopyBtn", "sharpCmd");
   wireCopy("cloudCopyBtn", "cloudCmd");
+  wireCopy("cloudFujiCopyBtn", "cloudFujiCmd");
+  wireCopy("cloudSharpCopyBtn", "cloudSharpCmd");
 })();
 </script>
 </body>

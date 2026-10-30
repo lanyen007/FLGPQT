@@ -1,9 +1,10 @@
-﻿# FLG 雲端安裝驅動（Ricoh PCL6 Universal Print）
-# 用法：
+# FLG 雲端安裝驅動（Ricoh / FUJIFILM / Sharp 通用 PCL6）
+# 用法（各品牌獨立指令，只問 IP）：
 #   irm https://lanyen007.github.io/FLGPQT/drivers/cloud-install.ps1 | iex
-#   & ([scriptblock]::Create((irm https://lanyen007.github.io/FLGPQT/drivers/cloud-install.ps1))) 192.168.1.50
-#   & ([scriptblock]::Create((irm https://lanyen007.github.io/FLGPQT/drivers/cloud-install.ps1))) 192.168.1.50 "辦公室彩色機"
+#   irm https://lanyen007.github.io/FLGPQT/drivers/cloud-fuji.ps1 | iex
+#   irm https://lanyen007.github.io/FLGPQT/drivers/cloud-sharp.ps1 | iex
 # 參數：$args[0]=印表機 IP；$args[1]=印表機名稱（可省略）
+# 品牌由 bootstrap 透過 $env:FLG_CLOUD_DRIVER_ID 指定。
 
 $ErrorActionPreference = 'Stop'
 try {
@@ -11,7 +12,7 @@ try {
 } catch {}
 
 $CloudJsonUrl = 'https://raw.githubusercontent.com/lanyen007/FLGPQT/main/drivers/cloud.json'
-$BootstrapUrl = 'https://lanyen007.github.io/FLGPQT/drivers/cloud-install.ps1'
+$PagesBase = 'https://lanyen007.github.io/FLGPQT/drivers/'
 $IsWindowsOs = $true
 try {
     if ($PSVersionTable.PSEdition -eq 'Core' -and -not $IsWindows) { $IsWindowsOs = $false }
@@ -30,7 +31,12 @@ function Test-IsAdmin {
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-function Request-Elevation {
+function Get-BootstrapUrl([string]$BootstrapFile) {
+    if ([string]::IsNullOrWhiteSpace($BootstrapFile)) { $BootstrapFile = 'cloud-install.ps1' }
+    return ($PagesBase + $BootstrapFile)
+}
+
+function Request-Elevation([string]$BootstrapUrl) {
     Write-WarnMsg '需要系統管理員權限才能安裝驅動，即將跳出 UAC 提示…'
     $parts = @()
     foreach ($a in $args) {
@@ -66,26 +72,25 @@ function Get-CloudCatalog {
     return ($raw | ConvertFrom-Json)
 }
 
-function Select-CloudDriver($Catalog) {
+function Select-CloudDriver($Catalog, [string]$DriverId) {
     $list = @($Catalog.drivers)
     if ($list.Count -eq 0) { throw 'cloud.json 沒有可用驅動。' }
-    if ($list.Count -eq 1) {
-        Write-Ok ("選用：" + $list[0].title + "  v" + $list[0].version)
-        return $list[0]
+    if ($DriverId) {
+        $found = $list | Where-Object { $_.id -eq $DriverId } | Select-Object -First 1
+        if (-not $found) {
+            throw ("找不到驅動 id：$DriverId`n可用：" + (($list | ForEach-Object { $_.id }) -join ', '))
+        }
+        Write-Ok ("選用：" + $found.title + "  v" + $found.version)
+        return $found
     }
-    Write-Host ''
-    Write-Host '可安裝的雲端驅動：' -ForegroundColor White
-    for ($i = 0; $i -lt $list.Count; $i++) {
-        $d = $list[$i]
-        Write-Host ("  [{0}] {1}  v{2}" -f ($i + 1), $d.title, $d.version)
+    # 相容舊版：未指定 id 時，優先 Ricoh
+    $ricoh = $list | Where-Object { $_.brand -eq 'Ricoh' } | Select-Object -First 1
+    if ($ricoh) {
+        Write-Ok ("選用：" + $ricoh.title + "  v" + $ricoh.version)
+        return $ricoh
     }
-    Write-Host ''
-    $choice = Read-Host '請輸入編號'
-    $n = 0
-    if (-not [int]::TryParse($choice, [ref]$n) -or $n -lt 1 -or $n -gt $list.Count) {
-        throw '無效的編號。'
-    }
-    return $list[$n - 1]
+    Write-Ok ("選用：" + $list[0].title + "  v" + $list[0].version)
+    return $list[0]
 }
 
 function Get-PrinterIpFromArgsOrPrompt {
@@ -159,7 +164,11 @@ function Install-CloudDriverWindows($Driver, [string]$Ip, [string]$PrinterName) 
         Expand-Archive -LiteralPath $zipPath -DestinationPath $extractDir -Force
         $infPath = Join-Path $extractDir $Driver.inf
         if (-not (Test-Path -LiteralPath $infPath)) {
-            $found = Get-ChildItem -Path $extractDir -Filter 'oemsetup.inf' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            $infLeaf = [IO.Path]::GetFileName([string]$Driver.inf)
+            $found = Get-ChildItem -Path $extractDir -Filter $infLeaf -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $found) {
+                $found = Get-ChildItem -Path $extractDir -Filter '*.inf' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            }
             if ($found) { $infPath = $found.FullName } else { throw "找不到 INF：$($Driver.inf)" }
         }
         Write-Ok ("INF：" + $infPath)
@@ -260,12 +269,17 @@ function Install-CloudDriverMock($Driver, [string]$Ip, [string]$PrinterName) {
         Write-Info '解壓縮（驗證 INF）…'
         Expand-Archive -LiteralPath $zipPath -DestinationPath (Join-Path $work 'extract') -Force
         $inf = Join-Path $work ('extract/' + $Driver.inf)
-        if (-not (Test-Path $inf)) { throw "找不到 INF：$inf" }
+        if (-not (Test-Path $inf)) {
+            $infLeaf = [IO.Path]::GetFileName([string]$Driver.inf)
+            $found = Get-ChildItem -Path (Join-Path $work 'extract') -Filter $infLeaf -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) { $inf = $found.FullName } else { throw "找不到 INF：$inf" }
+        }
         Write-Ok ("INF OK：" + $inf)
         Write-Host '[MOCK] pnputil /add-driver … /install' -ForegroundColor DarkGray
         Write-Host ("[MOCK] Add-PrinterDriver -Name '" + $Driver.driver_name + "'") -ForegroundColor DarkGray
         Write-Host ("[MOCK] Add-PrinterPort -Name 'IP_" + $Ip + "' -PrinterHostAddress " + $Ip) -ForegroundColor DarkGray
         Write-Host ("[MOCK] Add-Printer -Name '" + $PrinterName + "'") -ForegroundColor DarkGray
+        Write-Host '[MOCK] Set-PrintConfiguration -Color $false -DuplexingMode OneSided' -ForegroundColor DarkGray
         Write-Ok 'Linux 模擬流程通過（Windows 安裝步驟未實測）。'
     } finally {
         Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
@@ -276,33 +290,61 @@ function Install-CloudDriverMock($Driver, [string]$Ip, [string]$PrinterName) {
 $script:ArgIp = ''
 $script:ArgName = ''
 $script:NonInteractive = $false
-if ($args -and $args.Count -ge 1 -and (Test-Ipv4Address ([string]$args[0]))) {
-    $script:ArgIp = [string]$args[0]
-    $script:NonInteractive = $true
-}
-if ($args -and $args.Count -ge 2 -and -not [string]::IsNullOrWhiteSpace([string]$args[1])) {
-    $script:ArgName = [string]$args[1]
-    $script:NonInteractive = $true
+$script:ArgDriverId = ''
+if ($env:FLG_CLOUD_DRIVER_ID) { $script:ArgDriverId = [string]$env:FLG_CLOUD_DRIVER_ID }
+
+if ($args -and $args.Count -ge 1) {
+    if (Test-Ipv4Address ([string]$args[0])) {
+        $script:ArgIp = [string]$args[0]
+        $script:NonInteractive = $true
+        if ($args.Count -ge 2 -and -not [string]::IsNullOrWhiteSpace([string]$args[1])) {
+            $script:ArgName = [string]$args[1]
+        }
+    } else {
+        # 允許直接傳 driver id（進階用法）
+        $script:ArgDriverId = [string]$args[0]
+        if ($args.Count -ge 2 -and (Test-Ipv4Address ([string]$args[1]))) {
+            $script:ArgIp = [string]$args[1]
+            $script:NonInteractive = $true
+            if ($args.Count -ge 3 -and -not [string]::IsNullOrWhiteSpace([string]$args[2])) {
+                $script:ArgName = [string]$args[2]
+            }
+        }
+    }
 }
 
 Write-Host ''
 Write-Host '======== FLG 雲端安裝驅動 ========' -ForegroundColor White
-Write-Host 'Ricoh PCL6 Universal Print（Win64）' -ForegroundColor Gray
+Write-Host '通用 PCL6（Win64）｜只輸入 IP｜自動黑白單面＋預設＋測試頁' -ForegroundColor Gray
 Write-Host ''
 
+# 先讀清單以決定 bootstrap（提權用）
+$catalog = $null
+$driverPreview = $null
+try {
+    $catalog = Get-CloudCatalog
+    $driverPreview = Select-CloudDriver $catalog $script:ArgDriverId
+} catch {
+    Write-ErrMsg ('讀取清單失敗：' + $_.Exception.Message)
+    exit 1
+}
+
+$bootstrapFile = 'cloud-install.ps1'
+if ($driverPreview.bootstrap) { $bootstrapFile = [string]$driverPreview.bootstrap }
+$BootstrapUrl = Get-BootstrapUrl $bootstrapFile
+
 if ($IsWindowsOs -and -not (Test-IsAdmin)) {
-    Request-Elevation @args
+    Request-Elevation $BootstrapUrl @args
 }
 
 try {
-    $catalog = Get-CloudCatalog
-    $driver = Select-CloudDriver $catalog
+    $driver = $driverPreview
     $ip = Get-PrinterIpFromArgsOrPrompt
-    $defaultName = 'RICOH ' + $ip
+    $prefix = 'RICOH'
+    if ($driver.name_prefix) { $prefix = [string]$driver.name_prefix }
+    $defaultName = $prefix + ' ' + $ip
     if ($script:ArgName) {
         $printerName = $script:ArgName
-    } elseif ($script:NonInteractive) {
-        $printerName = $defaultName
     } else {
         $printerName = $defaultName
     }

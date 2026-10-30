@@ -1,12 +1,12 @@
 {
-  "brand": "Ricoh",
-  "updated": "2026-10-30T18:46:01+08:00",
-  "count": 1,
+  "updated": "2026-10-31T02:14:31+08:00",
+  "count": 3,
   "drivers": [
     {
       "id": "ricoh-upd-pcl6-4.46.0.0",
       "title": "Ricoh PCL6 Driver for Universal Print（Win64）",
       "brand": "Ricoh",
+      "name_prefix": "RICOH",
       "type": "PCL6-UPD",
       "os": "Win64",
       "version": "4.46.0.0",
@@ -19,7 +19,48 @@
       "sha256": "c7761664ff39797bfa29b4857c47b77befde635c8e23f0a3bf9ae06d8dd32dfa",
       "size": 35089063,
       "release_tag": "drivers-ricoh-upd-pcl6-4.46.0.0",
+      "bootstrap": "cloud-install.ps1",
       "notes": "官方 Universal Print PCL6；多機型通用。來源 z07510L24.exe。安裝時建議選繁體中文。"
+    },
+    {
+      "id": "fuji-mmd2-pcl6-2.7.24.5",
+      "title": "FUJIFILM Multi-model Print Driver 2 PCL6（Win64）",
+      "brand": "FUJIFILM",
+      "name_prefix": "FUJIFILM",
+      "type": "PCL6-MMD2",
+      "os": "Win64",
+      "version": "2.7.24.5",
+      "driver_ver_date": "03/19/2026",
+      "driver_name": "FF Multi-model Print Driver 2",
+      "driver_name_alt": "",
+      "inf": "ff6daie.inf",
+      "zip_name": "FUJIFILM_MMD2_PCL6_x64_2.7.24.5.zip",
+      "url": "https://github.com/lanyen007/FLGPQT/releases/download/drivers-fuji-mmd2-pcl6-2.7.24.5/FUJIFILM_MMD2_PCL6_x64_2.7.24.5.zip",
+      "sha256": "fd4531a43b96ece9e1133a2081b1983d2ce0c187a0ff78231293e264b2023654",
+      "size": 5543677,
+      "release_tag": "drivers-fuji-mmd2-pcl6-2.7.24.5",
+      "bootstrap": "cloud-fuji.ps1",
+      "notes": "官方 Multi-model Print Driver 2（全錄／FUJIFILM BI 通用 PCL6）。來源 ffmmd2pcl6260410w646iml.exe。套件含英文＋繁體中文（LCID 1028）。"
+    },
+    {
+      "id": "sharp-ud3-pcl6-3.01.01.72",
+      "title": "SHARP UD3 PCL6 Universal Driver（Win64）",
+      "brand": "Sharp",
+      "name_prefix": "SHARP",
+      "type": "PCL6-UD3",
+      "os": "Win64",
+      "version": "03.01.01.72",
+      "driver_ver_date": "02/12/2025",
+      "driver_name": "SHARP UD3 PCL6",
+      "driver_name_alt": "SHARP UD3 PCL 6",
+      "inf": "sv0emenu.inf",
+      "zip_name": "SHARP_UD3_PCL6_x64_3.01.01.72.zip",
+      "url": "https://github.com/lanyen007/FLGPQT/releases/download/drivers-sharp-ud3-pcl6-3.01.01.72/SHARP_UD3_PCL6_x64_3.01.01.72.zip",
+      "sha256": "84e7d6a88cb7026ffeae212d054e8042a1a87259b4e7f90dbdff423b5664ae85",
+      "size": 7881611,
+      "release_tag": "drivers-sharp-ud3-pcl6-3.01.01.72",
+      "bootstrap": "cloud-sharp.ps1",
+      "notes": "官方 SHARP UD3 通用 PCL6。來源 UD3_07_PCL6_2510a.zip。驅動 UI 支援繁體中文。"
     }
   ]
 }
