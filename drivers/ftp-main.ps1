@@ -105,64 +105,198 @@ function Get-UserProfilePath {
     return $p
 }
 
-# ---- firewall / scheduled task (Windows) ----
+# ---- firewall / scheduled task / startup (Windows) ----
 $script:FirewallRuleNames = @('FLG FTP Control', 'FLG FTP Passive')
+$script:FtpTaskName = 'FLG-SimpleFTP'
+$script:FtpStartupName = 'FLG-SimpleFTP.cmd'
+
+function Get-FlgFtpConfigDir {
+    $base = $env:APPDATA
+    if ([string]::IsNullOrWhiteSpace($base)) { $base = Join-Path (Get-UserProfilePath) 'AppData\Roaming' }
+    $dir = Join-Path $base 'lanyen-ftp'
+    if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    return $dir
+}
+function Get-FlgFtpConfigPath { return (Join-Path (Get-FlgFtpConfigDir) 'config.json') }
+function Get-FlgFtpStartupCmdPath {
+    $startup = [Environment]::GetFolderPath('Startup')
+    if ([string]::IsNullOrWhiteSpace($startup)) {
+        $startup = Join-Path (Get-UserProfilePath) 'AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup'
+    }
+    return (Join-Path $startup $script:FtpStartupName)
+}
+
+function Save-FlgFtpConfig {
+    param([string]$Root, [string]$User, [string]$Pass, [int]$Port, [bool]$Anonymous, [int]$PasvStart = 50000, [int]$PasvEnd = 50010)
+    $obj = [ordered]@{
+        root = $Root
+        user = $User
+        pass = $Pass
+        port = $Port
+        anonymous = [bool]$Anonymous
+        pasvStart = $PasvStart
+        pasvEnd = $PasvEnd
+        updated = (Get-Date).ToString('o')
+    }
+    $path = Get-FlgFtpConfigPath
+    ($obj | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath $path -Encoding UTF8
+    return $path
+}
+
 function Add-FlgFtpFirewallRules([int]$ControlPort, [int]$PasvStart, [int]$PasvEnd) {
     if (-not $IsWindowsOs) { return }
     if (-not (Test-IsAdmin)) {
-        Write-WarnMsg '非系統管理員，略過自動新增防火牆規則。請手動允許 TCP 21 與被動埠範圍。'
+        Write-WarnMsg '目前不是系統管理員，無法自動新增防火牆規則。'
+        Write-Host '請手動開放（或用系統管理員重跑本工具）：' -ForegroundColor Yellow
+        Write-Host ("  控制埠 TCP {0}、被動埠 TCP {1}-{2}" -f $ControlPort, $PasvStart, $PasvEnd) -ForegroundColor White
+        Write-Host '  Windows 安全性 → 防火牆 → 進階設定 → 輸入規則 → 新增連接埠' -ForegroundColor DarkGray
         return
     }
     try {
         Remove-FlgFtpFirewallRules -Quiet
-        netsh advfirewall firewall add rule name="FLG FTP Control" dir=in action=allow protocol=TCP localport=$ControlPort | Out-Null
-        netsh advfirewall firewall add rule name="FLG FTP Passive" dir=in action=allow protocol=TCP localport=$PasvStart-$PasvEnd | Out-Null
+        $null = netsh advfirewall firewall add rule name="FLG FTP Control" dir=in action=allow protocol=TCP localport=$ControlPort 2>&1
+        $null = netsh advfirewall firewall add rule name="FLG FTP Passive" dir=in action=allow protocol=TCP localport=$PasvStart-$PasvEnd 2>&1
         Write-Ok '已新增 Windows 防火牆規則（控制埠 + 被動埠）。'
     } catch {
-        Write-WarnMsg ("防火牆規則失敗：" + $_.Exception.Message)
+        Write-WarnMsg '新增防火牆規則失敗，請手動允許 FTP 控制埠與被動埠範圍。'
+        Write-Host ("  需要：TCP {0} 與 TCP {1}-{2}" -f $ControlPort, $PasvStart, $PasvEnd) -ForegroundColor White
     }
 }
 function Remove-FlgFtpFirewallRules([switch]$Quiet) {
     if (-not $IsWindowsOs) { return }
     foreach ($n in $script:FirewallRuleNames) {
-        try { netsh advfirewall firewall delete rule name="$n" 2>$null | Out-Null } catch {}
+        try { $null = netsh advfirewall firewall delete rule name="$n" 2>&1 } catch {}
     }
-    if (-not $Quiet) { Write-Info '已移除 FLG FTP 防火牆規則（若有）。' }
+    if (-not $Quiet) { Write-Info '已嘗試移除 FLG FTP 防火牆規則。' }
+}
+
+function Install-FlgFtpStartupShortcut {
+    param([string]$ConfigPath)
+    $cmdPath = Get-FlgFtpStartupCmdPath
+    $boot = 'https://lanyen007.github.io/FLGPQT/drivers/ftp.ps1'
+    # cmd launches powershell minimized; powershell reads config json and sets env
+    $ps = @(
+        "$ErrorActionPreference='Stop'",
+        ("`$cfgPath = '{0}'" -f $ConfigPath.Replace("'", "''")),
+        "if (-not (Test-Path -LiteralPath `$cfgPath)) { exit 0 }",
+        "`$j = Get-Content -LiteralPath `$cfgPath -Raw -Encoding UTF8 | ConvertFrom-Json",
+        "`$env:FLG_FTP_AUTO='1'",
+        "`$env:FLG_FTP_PORT = [string]`$j.port",
+        "`$env:FLG_FTP_ROOT = [string]`$j.root",
+        "`$env:FLG_FTP_USER = [string]`$j.user",
+        "`$env:FLG_FTP_PASS = [string]`$j.pass",
+        "if (`$j.anonymous) { `$env:FLG_FTP_ANON='1' } else { Remove-Item Env:FLG_FTP_ANON -ErrorAction SilentlyContinue }",
+        ("& ([scriptblock]::Create((Invoke-RestMethod -Uri '{0}')))" -f $boot)
+    ) -join '; '
+    $arg = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Minimized -Command `"$ps`""
+    $lines = @(
+        '@echo off',
+        'rem FLG Simple FTP autostart (user Startup folder)',
+        ('start "" /min powershell.exe ' + $arg)
+    )
+    $dir = Split-Path -Parent $cmdPath
+    if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    Set-Content -LiteralPath $cmdPath -Value ($lines -join "`r`n") -Encoding ASCII
+    Write-Ok ("已建立「啟動」捷徑：{0}" -f $cmdPath)
+    return $cmdPath
 }
 
 function Install-FlgFtpAutostart {
     param([string]$Root, [string]$User, [string]$Pass, [int]$Port, [bool]$Anonymous)
     if (-not $IsWindowsOs) { Write-WarnMsg '自動啟動目前僅支援 Windows。'; return }
-    $taskName = 'FLG-SimpleFTP'
+
+    # Port 21 needs admin to bind; for non-admin autostart prefer 2121
+    if ($Port -lt 1024 -and -not (Test-IsAdmin)) {
+        Write-WarnMsg '未以系統管理員執行時，埠 21 通常無法綁定。'
+        $ans = (Read-Host '自動啟動改用埠 2121？(Y/N，建議 Y；選 N 請之後用系統管理員啟動)').Trim()
+        if ($ans -notmatch '^(?i)n|no|否$') {
+            $Port = 2121
+            Write-Info '已改為埠 2121，請在影印機 FTP 設定填 2121。'
+        }
+    }
+
+    $configPath = Save-FlgFtpConfig -Root $Root -User $User -Pass $Pass -Port $Port -Anonymous $Anonymous
+    Write-Info ("設定已儲存：{0}" -f $configPath)
+
     $boot = 'https://lanyen007.github.io/FLGPQT/drivers/ftp.ps1'
-    $envParts = @(
-        "`$env:FLG_FTP_AUTO='1'",
-        ("`$env:FLG_FTP_PORT='{0}'" -f $Port),
-        ("`$env:FLG_FTP_ROOT='{0}'" -f $Root.Replace("'", "''")),
-        ("`$env:FLG_FTP_USER='{0}'" -f $User.Replace("'", "''")),
-        ("`$env:FLG_FTP_PASS='{0}'" -f $Pass.Replace("'", "''"))
-    )
-    if ($Anonymous) { $envParts += "`$env:FLG_FTP_ANON='1'" }
-    $inner = ($envParts -join '; ') + "; & ([scriptblock]::Create((Invoke-RestMethod -Uri '$boot')))"
+    $cfgEsc = $configPath.Replace("'", "''")
+    $inner = @"
+`$ErrorActionPreference='Stop'; `$j = Get-Content -LiteralPath '$cfgEsc' -Raw -Encoding UTF8 | ConvertFrom-Json; `$env:FLG_FTP_AUTO='1'; `$env:FLG_FTP_PORT=[string]`$j.port; `$env:FLG_FTP_ROOT=[string]`$j.root; `$env:FLG_FTP_USER=[string]`$j.user; `$env:FLG_FTP_PASS=[string]`$j.pass; if (`$j.anonymous) { `$env:FLG_FTP_ANON='1' }; & ([scriptblock]::Create((Invoke-RestMethod -Uri '$boot')))
+"@
     $arg = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Minimized -Command `"$inner`""
+
+    $taskOk = $false
     try {
-        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+        Unregister-ScheduledTask -TaskName $script:FtpTaskName -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
         $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arg
-        $trigger = New-ScheduledTaskTrigger -AtLogOn
-        $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
-        Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null
-        Write-Ok "已登錄開機自動啟動工作：$taskName"
+        # Per-user logon task (no admin / no Highest)
+        $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+        $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
+        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+        Register-ScheduledTask -TaskName $script:FtpTaskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force -ErrorAction Stop | Out-Null
+        Write-Ok ("已登錄登入自動啟動工作（一般權限）：{0}" -f $script:FtpTaskName)
+        $taskOk = $true
     } catch {
-        Write-WarnMsg ("登錄自動啟動失敗：" + $_.Exception.Message)
+        Write-WarnMsg '無法登錄「工作排程器」（權限不足或被原則封鎖），改用「啟動」資料夾。'
+    }
+
+    if (-not $taskOk) {
+        try {
+            Install-FlgFtpStartupShortcut -ConfigPath $configPath | Out-Null
+        } catch {
+            Write-WarnMsg '寫入「啟動」資料夾也失敗了。請手動把下列指令放到啟動項，或每次登入後執行 irm lanyen.de/ftp | iex。'
+            Write-Host ("  設定檔：{0}" -f $configPath) -ForegroundColor White
+            return
+        }
+    } else {
+        # also remove stale startup cmd if any, to avoid double-start; keep config
+        $cmdPath = Get-FlgFtpStartupCmdPath
+        if (Test-Path -LiteralPath $cmdPath) {
+            try { Remove-Item -LiteralPath $cmdPath -Force -ErrorAction SilentlyContinue } catch {}
+        }
+    }
+
+    Write-Host ''
+    Write-Ok '自動啟動已設定完成。'
+    Write-Host ("  埠：{0}　帳號：{1}　資料夾：{2}" -f $Port, $User, $Root) -ForegroundColor Green
+    if ($Port -ne 21) {
+        Write-Host '  請確認影印機 FTP 埠與此相同。' -ForegroundColor Yellow
+    }
+    if (-not (Test-IsAdmin)) {
+        Write-Host '  提醒：防火牆規則需系統管理員才能自動新增；若影印機連不上，請手動放行或提權重跑一次「啟動 FTP」。' -ForegroundColor DarkGray
     }
 }
+
 function Remove-FlgFtpAutostart {
     if (-not $IsWindowsOs) { return }
+    $removed = $false
     try {
-        Unregister-ScheduledTask -TaskName 'FLG-SimpleFTP' -Confirm:$false -ErrorAction SilentlyContinue
-        Write-Ok '已移除自動啟動工作。'
+        $t = Get-ScheduledTask -TaskName $script:FtpTaskName -ErrorAction SilentlyContinue
+        if ($t) {
+            Unregister-ScheduledTask -TaskName $script:FtpTaskName -Confirm:$false -ErrorAction Stop
+            Write-Ok ("已移除工作排程：{0}" -f $script:FtpTaskName)
+            $removed = $true
+        }
     } catch {
-        Write-WarnMsg ("移除自動啟動失敗：" + $_.Exception.Message)
+        Write-WarnMsg '移除工作排程失敗（可能本來就不存在，或權限不足）。'
+    }
+    try {
+        $cmdPath = Get-FlgFtpStartupCmdPath
+        if (Test-Path -LiteralPath $cmdPath) {
+            Remove-Item -LiteralPath $cmdPath -Force -ErrorAction Stop
+            Write-Ok ("已移除啟動捷徑：{0}" -f $cmdPath)
+            $removed = $true
+        }
+    } catch {
+        Write-WarnMsg '移除啟動捷徑失敗。'
+    }
+    # keep config.json so user can reinstall easily; mention path
+    $cfg = Get-FlgFtpConfigPath
+    if (Test-Path -LiteralPath $cfg) {
+        Write-Info ("設定檔仍保留：{0}（可手動刪除）" -f $cfg)
+    }
+    if (-not $removed) {
+        Write-Info '沒有找到可移除的自動啟動項目。'
     }
 }
 
@@ -825,12 +959,13 @@ if (-not $auto) {
     elseif (-not [string]::IsNullOrWhiteSpace($pIn)) { $pass = $pIn }
 
     if ($script:ArgPort -le 0) {
-        $pPort = (Read-Host 'FTP 埠（預設 21；輸入空白用預設）').Trim()
+        if (-not (Test-IsAdmin) -and $port -eq 21) { $port = 2121 }
+        $pPort = (Read-Host ("FTP 埠（預設 {0}；空白=用預設）" -f $port)).Trim()
         if ($pPort -eq 'q' -or $pPort -eq 'Q') { Write-Info ('已' + (Get-FlgExitLabel) + '。'); return }
         if ($pPort) {
             $pn = 0
             if (-not [int]::TryParse($pPort, [ref]$pn) -or $pn -lt 1 -or $pn -gt 65535) {
-                Write-WarnMsg '埠號無效，改用 21。'; $port = 21
+                Write-WarnMsg ("埠號無效，維持 {0}。" -f $port)
             } else { $port = $pn }
         }
     }
@@ -860,12 +995,29 @@ if ($script:InstallAutostartOnly) {
     return
 }
 
-# elevation note for port 21 on Windows
-if ($IsWindowsOs -and $port -lt 1024 -and -not (Test-IsAdmin)) {
-    Write-WarnMsg '埠 21 通常需要系統管理員權限。若啟動失敗，請用系統管理員開啟 PowerShell 再執行，或改用其他埠（例如 2121）。'
+# Non-admin cannot bind port 21 reliably — offer 2121
+if ($IsWindowsOs -and $port -lt 1024 -and -not (Test-IsAdmin) -and -not $auto) {
+    Write-WarnMsg '埠 21 需要系統管理員權限才能綁定。'
+    $ans = (Read-Host '改用埠 2121 繼續？(Y=2121 / N=仍試 21 / A=提權重開，預設 Y)').Trim()
+    if ($ans -match '^(?i)a|admin|提權$') {
+        Write-Info '請以系統管理員開啟 PowerShell 後再執行：irm lanyen.de/ftp | iex'
+        return
+    } elseif ($ans -match '^(?i)n|no|否$') {
+        Write-WarnMsg '仍使用埠 21；若出現存取被拒，請改 2121 或提權。'
+    } else {
+        $port = 2121
+        $config.Port = 2121
+        Write-Info '已改用埠 2121，請在影印機 FTP 設定填 2121。'
+    }
+} elseif ($IsWindowsOs -and $port -lt 1024 -and -not (Test-IsAdmin) -and $auto) {
+    Write-WarnMsg '自動啟動為一般權限，埠 21 可能失敗；若無法啟動請把設定檔 port 改為 2121。'
 }
 
-Add-FlgFtpFirewallRules -ControlPort $port -PasvStart $pasvStart -PasvEnd $pasvEnd
+try {
+    Add-FlgFtpFirewallRules -ControlPort $port -PasvStart $pasvStart -PasvEnd $pasvEnd
+} catch {
+    Write-WarnMsg '防火牆設定略過（權限不足或系統限制）。'
+}
 
 Write-Host ''
 Write-Host '======== 請把下列資料填到影印機 ========' -ForegroundColor Yellow
@@ -890,10 +1042,15 @@ $config.AdvertiseIp = $advertiseIp
 try {
     Start-FlgFtpServer -Config $config
 } catch {
-    Write-ErrMsg ('FTP 啟動失敗：' + $_.Exception.Message)
-    if ($_.Exception.Message -match 'denied|permission|Address already|綁定|access' ) {
-        Write-WarnMsg '可能是埠被占用或權限不足。可改用：irm … | iex 後帶埠號，例如指定 2121。'
+    Write-WarnMsg 'FTP 伺服器無法啟動。'
+    $msg = [string]$_.Exception.Message
+    if ($msg -match '(?i)denied|permission|access|拒絕|權限') {
+        Write-Host '  原因可能是權限不足（埠 21 請用系統管理員，或改埠 2121）。' -ForegroundColor Yellow
+    } elseif ($msg -match '(?i)address already|in use|占用|綁定') {
+        Write-Host '  原因可能是埠已被占用，請換一個埠（例如 2121）。' -ForegroundColor Yellow
+    } else {
+        Write-Host ('  ' + $msg) -ForegroundColor DarkGray
     }
-    Remove-FlgFtpFirewallRules -Quiet
+    try { Remove-FlgFtpFirewallRules -Quiet } catch {}
     return
 }
