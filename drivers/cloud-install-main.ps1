@@ -46,8 +46,88 @@ function Get-FlgBrandSlug([string]$IdOrBrand) {
 }
 
 # Silent usage counter (Abacus). Never throws; max ~2s.
+# --- FLG offline USB helpers (backwards compatible; no-op unless FLG_OFFLINE=1) ---
+function Test-FlgOffline {
+    return ($env:FLG_OFFLINE -eq '1')
+}
+function Get-FlgRoot {
+    if (-not [string]::IsNullOrWhiteSpace($env:FLG_ROOT)) {
+        return ([string]$env:FLG_ROOT).TrimEnd('\', '/')
+    }
+    return $null
+}
+function Resolve-FlgOfflinePath {
+    param([Parameter(Mandatory = $true)][string]$Rel)
+    $root = Get-FlgRoot
+    if (-not $root) { return $null }
+    $rel = $Rel -replace '[\\/]+', [IO.Path]::DirectorySeparatorChar
+    $p = Join-Path $root $rel
+    if (Test-Path -LiteralPath $p) { return $p }
+    return $null
+}
+function Test-FlgNetworkAvailable {
+    try {
+        $r = [Net.HttpWebRequest]::Create('https://lanyen007.github.io/FLGPQT/drivers/cloud.json')
+        $r.Method = 'HEAD'
+        $r.Timeout = 2500
+        $r.ReadWriteTimeout = 2500
+        $r.KeepAlive = $false
+        $resp = $r.GetResponse()
+        $resp.Close()
+        return $true
+    } catch {
+        return $false
+    }
+}
+function Get-FlgOfflineCatalogText {
+    param([Parameter(Mandatory = $true)][string]$FileName)
+    $local = Resolve-FlgOfflinePath ("drivers\" + $FileName)
+    if (-not $local) { return $null }
+    $raw = [IO.File]::ReadAllText($local, [Text.Encoding]::UTF8)
+    if ($raw.Length -gt 0 -and [int][char]$raw[0] -eq 0xFEFF) { $raw = $raw.Substring(1) }
+    return $raw
+}
+function Copy-FlgOfflineDriverZip {
+    param(
+        [Parameter(Mandatory = $true)]$Driver,
+        [Parameter(Mandatory = $true)][string]$DestZip
+    )
+    $name = [string]$Driver.zip_name
+    if ([string]::IsNullOrWhiteSpace($name)) { return $false }
+    $local = Resolve-FlgOfflinePath ("drivers\packages\" + $name)
+    if (-not $local) { return $false }
+    Write-Host ("離線模式：使用本機驅動包 " + $name) -ForegroundColor Cyan
+    $destDir = Split-Path -Parent $DestZip
+    if ($destDir -and -not (Test-Path -LiteralPath $destDir)) {
+        New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+    }
+    Copy-Item -LiteralPath $local -Destination $DestZip -Force
+    return $true
+}
+function Get-FlgOfflineEnvPreamble {
+    $parts = @()
+    if (Test-FlgOffline) { $parts += "`$env:FLG_OFFLINE='1'" }
+    $root = Get-FlgRoot
+    if ($root) {
+        $esc = $root.Replace("'", "''")
+        $parts += ("`$env:FLG_ROOT='" + $esc + "'")
+    }
+    if ($env:FLG_FROM_MENU -eq '1') { $parts += "`$env:FLG_FROM_MENU='1'" }
+    if ($env:FLG_CLOUD_DRIVER_ID) {
+        $id = ([string]$env:FLG_CLOUD_DRIVER_ID).Replace("'", "''")
+        $parts += ("`$env:FLG_CLOUD_DRIVER_ID='" + $id + "'")
+    }
+    if ($env:FLG_AUTO_MODE) {
+        $m = ([string]$env:FLG_AUTO_MODE).Replace("'", "''")
+        $parts += ("`$env:FLG_AUTO_MODE='" + $m + "'")
+    }
+    if ($parts.Count -eq 0) { return '' }
+    return (($parts -join '; ') + '; ')
+}
+
 function Invoke-FlgCounterHit([string]$Key) {
     if ([string]::IsNullOrWhiteSpace($Key)) { return }
+    if (Test-FlgOffline) { return }
     try {
         $req = [Net.HttpWebRequest]::Create(('https://abacus.jasoncameron.dev/hit/lanyen-de/' + $Key))
         $req.Method = 'GET'
@@ -80,7 +160,14 @@ function Request-Elevation([string]$BootstrapUrl) {
         $parts += ("'" + $s.Replace("'", "''") + "'")
     }
     $argStr = $parts -join ' '
-    $inner = "& ([scriptblock]::Create((Invoke-RestMethod -Uri '$BootstrapUrl'))) $argStr"
+    $preamble = Get-FlgOfflineEnvPreamble
+    $localMain = Resolve-FlgOfflinePath 'drivers\cloud-install-main.ps1'
+    if ($localMain) {
+        $esc = $localMain.Replace("'", "''")
+        $inner = $preamble + "& '$esc' $argStr"
+    } else {
+        $inner = $preamble + "& ([scriptblock]::Create((Invoke-RestMethod -Uri '$BootstrapUrl'))) $argStr"
+    }
     $argList = "-NoProfile -ExecutionPolicy Bypass -Command `"$inner`""
     try {
         Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $argList | Out-Null
@@ -378,6 +465,17 @@ function Get-PrinterDisplayName([string]$Prefix, [string]$Model, [string]$Ip) {
 
 function Get-CloudCatalog {
     Write-Info '讀取雲端驅動清單…'
+    $raw = Get-FlgOfflineCatalogText 'cloud.json'
+    if ($raw) {
+        Write-Ok '離線模式：讀取本機 cloud.json'
+        return ($raw | ConvertFrom-Json)
+    }
+    if (Test-FlgOffline) {
+        if (-not (Test-FlgNetworkAvailable)) {
+            throw '離線版找不到 drivers\cloud.json，且目前無法連網。'
+        }
+        Write-WarnMsg '離線模式找不到本機 cloud.json，改從網路讀取…'
+    }
     $wc = New-Object Net.WebClient
     $wc.Encoding = [Text.Encoding]::UTF8
     $raw = $wc.DownloadString("$CloudJsonUrl`?t=$([DateTime]::UtcNow.Ticks)")
@@ -469,9 +567,16 @@ function Install-CloudDriverWindows($Driver, [string]$Ip, [string]$PrinterName) 
     $extractDir = Join-Path $work 'extract'
 
     try {
-        Write-Info ("下載驅動包（約 {0:N1} MB）…" -f ($Driver.size / 1MB))
-        Write-Host ("  " + $Driver.url)
-        Invoke-WebRequest -Uri $Driver.url -OutFile $zipPath -UseBasicParsing
+        Write-Info ("準備驅動包（約 {0:N1} MB）…" -f ($Driver.size / 1MB))
+        $gotLocal = Copy-FlgOfflineDriverZip -Driver $Driver -DestZip $zipPath
+        if (-not $gotLocal) {
+            if (Test-FlgOffline -and -not (Test-FlgNetworkAvailable)) {
+                throw ('離線版找不到驅動包，請確認 drivers\packages\ 內有 ' + $Driver.zip_name)
+            }
+            if (Test-FlgOffline) { Write-WarnMsg '本機無此驅動包，改從網路下載…' }
+            Write-Host ("  " + $Driver.url)
+            Invoke-WebRequest -Uri $Driver.url -OutFile $zipPath -UseBasicParsing
+        }
         if (-not (Test-Path -LiteralPath $zipPath)) { throw '下載失敗：找不到檔案。' }
 
         Write-Info '驗證 SHA256…'
@@ -588,8 +693,17 @@ function Install-CloudDriverMock($Driver, [string]$Ip, [string]$PrinterName) {
     New-Item -ItemType Directory -Path $work -Force | Out-Null
     $zipPath = Join-Path $work $Driver.zip_name
     try {
-        Write-Info ("下載 " + $Driver.url)
-        Invoke-WebRequest -Uri $Driver.url -OutFile $zipPath -UseBasicParsing
+        $gotLocal = Copy-FlgOfflineDriverZip -Driver $Driver -DestZip $zipPath
+        if (-not $gotLocal) {
+            if (Test-FlgOffline -and -not (Test-FlgNetworkAvailable)) {
+                throw ('離線版找不到驅動包：' + $Driver.zip_name)
+            }
+            if (Test-FlgOffline) { Write-WarnMsg '本機無此驅動包，改從網路下載…' }
+            Write-Info ("下載 " + $Driver.url)
+            Invoke-WebRequest -Uri $Driver.url -OutFile $zipPath -UseBasicParsing
+        } else {
+            Write-Info ("離線驗證：" + $Driver.zip_name)
+        }
         $actual = Get-FileSha256 $zipPath
         $expect = ([string]$Driver.sha256).ToLowerInvariant()
         if ($actual -ne $expect) { throw "SHA256 不符：期望 $expect 實際 $actual" }

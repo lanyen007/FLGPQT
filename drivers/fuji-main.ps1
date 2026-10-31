@@ -7,6 +7,16 @@ $FlgDriverBrand = 'FUJIFILM'
 $FlgDriverJson = 'fuji.json'
 $FlgSearchHint = 'C3070、Apeos、SC2022、MMD2'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-$__b = (New-Object Net.WebClient).DownloadData("https://lanyen007.github.io/FLGPQT/drivers/common-main.ps1?t=" + [DateTime]::Now.Ticks)
-$__s = [Text.Encoding]::UTF8.GetString($__b).TrimStart([char]0xFEFF)
-& ([scriptblock]::Create($__s)) @args
+$__common = $null
+if ($env:FLG_OFFLINE -eq '1' -and $env:FLG_ROOT) {
+    $__p = Join-Path $env:FLG_ROOT 'drivers\common-main.ps1'
+    if (-not (Test-Path -LiteralPath $__p)) { $__p = Join-Path $env:FLG_ROOT 'drivers/common-main.ps1' }
+    if (Test-Path -LiteralPath $__p) { $__common = $__p }
+}
+if ($__common) {
+    & $__common @args
+} else {
+    $__b = (New-Object Net.WebClient).DownloadData("https://lanyen007.github.io/FLGPQT/drivers/common-main.ps1?t=" + [DateTime]::Now.Ticks)
+    $__s = [Text.Encoding]::UTF8.GetString($__b).TrimStart([char]0xFEFF)
+    & ([scriptblock]::Create($__s)) @args
+}

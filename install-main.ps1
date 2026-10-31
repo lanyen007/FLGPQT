@@ -39,8 +39,88 @@ function Get-FlgExitLabel {
 
 
 # Silent usage counter (Abacus). Never throws; max ~2s.
+# --- FLG offline USB helpers (backwards compatible; no-op unless FLG_OFFLINE=1) ---
+function Test-FlgOffline {
+    return ($env:FLG_OFFLINE -eq '1')
+}
+function Get-FlgRoot {
+    if (-not [string]::IsNullOrWhiteSpace($env:FLG_ROOT)) {
+        return ([string]$env:FLG_ROOT).TrimEnd('\', '/')
+    }
+    return $null
+}
+function Resolve-FlgOfflinePath {
+    param([Parameter(Mandatory = $true)][string]$Rel)
+    $root = Get-FlgRoot
+    if (-not $root) { return $null }
+    $rel = $Rel -replace '[\\/]+', [IO.Path]::DirectorySeparatorChar
+    $p = Join-Path $root $rel
+    if (Test-Path -LiteralPath $p) { return $p }
+    return $null
+}
+function Test-FlgNetworkAvailable {
+    try {
+        $r = [Net.HttpWebRequest]::Create('https://lanyen007.github.io/FLGPQT/drivers/cloud.json')
+        $r.Method = 'HEAD'
+        $r.Timeout = 2500
+        $r.ReadWriteTimeout = 2500
+        $r.KeepAlive = $false
+        $resp = $r.GetResponse()
+        $resp.Close()
+        return $true
+    } catch {
+        return $false
+    }
+}
+function Get-FlgOfflineCatalogText {
+    param([Parameter(Mandatory = $true)][string]$FileName)
+    $local = Resolve-FlgOfflinePath ("drivers\" + $FileName)
+    if (-not $local) { return $null }
+    $raw = [IO.File]::ReadAllText($local, [Text.Encoding]::UTF8)
+    if ($raw.Length -gt 0 -and [int][char]$raw[0] -eq 0xFEFF) { $raw = $raw.Substring(1) }
+    return $raw
+}
+function Copy-FlgOfflineDriverZip {
+    param(
+        [Parameter(Mandatory = $true)]$Driver,
+        [Parameter(Mandatory = $true)][string]$DestZip
+    )
+    $name = [string]$Driver.zip_name
+    if ([string]::IsNullOrWhiteSpace($name)) { return $false }
+    $local = Resolve-FlgOfflinePath ("drivers\packages\" + $name)
+    if (-not $local) { return $false }
+    Write-Host ("離線模式：使用本機驅動包 " + $name) -ForegroundColor Cyan
+    $destDir = Split-Path -Parent $DestZip
+    if ($destDir -and -not (Test-Path -LiteralPath $destDir)) {
+        New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+    }
+    Copy-Item -LiteralPath $local -Destination $DestZip -Force
+    return $true
+}
+function Get-FlgOfflineEnvPreamble {
+    $parts = @()
+    if (Test-FlgOffline) { $parts += "`$env:FLG_OFFLINE='1'" }
+    $root = Get-FlgRoot
+    if ($root) {
+        $esc = $root.Replace("'", "''")
+        $parts += ("`$env:FLG_ROOT='" + $esc + "'")
+    }
+    if ($env:FLG_FROM_MENU -eq '1') { $parts += "`$env:FLG_FROM_MENU='1'" }
+    if ($env:FLG_CLOUD_DRIVER_ID) {
+        $id = ([string]$env:FLG_CLOUD_DRIVER_ID).Replace("'", "''")
+        $parts += ("`$env:FLG_CLOUD_DRIVER_ID='" + $id + "'")
+    }
+    if ($env:FLG_AUTO_MODE) {
+        $m = ([string]$env:FLG_AUTO_MODE).Replace("'", "''")
+        $parts += ("`$env:FLG_AUTO_MODE='" + $m + "'")
+    }
+    if ($parts.Count -eq 0) { return '' }
+    return (($parts -join '; ') + '; ')
+}
+
 function Invoke-FlgCounterHit([string]$Key) {
     if ([string]::IsNullOrWhiteSpace($Key)) { return }
+    if (Test-FlgOffline) { return }
     try {
         $req = [Net.HttpWebRequest]::Create(('https://abacus.jasoncameron.dev/hit/lanyen-de/' + $Key))
         $req.Method = 'GET'
@@ -97,11 +177,22 @@ function Install-OneTool {
         New-Item -ItemType Directory -Path $destDir -Force | Out-Null
     }
 
-    Write-Info "正在下載 $key …"
-    Write-Host "  $url"
+    $localTool = Resolve-FlgOfflinePath ("tools\" + $file)
+    if (-not $localTool) { $localTool = Resolve-FlgOfflinePath $file }
     $tmp = Join-Path $env:TEMP ("flg_install_" + [Guid]::NewGuid().ToString('N') + '.exe')
     try {
-        Invoke-WebRequest -Uri $url -OutFile $tmp -UseBasicParsing
+        if ($localTool) {
+            Write-Info ("離線模式：複製本機 " + $file)
+            Copy-Item -LiteralPath $localTool -Destination $tmp -Force
+        } else {
+            if (Test-FlgOffline -and -not (Test-FlgNetworkAvailable)) {
+                throw ('離線版無法下載，請連網（未內建：' + $file + '）')
+            }
+            if (Test-FlgOffline) { Write-WarnMsg '本機無此工具，改從網路下載…' }
+            Write-Info "正在下載 $key …"
+            Write-Host "  $url"
+            Invoke-WebRequest -Uri $url -OutFile $tmp -UseBasicParsing
+        }
         if (-not (Test-Path -LiteralPath $tmp) -or ((Get-Item -LiteralPath $tmp).Length -lt 1024)) {
             throw "下載失敗或檔案過小：$file"
         }
