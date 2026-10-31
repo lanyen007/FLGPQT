@@ -16,7 +16,7 @@ try {
     elseif ($env:OS -match 'Windows') { $IsWindowsOs = $true }
 } catch {}
 
-$RawBase = 'https://raw.githubusercontent.com/lanyen007/FLGPQT/main'
+$RawBase = 'https://lanyen007.github.io/FLGPQT'
 $PagesBase = 'https://lanyen007.github.io/FLGPQT/drivers/'
 $script:UserProfile = $env:USERPROFILE
 if ([string]::IsNullOrWhiteSpace($script:UserProfile)) { $script:UserProfile = $env:HOME }

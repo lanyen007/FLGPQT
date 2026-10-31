@@ -50,6 +50,41 @@ function Test-IsAdmin {
     } catch { return $false }
 }
 
+function Test-FlgFixedDrive([string]$Letter) {
+    try {
+        $letter = $Letter.TrimEnd(':').Substring(0,1).ToUpperInvariant()
+        $di = New-Object IO.DriveInfo ($letter + ':')
+        return ($di.IsReady -and $di.DriveType -eq [IO.DriveType]::Fixed)
+    } catch { return $false }
+}
+
+function Request-FlgFtpElevation {
+    # Relaunch elevated; return $true if launched (caller should return)
+    if (-not $IsWindowsOs) { return $false }
+    if (Test-IsAdmin) { return $false }
+    if ($env:FLG_FTP_ELEVATING -eq '1') { return $false }
+    Write-WarnMsg '埠 21、防火牆與自動啟動需要系統管理員權限，即將跳出 UAC 提權…'
+    $boot = 'https://lanyen007.github.io/FLGPQT/drivers/ftp.ps1'
+    $parts = @()
+    foreach ($a in $args) {
+        $s = [string]$a
+        $parts += ("'" + $s.Replace("'", "''") + "'")
+    }
+    $argStr = $parts -join ' '
+    $envBits = "`$env:FLG_FTP_ELEVATING='1'; "
+    if ($env:FLG_FROM_MENU -eq '1') { $envBits += "`$env:FLG_FROM_MENU='1'; " }
+    $inner = $envBits + "& ([scriptblock]::Create((Invoke-RestMethod -Uri '$boot'))) $argStr"
+    $argList = "-NoProfile -ExecutionPolicy Bypass -NoExit -Command `"$inner`""
+    try {
+        Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $argList -ErrorAction Stop | Out-Null
+        Write-Ok '已開啟「系統管理員」視窗，請在新視窗操作。此視窗將結束。'
+        return $true
+    } catch {
+        Write-WarnMsg '您取消了 UAC，或以一般權限繼續。將改用埠 2121，並以啟動資料夾做自動啟動（若需要）。'
+        return $false
+    }
+}
+
 function Get-LocalIPv4List {
     $list = New-Object System.Collections.ArrayList
     try {
@@ -205,14 +240,10 @@ function Install-FlgFtpAutostart {
     param([string]$Root, [string]$User, [string]$Pass, [int]$Port, [bool]$Anonymous)
     if (-not $IsWindowsOs) { Write-WarnMsg '自動啟動目前僅支援 Windows。'; return }
 
-    # Port 21 needs admin to bind; for non-admin autostart prefer 2121
-    if ($Port -lt 1024 -and -not (Test-IsAdmin)) {
-        Write-WarnMsg '未以系統管理員執行時，埠 21 通常無法綁定。'
-        $ans = (Read-Host '自動啟動改用埠 2121？(Y/N，建議 Y；選 N 請之後用系統管理員啟動)').Trim()
-        if ($ans -notmatch '^(?i)n|no|否$') {
-            $Port = 2121
-            Write-Info '已改為埠 2121，請在影印機 FTP 設定填 2121。'
-        }
+    $isAdmin = Test-IsAdmin
+    if ($Port -lt 1024 -and -not $isAdmin) {
+        $Port = 2121
+        Write-WarnMsg '一般權限無法綁定埠 21，自動啟動改用埠 2121（請在影印機填 2121）。'
     }
 
     $configPath = Save-FlgFtpConfig -Root $Root -User $User -Pass $Pass -Port $Port -Anonymous $Anonymous
@@ -229,27 +260,27 @@ function Install-FlgFtpAutostart {
     try {
         Unregister-ScheduledTask -TaskName $script:FtpTaskName -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
         $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arg
-        # Per-user logon task (no admin / no Highest)
         $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
-        $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
+        # Admin-created task can use Highest so logon instance can bind port 21
+        $runLevel = $(if ($isAdmin) { 'Highest' } else { 'Limited' })
+        $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel $runLevel
         $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
         Register-ScheduledTask -TaskName $script:FtpTaskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force -ErrorAction Stop | Out-Null
-        Write-Ok ("已登錄登入自動啟動工作（一般權限）：{0}" -f $script:FtpTaskName)
+        Write-Ok ("已登錄登入自動啟動工作（{0}）：{1}" -f $(if ($isAdmin) { '最高權限' } else { '一般權限' }), $script:FtpTaskName)
         $taskOk = $true
     } catch {
-        Write-WarnMsg '無法登錄「工作排程器」（權限不足或被原則封鎖），改用「啟動」資料夾。'
+        Write-WarnMsg '無法登錄「工作排程器」，改用「啟動」資料夾。'
     }
 
     if (-not $taskOk) {
         try {
             Install-FlgFtpStartupShortcut -ConfigPath $configPath | Out-Null
         } catch {
-            Write-WarnMsg '寫入「啟動」資料夾也失敗了。請手動把下列指令放到啟動項，或每次登入後執行 irm lanyen.de/ftp | iex。'
+            Write-WarnMsg '寫入「啟動」資料夾也失敗了。請每次登入後執行 irm lanyen.de/ftp | iex。'
             Write-Host ("  設定檔：{0}" -f $configPath) -ForegroundColor White
             return
         }
     } else {
-        # also remove stale startup cmd if any, to avoid double-start; keep config
         $cmdPath = Get-FlgFtpStartupCmdPath
         if (Test-Path -LiteralPath $cmdPath) {
             try { Remove-Item -LiteralPath $cmdPath -Force -ErrorAction SilentlyContinue } catch {}
@@ -258,12 +289,10 @@ function Install-FlgFtpAutostart {
 
     Write-Host ''
     Write-Ok '自動啟動已設定完成。'
-    Write-Host ("  埠：{0}　帳號：{1}　資料夾：{2}" -f $Port, $User, $Root) -ForegroundColor Green
+    Write-Host ("  埠：{0}　帳號：{1}　密碼：{2}" -f $Port, $User, $Pass) -ForegroundColor Green
+    Write-Host ("  資料夾：{0}" -f $Root) -ForegroundColor Green
     if ($Port -ne 21) {
         Write-Host '  請確認影印機 FTP 埠與此相同。' -ForegroundColor Yellow
-    }
-    if (-not (Test-IsAdmin)) {
-        Write-Host '  提醒：防火牆規則需系統管理員才能自動新增；若影印機連不上，請手動放行或提權重跑一次「啟動 FTP」。' -ForegroundColor DarkGray
     }
 }
 
@@ -894,9 +923,19 @@ Invoke-FlgCounterHit 'ftp'
 Write-Host ''
 Write-Host '======== FLG 簡易 FTP 伺服器 ========' -ForegroundColor White
 Write-Host '給影印機「掃描到 FTP／資料夾」用：把檔案存到這台電腦' -ForegroundColor Gray
+Write-Host '預設：帳號 scanner　密碼 scanner1234　埠 21' -ForegroundColor DarkGray
 Write-Host ''
 
-# top menu
+$auto = ($env:FLG_FTP_AUTO -eq '1')
+
+# Self-elevate for interactive use (port 21 / firewall / task)
+if ($IsWindowsOs -and -not $auto -and -not (Test-IsAdmin)) {
+    if (Request-FlgFtpElevation @args) { return }
+    $script:FlgFtpNonAdminFallback = $true
+} else {
+    $script:FlgFtpNonAdminFallback = $false
+}
+
 function Show-FtpTopMenu {
     Write-Host '請選擇：'
     Write-Host '  [1] 啟動 FTP 伺服器'
@@ -906,7 +945,6 @@ function Show-FtpTopMenu {
     Write-Host ''
 }
 
-$auto = ($env:FLG_FTP_AUTO -eq '1')
 $choice = '1'
 if (-not $auto) {
     Show-FtpTopMenu
@@ -916,20 +954,21 @@ if (-not $auto) {
 if ($choice -eq '0') { Write-Info ('已' + (Get-FlgExitLabel) + '。'); return }
 if ($choice -eq '3') { Remove-FlgFtpAutostart; return }
 if ($choice -eq '2') {
-    # fall through to gather config then install
     $script:InstallAutostartOnly = $true
 } else {
     $script:InstallAutostartOnly = $false
 }
 
 # defaults
-$defaultRoot = Join-Path (Get-UserProfilePath) ([IO.Path]::Combine('Desktop', '掃描'))
+$hasD = Test-FlgFixedDrive 'D'
+$defaultRoot = $(if ($hasD) { 'D:\scan' } else { 'C:\scan' })
 if ($env:FLG_FTP_ROOT) { $defaultRoot = $env:FLG_FTP_ROOT }
 $root = $defaultRoot
-$user = 'scan'
+$user = 'scanner'
 if ($env:FLG_FTP_USER) { $user = $env:FLG_FTP_USER }
-$pass = New-RandomPassword 8
-if ($null -ne $env:FLG_FTP_PASS) { $pass = [string]$env:FLG_FTP_PASS }
+$pass = 'scanner1234'
+if ($null -ne $env:FLG_FTP_PASS -and $env:FLG_FTP_PASS -ne '') { $pass = [string]$env:FLG_FTP_PASS }
+elseif ($env:FLG_FTP_PASS -eq '') { $pass = '' }
 $anonymous = ($env:FLG_FTP_ANON -eq '1')
 $port = 21
 if ($script:ArgPort -gt 0) { $port = $script:ArgPort }
@@ -939,27 +978,37 @@ $pasvEnd = 50010
 
 if (-not $auto) {
     Write-Host ''
-    Write-Host ("預設存放資料夾：{0}" -f $defaultRoot) -ForegroundColor White
-    $r = (Read-Host '直接 Enter 使用預設，或輸入其他路徑').Trim()
+    Write-Host '存放資料夾：' -ForegroundColor White
+    Write-Host '  [1] C:\scan'
+    if ($hasD) {
+        Write-Host '  [2] D:\scan（建議，已偵測到 D:）'
+    } else {
+        Write-Host '  [2] D:\scan（目前沒有固定 D: 碟）' -ForegroundColor DarkGray
+    }
+    Write-Host ("  直接 Enter = 使用 {0}" -f $defaultRoot)
+    Write-Host '  或輸入其他完整路徑'
+    $r = (Read-Host '請選擇').Trim()
     if ($r -eq '0') { Write-Info ('已' + (Get-FlgExitLabel) + '。'); return }
-    if ($r) { $root = $r }
+    if ($r -eq '1') { $root = 'C:\scan' }
+    elseif ($r -eq '2') { $root = 'D:\scan' }
+    elseif ($r) { $root = $r }
 
-    $u = (Read-Host '帳號（預設 scan；輸入 anonymous 可匿名）').Trim()
+    $u = (Read-Host '帳號（預設 scanner）').Trim()
     if ($u -eq '0') { Write-Info ('已' + (Get-FlgExitLabel) + '。'); return }
     if ($u) {
-        if ($u -eq 'anonymous' -or $u -eq 'ftp') { $anonymous = $true; $user = 'scan' }
+        if ($u -eq 'anonymous' -or $u -eq 'ftp') { $anonymous = $true; $user = 'scanner' }
         else { $user = $u }
     }
     $anonAsk = (Read-Host '允許匿名登入 anonymous？(Y/N，預設 N)').Trim()
     if ($anonAsk -match '^(?i)y|yes|是$') { $anonymous = $true }
 
-    $pIn = Read-Host ("密碼（Enter=使用隨機「{0}」；輸入空白請打 - ）" -f $pass)
+    $pIn = Read-Host '密碼（Enter=使用 scanner1234；輸入空白請打 - ）'
     if ($pIn -eq '0') { Write-Info ('已' + (Get-FlgExitLabel) + '。'); return }
     if ($pIn -eq '-') { $pass = '' }
     elseif (-not [string]::IsNullOrWhiteSpace($pIn)) { $pass = $pIn }
 
     if ($script:ArgPort -le 0) {
-        if (-not (Test-IsAdmin) -and $port -eq 21) { $port = 2121 }
+        if ($script:FlgFtpNonAdminFallback -and $port -eq 21) { $port = 2121 }
         $pPort = (Read-Host ("FTP 埠（預設 {0}；空白=用預設）" -f $port)).Trim()
         if ($pPort -eq 'q' -or $pPort -eq 'Q') { Write-Info ('已' + (Get-FlgExitLabel) + '。'); return }
         if ($pPort) {
@@ -971,8 +1020,20 @@ if (-not $auto) {
     }
 }
 
+# Non-admin fallback: force 2121 for bindable port when still on privileged port
+if ($IsWindowsOs -and -not (Test-IsAdmin) -and $port -lt 1024) {
+    $port = 2121
+    Write-WarnMsg '目前不是系統管理員，改用埠 2121（請在影印機填 2121）。'
+}
+
 if (-not (Test-Path -LiteralPath $root)) {
-    New-Item -ItemType Directory -Path $root -Force | Out-Null
+    try {
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        Write-Ok ("已建立資料夾：{0}" -f $root)
+    } catch {
+        Write-WarnMsg ("無法建立資料夾 {0}，請確認磁碟存在與權限。" -f $root)
+        return
+    }
 }
 $root = [IO.Path]::GetFullPath($root)
 
@@ -993,24 +1054,6 @@ $config = @{
 if ($script:InstallAutostartOnly) {
     Install-FlgFtpAutostart -Root $root -User $user -Pass $pass -Port $port -Anonymous $anonymous
     return
-}
-
-# Non-admin cannot bind port 21 reliably — offer 2121
-if ($IsWindowsOs -and $port -lt 1024 -and -not (Test-IsAdmin) -and -not $auto) {
-    Write-WarnMsg '埠 21 需要系統管理員權限才能綁定。'
-    $ans = (Read-Host '改用埠 2121 繼續？(Y=2121 / N=仍試 21 / A=提權重開，預設 Y)').Trim()
-    if ($ans -match '^(?i)a|admin|提權$') {
-        Write-Info '請以系統管理員開啟 PowerShell 後再執行：irm lanyen.de/ftp | iex'
-        return
-    } elseif ($ans -match '^(?i)n|no|否$') {
-        Write-WarnMsg '仍使用埠 21；若出現存取被拒，請改 2121 或提權。'
-    } else {
-        $port = 2121
-        $config.Port = 2121
-        Write-Info '已改用埠 2121，請在影印機 FTP 設定填 2121。'
-    }
-} elseif ($IsWindowsOs -and $port -lt 1024 -and -not (Test-IsAdmin) -and $auto) {
-    Write-WarnMsg '自動啟動為一般權限，埠 21 可能失敗；若無法啟動請把設定檔 port 改為 2121。'
 }
 
 try {

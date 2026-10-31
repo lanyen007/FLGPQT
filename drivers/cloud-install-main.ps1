@@ -14,7 +14,7 @@ try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 } catch {}
 
-$CloudJsonUrl = 'https://raw.githubusercontent.com/lanyen007/FLGPQT/main/drivers/cloud.json'
+$CloudJsonUrl = 'https://lanyen007.github.io/FLGPQT/drivers/cloud.json'
 $PagesBase = 'https://lanyen007.github.io/FLGPQT/drivers/'
 $IsWindowsOs = $true
 try {

@@ -40,7 +40,7 @@ if ($FlgDriverBrand -match '^(?i)sharp$') {
 $Query = ''
 if ($argList -and $argList.Count -gt 0) { $Query = [string]$argList[0] }
 
-$RawBase = 'https://raw.githubusercontent.com/lanyen007/FLGPQT/main'
+$RawBase = 'https://lanyen007.github.io/FLGPQT'
 $JsonUrl = "$RawBase/drivers/$FlgDriverJson" + '?t=' + [DateTime]::UtcNow.Ticks
 $DestRoot = Join-Path $env:USERPROFILE ("Downloads\FLG-Drivers\" + $FlgDriverBrand)
 
