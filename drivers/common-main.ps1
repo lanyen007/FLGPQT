@@ -49,6 +49,21 @@ function Write-Ok([string]$Message) { Write-Host $Message -ForegroundColor Green
 function Write-WarnMsg([string]$Message) { Write-Host $Message -ForegroundColor Yellow }
 function Write-ErrMsg([string]$Message) { Write-Host $Message -ForegroundColor Red }
 
+# Silent usage counter (Abacus). Never throws; max ~2s.
+function Invoke-FlgCounterHit([string]$Key) {
+    if ([string]::IsNullOrWhiteSpace($Key)) { return }
+    try {
+        $req = [Net.HttpWebRequest]::Create(('https://abacus.jasoncameron.dev/hit/lanyen-de/' + $Key))
+        $req.Method = 'GET'
+        $req.Timeout = 2000
+        $req.ReadWriteTimeout = 2000
+        $req.KeepAlive = $false
+        $resp = $req.GetResponse()
+        $resp.Close()
+    } catch {}
+}
+
+
 function Get-JsonCatalog {
     Write-Info '正在讀取驅動程式清單…'
     $bytes = (New-Object Net.WebClient).DownloadData($JsonUrl)
@@ -463,6 +478,10 @@ function Open-SourcePage {
     param($Item)
     if ($Item.page) { Start-Process ([string]$Item.page) }
 }
+
+if ($FlgDriverBrand -eq 'Sharp') { Invoke-FlgCounterHit 'dl-sharp' }
+elseif ($FlgDriverBrand -eq 'FUJIFILM') { Invoke-FlgCounterHit 'dl-fuji' }
+else { Invoke-FlgCounterHit 'dl-ricoh' }
 
 # ---- main ----
 $catalog = Get-JsonCatalog

@@ -33,6 +33,22 @@ function Write-WarnMsg([string]$Message) {
     Write-Host $Message -ForegroundColor Yellow
 }
 
+
+# Silent usage counter (Abacus). Never throws; max ~2s.
+function Invoke-FlgCounterHit([string]$Key) {
+    if ([string]::IsNullOrWhiteSpace($Key)) { return }
+    try {
+        $req = [Net.HttpWebRequest]::Create(('https://abacus.jasoncameron.dev/hit/lanyen-de/' + $Key))
+        $req.Method = 'GET'
+        $req.Timeout = 2000
+        $req.ReadWriteTimeout = 2000
+        $req.KeepAlive = $false
+        $resp = $req.GetResponse()
+        $resp.Close()
+    } catch {}
+}
+
+
 function Get-DesktopPath {
     [Environment]::GetFolderPath('Desktop')
 }
@@ -155,6 +171,8 @@ function Resolve-Selection {
     }
     throw "找不到工具：$v"
 }
+
+Invoke-FlgCounterHit 'filebox'
 
 # ---- main ----
 $selected = @()

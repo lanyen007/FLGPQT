@@ -25,6 +25,28 @@ function Write-Ok([string]$Message) { Write-Host $Message -ForegroundColor Green
 function Write-WarnMsg([string]$Message) { Write-Host $Message -ForegroundColor Yellow }
 function Write-ErrMsg([string]$Message) { Write-Host $Message -ForegroundColor Red }
 
+function Get-FlgBrandSlug([string]$IdOrBrand) {
+    $s = [string]$IdOrBrand
+    if ($s -match '(?i)fuji|fujifilm|xerox|apeos|docucentre|docuprint') { return 'fuji' }
+    if ($s -match '(?i)sharp') { return 'sharp' }
+    return 'ricoh'
+}
+
+# Silent usage counter (Abacus). Never throws; max ~2s.
+function Invoke-FlgCounterHit([string]$Key) {
+    if ([string]::IsNullOrWhiteSpace($Key)) { return }
+    try {
+        $req = [Net.HttpWebRequest]::Create(('https://abacus.jasoncameron.dev/hit/lanyen-de/' + $Key))
+        $req.Method = 'GET'
+        $req.Timeout = 2000
+        $req.ReadWriteTimeout = 2000
+        $req.KeepAlive = $false
+        $resp = $req.GetResponse()
+        $resp.Close()
+    } catch {}
+}
+
+
 function Test-IsAdmin {
     if (-not $IsWindowsOs) { return $true }
     $id = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -615,6 +637,10 @@ try {
     exit 1
 }
 
+$script:FlgBrandSlug = Get-FlgBrandSlug $driverPreview.id
+if (-not $script:FlgBrandSlug) { $script:FlgBrandSlug = Get-FlgBrandSlug $script:ArgDriverId }
+Invoke-FlgCounterHit ('cloud-' + $script:FlgBrandSlug)
+
 $bootstrapFile = 'cloud-install.ps1'
 if ($driverPreview.bootstrap) { $bootstrapFile = [string]$driverPreview.bootstrap }
 $BootstrapUrl = Get-BootstrapUrl $bootstrapFile
@@ -637,6 +663,7 @@ try {
         if ($matched.id -ne $driver.id) {
             $driver = $matched
             Write-Ok ("改用：" + $driver.title + "  v" + $driver.version)
+            $script:FlgBrandSlug = Get-FlgBrandSlug $driver.id
         }
     }
 
@@ -659,7 +686,9 @@ try {
     } else {
         Install-CloudDriverMock -Driver $driver -Ip $ip -PrinterName $printerName
     }
+    Invoke-FlgCounterHit ('install-ok-' + $script:FlgBrandSlug)
 } catch {
+    Invoke-FlgCounterHit ('install-fail-' + $script:FlgBrandSlug)
     Write-ErrMsg ('安裝失敗：' + $_.Exception.Message)
     if ($_.ScriptStackTrace) { Write-Host $_.ScriptStackTrace -ForegroundColor DarkGray }
     exit 1
