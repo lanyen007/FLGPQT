@@ -32,6 +32,10 @@ function Write-Ok([string]$Message) {
 function Write-WarnMsg([string]$Message) {
     Write-Host $Message -ForegroundColor Yellow
 }
+function Get-FlgExitLabel {
+    if ($env:FLG_FROM_MENU -eq '1') { return '回到上一頁' }
+    return '離開'
+}
 
 
 # Silent usage counter (Abacus). Never throws; max ~2s.
@@ -128,7 +132,7 @@ function Show-Menu {
         $i++
     }
     Write-Host ("  {0}) 全部安裝" -f $i)
-    Write-Host '  0) 取消'
+    Write-Host ('  0) ' + (Get-FlgExitLabel))
     Write-Host ''
 }
 
@@ -185,7 +189,7 @@ if (-not [string]::IsNullOrWhiteSpace($Tool)) {
 }
 
 if ($selected.Count -eq 0) {
-    Write-WarnMsg '已取消。'
+    Write-WarnMsg ('已' + (Get-FlgExitLabel) + '。')
     return
 }
 

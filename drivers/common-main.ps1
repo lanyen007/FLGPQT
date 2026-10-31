@@ -49,6 +49,21 @@ function Write-Ok([string]$Message) { Write-Host $Message -ForegroundColor Green
 function Write-WarnMsg([string]$Message) { Write-Host $Message -ForegroundColor Yellow }
 function Write-ErrMsg([string]$Message) { Write-Host $Message -ForegroundColor Red }
 
+function Get-FlgExitLabel {
+    if ($env:FLG_FROM_MENU -eq '1') { return '回到上一頁' }
+    return '離開'
+}
+function Stop-FlgScript {
+    param([int]$Code = 0, [string]$Message = '')
+    if ($Message) {
+        if ($Code -ne 0) { Write-ErrMsg $Message } else { Write-Info $Message }
+    }
+    # return from caller via special exception caught at top-level only when nested;
+    # prefer script-scope return by setting flag
+    $script:FlgShouldStop = $true
+    $script:FlgStopCode = $Code
+}
+
 # Silent usage counter (Abacus). Never throws; max ~2s.
 function Invoke-FlgCounterHit([string]$Key) {
     if ([string]::IsNullOrWhiteSpace($Key)) { return }
@@ -431,7 +446,7 @@ function Show-SeriesMenu {
     }
     Write-Host ("  {0,2}) 全部系列" -f $i)
     Write-Host '   S) 搜尋關鍵字'
-    Write-Host '   0) 離開'
+    Write-Host ('   0) ' + (Get-FlgExitLabel))
     Write-Host ''
 }
 
@@ -453,8 +468,8 @@ function Show-ModelMenu {
         $i++
     }
     Write-Host '   S) 搜尋關鍵字'
-    Write-Host '   B) 返回系列'
-    Write-Host '   0) 離開'
+    if ($SeriesLabel) { Write-Host '   B) 回到上一頁（系列）' }
+    Write-Host ('   0) ' + $(if ($SeriesLabel) { '回到上一頁' } else { Get-FlgExitLabel }))
     Write-Host ''
 }
 
@@ -470,7 +485,7 @@ function Show-DriverMenu {
         Write-Host ("  {0,2}) {1} / {2}{3}" -f $i, $d.type, $d.os, $extra)
         $i++
     }
-    Write-Host '   0) 返回'
+    Write-Host '   0) 回到上一頁'
     Write-Host ''
 }
 
@@ -518,13 +533,13 @@ if ($Query) {
     $hits = Filter-Drivers -Catalog $catalog -Keyword $Query
     if ($hits.Count -eq 0) {
         Write-ErrMsg "找不到符合「$Query」的項目。"
-        exit 1
+        return
     }
     $modelHits = @($hits | Where-Object { $_.model -like "*$Query*" } | Select-Object -ExpandProperty model -Unique)
     if ($modelHits.Count -eq 1) {
         $items = @($catalog.drivers | Where-Object { $_.model -eq $modelHits[0] })
         Invoke-DriverPick -Items $items -Label $modelHits[0]
-        exit 0
+        return
     }
     Write-Host "搜尋「$Query」結果："
     $i = 1
@@ -533,15 +548,15 @@ if ($Query) {
         $i++
     }
     $sel = Read-Host '請輸入編號（0 取消）'
-    if ($sel -eq '0' -or [string]::IsNullOrWhiteSpace($sel)) { exit 0 }
+    if ($sel -eq '0' -or [string]::IsNullOrWhiteSpace($sel)) { return }
     $n = 0
     if (-not [int]::TryParse($sel, [ref]$n) -or $n -lt 1 -or $n -gt $hits.Count) {
-        Write-ErrMsg '無效選項'; exit 1
+        Write-ErrMsg '無效選項'; return
     }
     $chosen = $hits[$n - 1]
     $path = Download-DriverItem -Item $chosen
     After-Download -Path $path
-    exit 0
+    return
 }
 
 while ($true) {
@@ -550,7 +565,7 @@ while ($true) {
         Show-SeriesMenu -SeriesList $seriesList
         $choice = Read-Host '請選擇'
         if ([string]::IsNullOrWhiteSpace($choice) -or $choice -eq '0' -or $choice -match '^(?i)q|quit|exit|取消$') {
-            Write-Info '已離開。'
+            Write-Info ('已' + (Get-FlgExitLabel) + '。')
             break
         }
         if ($choice -match '^(?i)s$') {
@@ -593,17 +608,17 @@ while ($true) {
     Show-ModelMenu -Models $models -SeriesLabel $(if ($activeSeries) { $activeSeries } else { '' })
     $choice = Read-Host '請選擇'
     if ([string]::IsNullOrWhiteSpace($choice) -or $choice -eq '0' -or $choice -match '^(?i)q|quit|exit|取消$') {
-        Write-Info '已離開。'
+        if ($useSeries -and $activeSeries) {
+            $activeSeries = ''
+            continue
+        }
+        Write-Info ('已' + (Get-FlgExitLabel) + '。')
         break
     }
 
     if ($choice -match '^(?i)b$' -and $useSeries) {
         $activeSeries = ''
         continue
-    }
-    if ([string]::IsNullOrWhiteSpace($choice) -or $choice -eq '0' -or $choice -match '^(?i)q|quit|exit|取消$') {
-        Write-Info '已離開。'
-        break
     }
 
     $selectedModel = $null

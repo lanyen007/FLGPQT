@@ -27,6 +27,15 @@ function Write-Ok([string]$Message) { Write-Host $Message -ForegroundColor Green
 function Write-WarnMsg([string]$Message) { Write-Host $Message -ForegroundColor Yellow }
 function Write-ErrMsg([string]$Message) { Write-Host $Message -ForegroundColor Red }
 
+function Get-FlgExitLabel {
+    if ($env:FLG_FROM_MENU -eq '1') { return '回到上一頁' }
+    return '離開'
+}
+function Exit-FlgOrReturn([int]$Code = 0) {
+    if ($env:FLG_FROM_MENU -eq '1') { return }
+    exit $Code
+}
+
 function Get-FlgBrandSlug([string]$IdOrBrand) {
     $s = [string]$IdOrBrand
     if ($s -match '(?i)fuji|fujifilm|xerox|apeos|docucentre|docuprint') { return 'fuji' }
@@ -79,8 +88,10 @@ function Request-Elevation([string]$BootstrapUrl) {
     } catch {
         Write-ErrMsg ("無法提權：" + $_.Exception.Message)
         Write-Host '請以「系統管理員」開啟 PowerShell 後再執行一次。' -ForegroundColor Yellow
+        if ($env:FLG_FROM_MENU -eq '1') { return 'fail' }
         exit 1
     }
+    if ($env:FLG_FROM_MENU -eq '1') { return 'elevated' }
     exit 0
 }
 
@@ -399,7 +410,11 @@ function Get-PrinterIpFromArgsOrPrompt {
     if ($script:ArgIp) { $ip = $script:ArgIp }
     while (-not (Test-Ipv4Address $ip)) {
         if ($ip) { Write-WarnMsg "IP 格式不正確：$ip" }
-        $ip = Read-Host '請輸入印表機 IP（例如 192.168.1.50）'
+        $hint = Get-FlgExitLabel
+        $ip = Read-Host ("請輸入印表機 IP（例如 192.168.1.50；空白或 0 = {0}）" -f $hint)
+        if ([string]::IsNullOrWhiteSpace($ip) -or $ip.Trim() -eq '0') {
+            return $null
+        }
     }
     return $ip.Trim()
 }
@@ -638,7 +653,7 @@ try {
     $driverPreview = Select-CloudDriver $catalog $script:ArgDriverId
 } catch {
     Write-ErrMsg ('讀取清單失敗：' + $_.Exception.Message)
-    exit 1
+    return
 }
 
 $script:FlgBrandSlug = Get-FlgBrandSlug $driverPreview.id
@@ -650,12 +665,17 @@ if ($driverPreview.bootstrap) { $bootstrapFile = [string]$driverPreview.bootstra
 $BootstrapUrl = Get-BootstrapUrl $bootstrapFile
 
 if ($IsWindowsOs -and -not (Test-IsAdmin)) {
-    Request-Elevation $BootstrapUrl @args
+    $null = Request-Elevation $BootstrapUrl @args
+    return
 }
 
 try {
     $driver = $driverPreview
     $ip = Get-PrinterIpFromArgsOrPrompt
+    if (-not $ip) {
+        Write-Info ('已' + (Get-FlgExitLabel) + '。')
+        return
+    }
 
     if (-not $script:NonInteractive) {
         $null = Test-PrinterReachable $ip
@@ -695,5 +715,5 @@ try {
     Invoke-FlgCounterHit ('install-fail-' + $script:FlgBrandSlug)
     Write-ErrMsg ('安裝失敗：' + $_.Exception.Message)
     if ($_.ScriptStackTrace) { Write-Host $_.ScriptStackTrace -ForegroundColor DarkGray }
-    exit 1
+    return
 }

@@ -48,6 +48,11 @@ function Write-Ok([string]$Message) { Write-Host $Message -ForegroundColor Green
 function Write-WarnMsg([string]$Message) { Write-Host $Message -ForegroundColor Yellow }
 function Write-ErrMsg([string]$Message) { Write-Host $Message -ForegroundColor Red }
 
+function Get-FlgExitLabel {
+    if ($env:FLG_FROM_MENU -eq '1') { return '回到上一頁' }
+    return '離開'
+}
+
 function Invoke-FlgCounterHit([string]$Key) {
     if ([string]::IsNullOrWhiteSpace($Key)) { return }
     try {
@@ -632,8 +637,10 @@ function Request-Elevation([string]$BootstrapUrl) {
     } catch {
         Write-ErrMsg ("無法提權：" + $_.Exception.Message)
         Write-Host '請以「系統管理員」開啟 PowerShell 後再執行一次。' -ForegroundColor Yellow
+        if ($env:FLG_FROM_MENU -eq '1') { return 'fail' }
         exit 1
     }
+    if ($env:FLG_FROM_MENU -eq '1') { return 'elevated' }
     exit 0
 }
 
@@ -734,7 +741,7 @@ function Show-AfterMenu([string]$Path) {
     Write-Host '下載完成，接下來？' -ForegroundColor White
     Write-Host '  [1] 開啟資料夾'
     Write-Host '  [2] 執行安裝程式（.exe）'
-    Write-Host '  [0] 離開'
+    Write-Host ('  [0] ' + (Get-FlgExitLabel))
     $c = (Read-Host '請輸入編號（預設 1）').Trim()
     if ([string]::IsNullOrWhiteSpace($c)) { $c = '1' }
     if ($c -eq '2') {
@@ -746,7 +753,7 @@ function Show-AfterMenu([string]$Path) {
             try { Start-Process explorer.exe -ArgumentList $dir } catch {}
         }
     } elseif ($c -eq '0') {
-        Write-Host '已離開。'
+        Write-Host ('已' + (Get-FlgExitLabel) + '。')
     } else {
         try { Start-Process explorer.exe -ArgumentList $dir } catch { Write-Info "資料夾：$dir" }
     }
@@ -1190,7 +1197,7 @@ function Show-ScanTable($Found) {
     Write-Host ''
     Write-Host '  [A] 全部安裝'
     Write-Host '  [I] 手動輸入 IP'
-    Write-Host '  [0] 離開'
+    Write-Host ('  [0] ' + (Get-FlgExitLabel))
 }
 
 # ---- main ----
@@ -1208,29 +1215,30 @@ if ($script:Mode -eq 'scan') {
 $cloud = $null
 try { $cloud = Load-CloudCatalog } catch {
     Write-ErrMsg ('讀取 cloud.json 失敗：' + $_.Exception.Message)
-    exit 1
+    return
 }
 
 $doInstall = $true
 if ($IsWindowsOs -and $doInstall -and -not (Test-IsAdmin)) {
     $boot = $(if ($script:Mode -eq 'scan') { 'auto-driver-scan.ps1' } else { 'auto-driver.ps1' })
-    Request-Elevation ($PagesBase + $boot) @args
+    $null = Request-Elevation ($PagesBase + $boot) @args
+    return
 }
 
 try {
     if ($script:Mode -eq 'scan') {
         $found = Invoke-LanPrinterScan
         if ($found.Count -eq 0) {
-            $mip = (Read-Host '請輸入印表機 IP（空白=離開）').Trim()
-            if (-not $mip) { exit 0 }
+            $mip = (Read-Host ("請輸入印表機 IP（空白或 0 = {0}）" -f (Get-FlgExitLabel))).Trim()
+            if (-not $mip -or $mip -eq '0') { Write-Info ('已' + (Get-FlgExitLabel) + '。'); return }
             if (-not (Test-Ipv4Address $mip)) { throw "IP 無效：$mip" }
             Invoke-ProcessPrinter -Ip $mip -CloudCatalog $cloud -Install | Out-Null
-            exit 0
+            return
         }
         while ($true) {
             Show-ScanTable $found
             $choice = (Read-Host '請選擇編號').Trim()
-            if ($choice -eq '0' -or $choice -eq '') { Write-Host '已離開。'; break }
+            if ($choice -eq '0' -or $choice -eq '') { Write-Host ('已' + (Get-FlgExitLabel) + '。'); break }
             if ($choice -match '^(?i)i$') {
                 $mip = (Read-Host '印表機 IP').Trim()
                 if (-not (Test-Ipv4Address $mip)) { Write-WarnMsg 'IP 無效'; continue }
@@ -1266,16 +1274,20 @@ try {
     } else {
         $ip = $script:ArgIp
         if (-not $ip) {
-            Write-Host '請輸入印表機 IP（空白=掃描區網；或輸入機型名稱略過 SNMP）' -ForegroundColor White
+            Write-Host ('請輸入印表機 IP（空白=掃描區網；0 = {0}；或輸入機型名稱）' -f (Get-FlgExitLabel)) -ForegroundColor White
             $raw = (Read-Host 'IP / 機型').Trim()
+            if ($raw -eq '0') {
+                Write-Info ('已' + (Get-FlgExitLabel) + '。')
+                return
+            }
             if ([string]::IsNullOrWhiteSpace($raw)) {
                 $script:Mode = 'scan'
                 Invoke-FlgCounterHit 'lan-scan'
-                # recurse into scan path by re-invoking logic
                 $found = Invoke-LanPrinterScan
-                if ($found.Count -eq 0) { exit 0 }
+                if ($found.Count -eq 0) { return }
                 Show-ScanTable $found
                 $choice = (Read-Host '請選擇編號').Trim()
+                if ($choice -eq '0' -or $choice -eq '') { Write-Host ('已' + (Get-FlgExitLabel) + '。'); return }
                 if ($choice -match '^(?i)a$') {
                     foreach ($f in $found) {
                         try {
@@ -1288,7 +1300,7 @@ try {
                     $hint = $f.Model; if ($hint -match '無 SNMP') { $hint = '' }
                     Invoke-ProcessPrinter -Ip $f.Ip -ModelHint $hint -CloudCatalog $cloud -Install | Out-Null
                 }
-                exit 0
+                return
             }
             if (Test-Ipv4Address $raw) {
                 $ip = $raw
@@ -1305,7 +1317,7 @@ try {
                     Write-Host ("原廠支援：" + $resolved.SupportUrl) -ForegroundColor DarkGray
                 } else { throw "找不到可用驅動：$raw" }
                 Show-AfterMenu $downloaded
-                exit 0
+                return
             }
         }
         Invoke-ProcessPrinter -Ip $ip -CloudCatalog $cloud -Install | Out-Null
@@ -1313,5 +1325,5 @@ try {
 } catch {
     Write-ErrMsg ('失敗：' + $_.Exception.Message)
     if ($_.ScriptStackTrace) { Write-Host $_.ScriptStackTrace -ForegroundColor DarkGray }
-    exit 1
+    return
 }
