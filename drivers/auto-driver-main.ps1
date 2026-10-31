@@ -875,6 +875,60 @@ function Invoke-ProcessPrinter {
 }
 
 # ---- LAN scan ----
+function ConvertTo-Ipv4UInt([string]$Ip) {
+    $addr = [Net.IPAddress]::Parse($Ip)
+    $bytes = $addr.GetAddressBytes()
+    if ([BitConverter]::IsLittleEndian) { [Array]::Reverse($bytes) }
+    return [BitConverter]::ToUInt32($bytes, 0)
+}
+function ConvertFrom-Ipv4UInt([uint32]$Value) {
+    $hb = [BitConverter]::GetBytes([uint32]$Value)
+    if ([BitConverter]::IsLittleEndian) { [Array]::Reverse($hb) }
+    return ([Net.IPAddress]::new($hb)).ToString()
+}
+function Get-Slash24NetworkUInt([uint32]$IpInt) {
+    # 0xFFFFFF00 as uint32 (PS may treat bare 0xFFFFFF00 as signed -256)
+    $mask24 = [Convert]::ToUInt32('FFFFFF00', 16)
+    return [uint32]($IpInt -band $mask24)
+}
+function Get-PrefixMaskUInt([int]$Prefix) {
+    if ($Prefix -le 0) { return [uint32]0 }
+    if ($Prefix -ge 32) { return [Convert]::ToUInt32('FFFFFFFF', 16) }
+    # mask = not (2^(32-prefix) - 1)
+    $hostBits = 32 - $Prefix
+    $hostMask = [uint32]([Math]::Pow(2, $hostBits) - 1)
+    return [uint32](-bnot $hostMask)
+}
+
+function Get-DefaultGatewayIp {
+    param([string]$InterfaceAlias = '')
+    if (-not $IsWindowsOs) { return $null }
+    try {
+        $routes = @(Get-NetRoute -DestinationPrefix '0.0.0.0/0' -AddressFamily IPv4 -ErrorAction Stop |
+            Where-Object { $_.NextHop -and $_.NextHop -ne '0.0.0.0' } |
+            Sort-Object RouteMetric, InterfaceMetric)
+        if ($InterfaceAlias) {
+            $hit = @($routes | Where-Object { $_.InterfaceAlias -eq $InterfaceAlias })
+            if ($hit.Count -gt 0) { return [string]$hit[0].NextHop }
+        }
+        if ($routes.Count -gt 0) { return [string]$routes[0].NextHop }
+    } catch {}
+    try {
+        $cfg = Get-NetIPConfiguration -ErrorAction Stop
+        foreach ($c in @($cfg)) {
+            if ($InterfaceAlias -and $c.InterfaceAlias -ne $InterfaceAlias) { continue }
+            $gw = $null
+            try { $gw = $c.IPv4DefaultGateway } catch {}
+            if ($gw) {
+                $nh = $null
+                try { $nh = [string]$gw.NextHop } catch { try { $nh = [string]$gw[0].NextHop } catch {} }
+                if ($nh -and $nh -ne '0.0.0.0') { return $nh }
+            }
+        }
+    } catch {}
+    return $null
+}
+
 function Get-LocalSubnets {
     $nets = New-Object System.Collections.ArrayList
     if ($IsWindowsOs) {
@@ -887,23 +941,29 @@ function Get-LocalSubnets {
                 }
             foreach ($a in @($addrs)) {
                 $alias = ''
-                try { $alias = [string](Get-NetIPAddress -IPAddress $a.IPAddress -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty InterfaceAlias) } catch {}
-                if (-not $alias) { try { $alias = [string]$a.InterfaceAlias } catch {} }
+                try { $alias = [string]$a.InterfaceAlias } catch {}
+                if (-not $alias) {
+                    try { $alias = [string](Get-NetIPAddress -IPAddress $a.IPAddress -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty InterfaceAlias) } catch {}
+                }
                 if ($alias -match '(?i)Loopback|vEthernet|Hyper-V|WSL|Docker|VirtualBox|VMware|VPN|TAP|Bluetooth|Pseudo') { continue }
-                [void]$nets.Add([pscustomobject]@{ IP = [string]$a.IPAddress; Prefix = [int]$a.PrefixLength; Alias = $alias })
+                $gw = Get-DefaultGatewayIp -InterfaceAlias $alias
+                [void]$nets.Add([pscustomobject]@{ IP = [string]$a.IPAddress; Prefix = [int]$a.PrefixLength; Alias = $alias; Gateway = $gw })
             }
         } catch {
             Write-WarnMsg ("Get-NetIPAddress 失敗，改用 ipconfig：" + $_.Exception.Message)
         }
     }
     if ($nets.Count -eq 0) {
-        # fallback parse
         try {
             if ($IsWindowsOs) {
                 $cfg = ipconfig
-                $curIp = $null; $mask = $null
+                $curIp = $null; $mask = $null; $gw = $null; $alias = 'ipconfig'
                 foreach ($line in $cfg) {
+                    if ($line -match '^\s*(Ethernet|無線|Wi-?Fi|乙太|區域連線|adapter)\s') { $alias = $line.Trim() }
                     if ($line -match 'IPv4.*:\s*([0-9.]+)') { $curIp = $Matches[1] }
+                    if ($line -match 'Default Gateway.*:\s*([0-9.]+)' -or $line -match '預設閘道.*:\s*([0-9.]+)') {
+                        if ($Matches[1]) { $gw = $Matches[1] }
+                    }
                     if ($line -match 'Subnet Mask.*:\s*([0-9.]+)' -or $line -match '子網路遮罩.*:\s*([0-9.]+)') {
                         $mask = $Matches[1]
                         if ($curIp -and $curIp -notmatch '^(127\.|169\.254\.)' -and $mask) {
@@ -913,20 +973,24 @@ function Get-LocalSubnets {
                                 $b = [Convert]::ToString($p, 2).Replace('0','').Length
                                 $bits += $b
                             }
-                            [void]$nets.Add([pscustomobject]@{ IP = $curIp; Prefix = $bits; Alias = 'ipconfig' })
+                            [void]$nets.Add([pscustomobject]@{ IP = $curIp; Prefix = $bits; Alias = $alias; Gateway = $gw })
                         }
                         $curIp = $null; $mask = $null
                     }
                 }
             } else {
-                # Linux box fallback for dry-run
                 $ipOut = @()
                 try { $ipOut = & ip -4 -o addr show 2>$null } catch { $ipOut = @() }
+                $gw = $null
+                try {
+                    $r = & ip -4 route show default 2>$null
+                    if ("$r" -match 'via\s+([0-9.]+)') { $gw = $Matches[1] }
+                } catch {}
                 foreach ($line in @($ipOut)) {
                     if ($line -match 'inet\s+([0-9.]+)/(\d+)') {
                         $ip = $Matches[1]; $pre = [int]$Matches[2]
                         if ($ip -notmatch '^(127\.|169\.254\.)') {
-                            [void]$nets.Add([pscustomobject]@{ IP = $ip; Prefix = $pre; Alias = 'linux' })
+                            [void]$nets.Add([pscustomobject]@{ IP = $ip; Prefix = $pre; Alias = 'linux'; Gateway = $gw })
                         }
                     }
                 }
@@ -936,34 +1000,87 @@ function Get-LocalSubnets {
     return @($nets)
 }
 
-function Get-HostsToScan($Subnet) {
-    $ip = [Net.IPAddress]::Parse($Subnet.IP)
-    $bytes = $ip.GetAddressBytes()
-    if ([BitConverter]::IsLittleEndian) { [Array]::Reverse($bytes) }
-    $ipInt = [BitConverter]::ToUInt32($bytes, 0)
-    $prefix = [int]$Subnet.Prefix
-    # Cap large prefixes to host /24
-    if ($prefix -lt 24) {
-        Write-WarnMsg ("網段 /$prefix 過大，改掃此主機所在 /24。")
-        $prefix = 24
+# 依遮罩展開要掃的 /24 網段：/24→1、/23→2、/22→4…；大於 /20 只掃本機+/閘道 /24
+function Get-ScanSegments {
+    param(
+        [string]$HostIp,
+        [int]$Prefix,
+        [string]$Gateway = '',
+        [switch]$Quiet
+    )
+    if (-not (Test-Ipv4Address $HostIp)) { throw "IP 無效：$HostIp" }
+    if ($Prefix -lt 0 -or $Prefix -gt 32) { throw "Prefix 無效：$Prefix" }
+
+    $notes = New-Object System.Collections.ArrayList
+    $segSet = New-Object 'System.Collections.Generic.List[uint32]'
+    $hostInt = ConvertTo-Ipv4UInt $HostIp
+    $host24 = Get-Slash24NetworkUInt $hostInt
+
+    if ($Prefix -ge 24) {
+        [void]$segSet.Add($host24)
+    } elseif ($Prefix -ge 20) {
+        $mask = Get-PrefixMaskUInt $Prefix
+        $network = [uint32]($hostInt -band $mask)
+        $num24 = [int][Math]::Pow(2, (24 - $Prefix))
+        for ($i = 0; $i -lt $num24; $i++) {
+            $seg = [uint32]($network + [uint32]($i * 256))
+            if (-not $segSet.Contains($seg)) { [void]$segSet.Add($seg) }
+        }
+    } else {
+        [void]$notes.Add(("介面遮罩 /{0} 大於 /20（超過 16 個 /24），為避免掃描過久，只掃本機與閘道所在 /24。" -f $Prefix))
+        [void]$segSet.Add($host24)
     }
-    $hostBits = 32 - $prefix
-    $size = [Math]::Pow(2, $hostBits)
-    if ($size -gt 256) { $prefix = 24; $hostBits = 8; $size = 256 }
-    $mask = [uint32](-bnot [uint32]([Math]::Pow(2, $hostBits) - 1))
-    $network = $ipInt -band $mask
+
+    if ($Gateway -and (Test-Ipv4Address $Gateway)) {
+        $gwInt = ConvertTo-Ipv4UInt $Gateway
+        # 閘道應在同一介面子網內（或至少可作為掃描目標）
+        if ($Prefix -le 32) {
+            $mask = Get-PrefixMaskUInt $Prefix
+            $same = ([uint32]($hostInt -band $mask) -eq [uint32]($gwInt -band $mask))
+            if (-not $same -and $Prefix -ge 20) {
+                [void]$notes.Add(("閘道 {0} 不在本機子網 /{1} 內，仍一併掃描其所在 /24。" -f $Gateway, $Prefix))
+            }
+        }
+        $gw24 = Get-Slash24NetworkUInt $gwInt
+        if (-not $segSet.Contains($gw24)) { [void]$segSet.Add($gw24) }
+    }
+
+    $labels = @($segSet | Sort-Object | ForEach-Object { (ConvertFrom-Ipv4UInt $_) + '/24' })
+    return [pscustomobject]@{
+        Segments = @($segSet | Sort-Object)
+        Labels = $labels
+        Notes = @($notes)
+        HostIp = $HostIp
+        Prefix = $Prefix
+        Gateway = $Gateway
+    }
+}
+
+function Get-HostsFromSegments {
+    param(
+        $SegmentResult,
+        [string]$SkipIp = ''
+    )
     $list = New-Object System.Collections.ArrayList
-    $start = 1
-    $end = [int]$size - 2
-    if ($end -lt 1) { $end = 1 }
-    for ($i = $start; $i -le $end; $i++) {
-        $h = $network + [uint32]$i
-        $hb = [BitConverter]::GetBytes([uint32]$h)
-        if ([BitConverter]::IsLittleEndian) { [Array]::Reverse($hb) }
-        $hip = [Net.IPAddress]::new($hb).ToString()
-        if ($hip -ne $Subnet.IP) { [void]$list.Add($hip) }
+    $seen = @{}
+    foreach ($seg in @($SegmentResult.Segments)) {
+        for ($i = 1; $i -le 254; $i++) {
+            $hip = ConvertFrom-Ipv4UInt ([uint32]($seg + [uint32]$i))
+            if ($SkipIp -and $hip -eq $SkipIp) { continue }
+            if ($seen.ContainsKey($hip)) { continue }
+            $seen[$hip] = $true
+            [void]$list.Add($hip)
+        }
     }
     return @($list)
+}
+
+function Get-HostsToScan($Subnet) {
+    # 相容舊呼叫：展開該介面要掃的所有 /24
+    $gw = ''
+    try { if ($Subnet.Gateway) { $gw = [string]$Subnet.Gateway } } catch {}
+    $segs = Get-ScanSegments -HostIp ([string]$Subnet.IP) -Prefix ([int]$Subnet.Prefix) -Gateway $gw
+    return ,(Get-HostsFromSegments -SegmentResult $segs -SkipIp ([string]$Subnet.IP))
 }
 
 function Test-TcpPortQuick([string]$Ip, [int]$Port, [int]$TimeoutMs = 400) {
@@ -986,15 +1103,28 @@ function Invoke-LanPrinterScan {
     $subnets = Get-LocalSubnets
     if ($subnets.Count -eq 0) { throw '找不到可用的本機 IPv4 網段。' }
     $allHosts = New-Object System.Collections.ArrayList
+    $allLabels = New-Object System.Collections.ArrayList
     foreach ($s in $subnets) {
-        Write-Host ("  網卡 {0}  {1}/{2}" -f $s.Alias, $s.IP, $s.Prefix) -ForegroundColor DarkGray
-        foreach ($h in (Get-HostsToScan $s)) { if ($allHosts -notcontains $h) { [void]$allHosts.Add($h) } }
+        $gw = ''
+        try { if ($s.Gateway) { $gw = [string]$s.Gateway } } catch {}
+        Write-Host ("  網卡 {0}  {1}/{2}{3}" -f $s.Alias, $s.IP, $s.Prefix, $(if ($gw) { "  閘道 $gw" } else { '' })) -ForegroundColor DarkGray
+        $segs = Get-ScanSegments -HostIp ([string]$s.IP) -Prefix ([int]$s.Prefix) -Gateway $gw
+        foreach ($n in @($segs.Notes)) { Write-WarnMsg $n }
+        foreach ($lab in @($segs.Labels)) {
+            if ($allLabels -notcontains $lab) { [void]$allLabels.Add($lab) }
+        }
+        foreach ($h in (Get-HostsFromSegments -SegmentResult $segs -SkipIp ([string]$s.IP))) {
+            if ($allHosts -notcontains $h) { [void]$allHosts.Add($h) }
+        }
+    }
+    if ($allLabels.Count -gt 0) {
+        Write-Info ('掃描網段：' + ($allLabels -join '、'))
     }
     Write-Info ("待探測主機：{0} 台（平行掃描，逾時約 400ms）" -f $allHosts.Count)
 
     $ports = @(9100, 631, 515)
     $open = New-Object System.Collections.ArrayList
-    $pool = [runspacefactory]::CreateRunspacePool(1, [Math]::Min(64, [Math]::Max(8, $allHosts.Count)))
+    $pool = [runspacefactory]::CreateRunspacePool(1, [Math]::Min(128, [Math]::Max(16, [Math]::Min($allHosts.Count, 128))))
     $pool.Open()
     $jobs = New-Object System.Collections.ArrayList
     $scriptBlock = {
@@ -1022,7 +1152,7 @@ function Invoke-LanPrinterScan {
         $res = $j.PS.EndInvoke($j.Handle)
         $j.PS.Dispose()
         $done++
-        if (($done % 50) -eq 0) { Write-Host ("  …已掃 {0}/{1}" -f $done, $jobs.Count) -ForegroundColor DarkGray }
+        if (($done % 100) -eq 0 -or $done -eq $jobs.Count) { Write-Host ("  …已掃 {0}/{1}" -f $done, $jobs.Count) -ForegroundColor DarkGray }
         if ($res -and $res.Ip) { [void]$open.Add([pscustomobject]@{ Ip = [string]$res.Ip; Port = [int]$res.Port }) }
     }
     $pool.Close()
