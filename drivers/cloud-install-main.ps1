@@ -1,8 +1,10 @@
-# FLG 雲端安裝驅動（Ricoh / FUJIFILM / Sharp 通用 PCL6）
+# FLG 雲端安裝驅動（Ricoh / FUJIFILM / Sharp / Canon / Konica Minolta 通用 PCL6）
 # 用法（各品牌獨立指令，只問 IP）：
 #   irm https://lanyen007.github.io/FLGPQT/drivers/cloud-install.ps1 | iex
 #   irm https://lanyen007.github.io/FLGPQT/drivers/cloud-fuji.ps1 | iex
 #   irm https://lanyen007.github.io/FLGPQT/drivers/cloud-sharp.ps1 | iex
+#   irm https://lanyen007.github.io/FLGPQT/drivers/cloud-canon.ps1 | iex
+#   irm https://lanyen007.github.io/FLGPQT/drivers/cloud-konica.ps1 | iex
 # 參數：$args[0]=印表機 IP；$args[1]=印表機名稱（可省略）
 # 品牌由 bootstrap 透過 $env:FLG_CLOUD_DRIVER_ID 指定。
 # 取得 IP 後會以 SNMP v2c community public 偵測機型，必要時自動切換品牌驅動。
@@ -29,6 +31,8 @@ function Get-FlgBrandSlug([string]$IdOrBrand) {
     $s = [string]$IdOrBrand
     if ($s -match '(?i)fuji|fujifilm|xerox|apeos|docucentre|docuprint') { return 'fuji' }
     if ($s -match '(?i)sharp') { return 'sharp' }
+    if ($s -match '(?i)canon|imagerunner|imageforce|imageclass|i-sensys|imagepress|ir-adv') { return 'canon' }
+    if ($s -match '(?i)konica|minolta|bizhub|accurio|develop|ineo') { return 'konica' }
     return 'ricoh'
 }
 
@@ -301,14 +305,14 @@ function Get-PrinterModelViaSnmp([string]$Ip) {
     $model = [string]$hits[$hits.Count - 1]
     foreach ($h in $hits) {
         $s = [string]$h
-        if ($s -match '(?i)RICOH|SHARP|FUJIFILM|Xerox|Apeos|DocuCentre|DocuPrint|IM\s*C|MP\s*C|MX-|BP-') {
+        if ($s -match '(?i)RICOH|SHARP|FUJIFILM|Xerox|Apeos|DocuCentre|DocuPrint|Canon|imageRUNNER|imageFORCE|KONICA|MINOLTA|bizhub|IM\s*C|MP\s*C|MX-|BP-') {
             $model = $s
         }
     }
     # Trim noisy sysDescr: take first line / before comma if very long
     if ($model.Contains("`n")) { $model = ($model -split "`n")[0].Trim() }
     if ($model.Length -gt 80) {
-        $m2 = [regex]::Match($model, '(?i)((?:RICOH|SHARP|FUJIFILM|Fuji\s*Xerox|Xerox)\s+)?[A-Z0-9][A-Z0-9 \-/]{2,40}')
+        $m2 = [regex]::Match($model, '(?i)((?:RICOH|SHARP|FUJIFILM|Fuji\s*Xerox|Xerox|Canon|KONICA\s*MINOLTA|Konica\s*Minolta)\s+)?[A-Z0-9][A-Z0-9 \-/]{2,40}')
         if ($m2.Success) { $model = $m2.Value.Trim() }
     }
     Write-Ok ("偵測到機型：$model")

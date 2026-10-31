@@ -1,6 +1,6 @@
 {
-  "updated": "2026-10-31T05:23:42+08:00",
-  "count": 3,
+  "updated": "2026-10-31T18:07:55+08:00",
+  "count": 5,
   "drivers": [
     {
       "id": "ricoh-upd-pcl6-4.46.0.0",
@@ -85,6 +85,64 @@
         "(?i)\\bMX-[\\w]+",
         "(?i)\\bBP-[\\w]+",
         "(?i)\\bAR-[\\w]+"
+      ]
+    },
+    {
+      "id": "canon-genericplus-pcl6-3.50.0.0",
+      "title": "Canon Generic Plus PCL6（Win64）",
+      "brand": "Canon",
+      "name_prefix": "Canon",
+      "type": "PCL6-GenericPlus",
+      "os": "Win64",
+      "version": "3.50.0.0",
+      "driver_ver_date": "06/23/2026",
+      "driver_name": "Canon Generic Plus PCL6",
+      "driver_name_alt": "",
+      "inf": "Driver/CNP60MA64.INF",
+      "zip_name": "CANON_GenericPlus_PCL6_x64_3.50.0.0.zip",
+      "url": "https://github.com/lanyen007/FLGPQT/releases/download/drivers-canon-genericplus-pcl6-3.50.0.0/CANON_GenericPlus_PCL6_x64_3.50.0.0.zip",
+      "sha256": "76d40879fd02f00e3f7b139165ddc168f20c566db7a54b27a23b7b4df321daa1",
+      "size": 53247984,
+      "release_tag": "drivers-canon-genericplus-pcl6-3.50.0.0",
+      "bootstrap": "cloud-canon.ps1",
+      "notes": "官方 Generic Plus PCL6 V3.50（含繁體中文）。來源 GPlus_PCL6_Driver_V350_W64_00.exe（Canon support 0101313501）。INF/CAT 未修改。",
+      "models": [
+        "(?i)\\bCanon\\b",
+        "(?i)\\bimageRUNNER\\b",
+        "(?i)\\biR-ADV\\b",
+        "(?i)\\bimageFORCE\\b",
+        "(?i)\\bimageCLASS\\b",
+        "(?i)\\bi-SENSYS\\b",
+        "(?i)\\bimagePRESS\\b"
+      ]
+    },
+    {
+      "id": "konica-upd-pcl6-3.9.0.0",
+      "title": "KONICA MINOLTA Universal PCL（Win64）",
+      "brand": "KONICA MINOLTA",
+      "name_prefix": "KONICA MINOLTA",
+      "type": "PCL6-UPD",
+      "os": "Win64",
+      "version": "3.9.0.0",
+      "driver_ver_date": "04/01/2021",
+      "driver_name": "KONICA MINOLTA Universal PCL",
+      "driver_name_alt": "Konica Minolta Universal PCL",
+      "inf": "driver/win_x64/KOBSCJ__.inf",
+      "zip_name": "KONICA_UPD_PCL6_x64_3.9.0.0.zip",
+      "url": "https://github.com/lanyen007/FLGPQT/releases/download/drivers-konica-upd-pcl6-3.9.0.0/KONICA_UPD_PCL6_x64_3.9.0.0.zip",
+      "sha256": "a196d20940329be00a0fc4e6795587cf02bc260cc3a6e9ed4959ca1d229ca9f5",
+      "size": 83287146,
+      "release_tag": "drivers-konica-upd-pcl6-3.9.0.0",
+      "bootstrap": "cloud-konica.ps1",
+      "notes": "官方 Universal Print Driver PCL（UPDPCL6Win_3900MU 套件）。驅動名稱 KONICA MINOLTA Universal PCL；含 zh-TW。INF/CAT 未修改。較新型號若偵測失敗可再更新套件。",
+      "models": [
+        "(?i)\\bKONICA\\s*MINOLTA\\b",
+        "(?i)\\bKonica\\b",
+        "(?i)\\bMinolta\\b",
+        "(?i)\\bbizhub\\b",
+        "(?i)\\bAccurio",
+        "(?i)\\bDevelop\\b",
+        "(?i)\\bineo\\b"
       ]
     }
   ]
