@@ -6,7 +6,7 @@
 
 $FlgDriverBrand = '舊版 FUJI'
 $FlgDriverJson = 'fuji-old.json'
-$FlgSearchHint = '3375、5575、C5570、C2265、5070、3376、2263'
+$FlgSearchHint = '3375、5575、C5570、C2265、5070、3376、C5576、3055'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $__common = $null
 if ($env:FLG_OFFLINE -eq '1' -and $env:FLG_ROOT) {

@@ -2,13 +2,14 @@
   "brand": "舊版 FUJI",
   "source": "https://github.com/lanyen007/FLGPQT/tree/main/drivers/packages/fuji-old",
   "official_note": "舊版 ApeosPort-IV／V 與 DocuCentre-IV／V／VI 安裝檔。內容為原廠安裝程式，未經修改。官方支援站已較少提供這些機種，故改由 GitHub 提供下載。三組檔名不同但內容相同的安裝檔已合併，只留一份。",
-  "updated": "2026-11-01T23:30:00+08:00",
-  "count": 15,
+  "updated": "2026-11-02T12:40:00+08:00",
+  "count": 22,
   "series_list": [
     "ApeosPort-IV",
     "ApeosPort-V",
     "DocuCentre",
-    "IV／V 其他"
+    "IV／V 其他",
+    "DocuPrint"
   ],
   "models": [
     "ApeosPort-IV 3375／5575",
@@ -18,7 +19,10 @@
     "DocuCentre-VI C5571",
     "IV 2265",
     "IV 5070",
-    "V 3376"
+    "V 3376",
+    "DocuPrint 2065",
+    "DocuPrint 3055",
+    "ApeosPort-V C2276／C3374／C3376／C4476／C5576／C6676／C7776"
   ],
   "drivers": [
     {
@@ -244,6 +248,111 @@
       "filename": "V3376_64bit.exe",
       "notes": "原廠安裝檔，未經修改。",
       "series": "IV／V 其他",
+      "source": "lanyen-fuji-old"
+    },
+    {
+      "id": "fuji-old-16",
+      "model": "DocuPrint 3055",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win32",
+      "title": "DocuPrint 3055 · PCL6 · 32-bit · 2.6.13.1 · ffdp3055pcl623121nw643izc.exe",
+      "url": "https://raw.githubusercontent.com/lanyen007/FLGPQT/main/drivers/packages/fuji-old/ffdp3055pcl623121nw643izc.exe",
+      "host": "github",
+      "page": "https://github.com/lanyen007/FLGPQT/tree/main/drivers/packages/fuji-old",
+      "filename": "ffdp3055pcl623121nw643izc.exe",
+      "notes": "原廠安裝檔，未經修改。同包亦含 DocuPrint 2065。PCL 2.6.13.1。",
+      "series": "DocuPrint",
+      "source": "lanyen-fuji-old"
+    },
+    {
+      "id": "fuji-old-17",
+      "model": "DocuPrint 3055",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win64",
+      "title": "DocuPrint 3055 · PCL6 · 64-bit · 2.6.13.1 · ffdp3055pcl623121nw646izc.exe",
+      "url": "https://raw.githubusercontent.com/lanyen007/FLGPQT/main/drivers/packages/fuji-old/ffdp3055pcl623121nw646izc.exe",
+      "host": "github",
+      "page": "https://github.com/lanyen007/FLGPQT/tree/main/drivers/packages/fuji-old",
+      "filename": "ffdp3055pcl623121nw646izc.exe",
+      "notes": "原廠安裝檔，未經修改。同包亦含 DocuPrint 2065。PCL 2.6.13.1。",
+      "series": "DocuPrint",
+      "source": "lanyen-fuji-old"
+    },
+    {
+      "id": "fuji-old-18",
+      "model": "ApeosPort-V C2276／C3374／C3376／C4476／C5576／C6676／C7776",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win32",
+      "title": "ApeosPort-V／DocuCentre-V C2276–C7776 · PCL6 · 32-bit 繁中 · ffap5c7776pcl6240110w643izc.exe",
+      "url": "https://raw.githubusercontent.com/lanyen007/FLGPQT/main/drivers/packages/fuji-old/ffap5c7776pcl6240110w643izc.exe",
+      "host": "github",
+      "page": "https://github.com/lanyen007/FLGPQT/tree/main/drivers/packages/fuji-old",
+      "filename": "ffap5c7776pcl6240110w643izc.exe",
+      "notes": "原廠安裝檔，未經修改。包裝 240110。含 ApeosPort-V 與 DocuCentre-V 的 C2276／C3374／C3376／C4476／C5576／C6676／C7776。",
+      "series": "ApeosPort-V",
+      "source": "lanyen-fuji-old"
+    },
+    {
+      "id": "fuji-old-19",
+      "model": "ApeosPort-V C2276／C3374／C3376／C4476／C5576／C6676／C7776",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win64",
+      "title": "ApeosPort-V／DocuCentre-V C2276–C7776 · PCL6 · 64-bit 繁中 · ffap5c7776pcl6240110w646izc.exe",
+      "url": "https://raw.githubusercontent.com/lanyen007/FLGPQT/main/drivers/packages/fuji-old/ffap5c7776pcl6240110w646izc.exe",
+      "host": "github",
+      "page": "https://github.com/lanyen007/FLGPQT/tree/main/drivers/packages/fuji-old",
+      "filename": "ffap5c7776pcl6240110w646izc.exe",
+      "notes": "原廠安裝檔，未經修改。包裝 240110。含 ApeosPort-V 與 DocuCentre-V 的 C2276／C3374／C3376／C4476／C5576／C6676／C7776。",
+      "series": "ApeosPort-V",
+      "source": "lanyen-fuji-old"
+    },
+    {
+      "id": "fuji-old-20",
+      "model": "ApeosPort-V C2276／C3374／C3376／C4476／C5576／C6676／C7776",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win32",
+      "title": "ApeosPort-V／DocuCentre-V C2276–C7776 · PCL6 · 32-bit 英文 · ffap5c7776pcl6240110w643ien.exe",
+      "url": "https://raw.githubusercontent.com/lanyen007/FLGPQT/main/drivers/packages/fuji-old/ffap5c7776pcl6240110w643ien.exe",
+      "host": "github",
+      "page": "https://github.com/lanyen007/FLGPQT/tree/main/drivers/packages/fuji-old",
+      "filename": "ffap5c7776pcl6240110w643ien.exe",
+      "notes": "原廠安裝檔，未經修改。包裝 240110。英文介面。",
+      "series": "ApeosPort-V",
+      "source": "lanyen-fuji-old"
+    },
+    {
+      "id": "fuji-old-21",
+      "model": "DocuPrint 2065",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win32",
+      "title": "DocuPrint 2065 · PCL6 · 32-bit · 2.6.13.1 · ffdp3055pcl623121nw643izc.exe",
+      "url": "https://raw.githubusercontent.com/lanyen007/FLGPQT/main/drivers/packages/fuji-old/ffdp3055pcl623121nw643izc.exe",
+      "host": "github",
+      "page": "https://github.com/lanyen007/FLGPQT/tree/main/drivers/packages/fuji-old",
+      "filename": "ffdp3055pcl623121nw643izc.exe",
+      "notes": "原廠安裝檔，未經修改。同包亦含 DocuPrint 3055。PCL 2.6.13.1。",
+      "series": "DocuPrint",
+      "source": "lanyen-fuji-old"
+    },
+    {
+      "id": "fuji-old-22",
+      "model": "DocuPrint 2065",
+      "kind": "driver",
+      "type": "PCL6",
+      "os": "Win64",
+      "title": "DocuPrint 2065 · PCL6 · 64-bit · 2.6.13.1 · ffdp3055pcl623121nw646izc.exe",
+      "url": "https://raw.githubusercontent.com/lanyen007/FLGPQT/main/drivers/packages/fuji-old/ffdp3055pcl623121nw646izc.exe",
+      "host": "github",
+      "page": "https://github.com/lanyen007/FLGPQT/tree/main/drivers/packages/fuji-old",
+      "filename": "ffdp3055pcl623121nw646izc.exe",
+      "notes": "原廠安裝檔，未經修改。同包亦含 DocuPrint 3055。PCL 2.6.13.1。",
+      "series": "DocuPrint",
       "source": "lanyen-fuji-old"
     }
   ]

@@ -62,8 +62,8 @@ function Get-FujiOldPackageTable {
         @{
             Gen = 'V'; Families = @('ApeosPort','DocuCentre')
             Models = @('C2276','C3374','C3376','C4476','C5576','C6676','C7776')
-            HasT2 = $false; Win10Only = $false; Style = 'fx'
-            Files = @{ X64 = 'V3376_64bit.exe'; X86 = 'V3376_32bit.exe' }
+            HasT2 = $false; Win10Only = $false; Style = 'k533'
+            Files = @{ X64 = 'ffap5c7776pcl6240110w646izc.exe'; X86 = 'ffap5c7776pcl6240110w643izc.exe' }
         }
     )
     return $script:FujiOldPackageTable
@@ -163,6 +163,19 @@ function Resolve-FujiOldHit($Id, $Os, [bool]$WantT2) {
 
 function Find-FujiOldDriver {
     param([string]$ModelText, $OsProfile)
+    if (-not $OsProfile) { $OsProfile = Get-FujiOldOsProfile }
+    if ($ModelText -match '(?i)DocuPrint\s+(2065|3055)\b') {
+        $token = $Matches[1]
+        $file = $(if ($OsProfile.Is64) { 'ffdp3055pcl623121nw646izc.exe' } else { 'ffdp3055pcl623121nw643izc.exe' })
+        $driverName = ('FF K573p for DocuPrint {0} PCL 6' -f $token)
+        return [pscustomobject]@{
+            Filename = $file
+            Url = ($script:FujiOldRawBase + $file)
+            DriverName = $driverName
+            Model = ('DocuPrint ' + $token)
+            Title = ('舊版 FUJI · ' + $driverName)
+        }
+    }
     $id = Get-FujiOldIdentity $ModelText
     if (-not $id) { return $null }
     if (-not $OsProfile) { $OsProfile = Get-FujiOldOsProfile }
@@ -181,6 +194,8 @@ function Find-FujiOldDriver {
     $driverName = $null
     if ($hit.Style -eq 'vi') {
         $driverName = ('FF K529p for {0}-{1} {2} PCL 6' -f $hit.Family, $hit.Gen, $hit.Token)
+    } elseif ($hit.Style -eq 'k533') {
+        $driverName = ('FF K533p for {0}-{1} {2} PCL 6' -f $hit.Family, $hit.Gen, $shown)
     } else {
         $driverName = ('FX {0}-{1} {2} PCL 6' -f $hit.Family, $hit.Gen, $shown)
     }
