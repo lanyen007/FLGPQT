@@ -1,4 +1,4 @@
-﻿# lanyen å·¥å·ç®± 簡易 FTP 伺服器（影印機掃描到電腦）
+﻿# lanyen 工具箱 簡易 FTP 伺服器（影印機掃描到電腦）
 # 用法：
 #   irm https://lanyen007.github.io/FLGPQT/drivers/ftp.ps1 | iex
 #   & script 2121                 # 指定埠
@@ -1008,7 +1008,7 @@ if ($args -and $args.Count -ge 1) {
 Invoke-FlgCounterHit 'ftp'
 
 Write-Host ''
-Write-Host '======== lanyen å·¥å·ç®± 簡易 FTP 伺服器 ========' -ForegroundColor White
+Write-Host '======== lanyen 工具箱 簡易 FTP 伺服器 ========' -ForegroundColor White
 Write-Host '給影印機「掃描到 FTP／資料夾」用：把檔案存到這台電腦' -ForegroundColor Gray
 Write-Host '預設：帳號 scanner　密碼 scanner1234　埠 21' -ForegroundColor DarkGray
 Write-Host ''

@@ -1,4 +1,4 @@
-# lanyen å·¥å·ç®± Ricoh 驅動程式一鍵下載（包裝共用腳本）
+﻿# lanyen 工具箱 Ricoh 驅動程式一鍵下載（包裝共用腳本）
 # 用法：
 #   irm https://lanyen007.github.io/FLGPQT/drivers/ricoh.ps1 | iex
 #   & ([scriptblock]::Create((irm https://lanyen007.github.io/FLGPQT/drivers/ricoh.ps1))) "C3503"

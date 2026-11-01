@@ -1,4 +1,4 @@
-﻿# lanyen å·¥å·ç®± 檔案箱一鍵安裝
+﻿# lanyen 工具箱 檔案箱一鍵安裝
 # 用法：
 #   irm https://lanyen007.github.io/FLGPQT/install.ps1 | iex
 #   & ([scriptblock]::Create((irm https://lanyen007.github.io/FLGPQT/install.ps1))) PQT
@@ -215,7 +215,7 @@ function Install-OneTool {
 
 function Show-Menu {
     Write-Host ''
-    Write-Host '======== lanyen å·¥å·ç®± 檔案箱 ========' -ForegroundColor White
+    Write-Host '======== lanyen 工具箱 檔案箱 ========' -ForegroundColor White
     Write-Host '請選擇要安裝的工具：'
     $i = 1
     foreach ($t in $Tools) {
