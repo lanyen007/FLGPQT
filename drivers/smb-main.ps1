@@ -1,4 +1,4 @@
-# FLG 快速建立 SMB 共用資料夾（影印機掃描到資料夾）
+﻿# FLG 快速建立 SMB 共用資料夾（影印機掃描到資料夾）
 # 用法：
 #   irm https://lanyen007.github.io/FLGPQT/drivers/smb.ps1 | iex
 # 需要系統管理員權限（會嘗試自動提權）
@@ -262,6 +262,13 @@ function Ensure-SmbServerEnabled {
     } catch {
         Write-WarnMsg ("設定 SMB2 失敗（可能已是啟用）：" + $_.Exception.Message)
     }
+    # Win11 24H2 預設要求 SMB 簽章，舊款 Ricoh 會連不上：改為不強制（仍支援簽章）
+    try {
+        Set-SmbServerConfiguration -RequireSecuritySignature $false -EnableSecuritySignature $true -Force -ErrorAction Stop
+        Write-Ok '已設定 SMB 簽章為「不強制」（相容舊款影印機）。'
+    } catch {
+        Write-WarnMsg ("設定 SMB 簽章失敗：" + $_.Exception.Message)
+    }
 }
 
 function New-FlgScanShare {
@@ -300,6 +307,13 @@ function New-FlgScanShare {
             Write-Ok ("已建立本機使用者：{0}" -f $localUser)
         }
         try { Set-LocalUser -Name $localUser -PasswordNeverExpires $true -ErrorAction SilentlyContinue } catch {}
+        try { Enable-LocalUser -Name $localUser -ErrorAction SilentlyContinue } catch {}
+        # 從登入畫面隱藏掃描帳號
+        try {
+            $k = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\SpecialAccounts\UserList'
+            if (-not (Test-Path $k)) { New-Item -Path $k -Force | Out-Null }
+            New-ItemProperty -Path $k -Name $localUser -Value 0 -PropertyType DWord -Force | Out-Null
+        } catch {}
         $accessAccount = "$pc\$localUser"
     }
 
@@ -398,14 +412,14 @@ if ($choice -eq '2') {
     if ($sn -eq '0') { Write-Info ('已' + (Get-FlgExitLabel) + '。'); return }
     $un = (Read-Host '若要刪除本機使用者，輸入帳號（預設 scan；不想刪請直接 Enter）').Trim()
     $removeUser = $false
-    $userToRemove = 'scan'
+    $userToRemove = 'scanner'
     if ($un) {
         if ($un -eq '0') { Write-Info ('已' + (Get-FlgExitLabel) + '。'); return }
         $userToRemove = $un
         $removeUser = $true
     } else {
         $ask = (Read-Host '要一併刪除本機使用者 scan 嗎？(Y/N，預設 N)').Trim()
-        if ($ask -match '^(?i)y|yes|是$') { $removeUser = $true; $userToRemove = 'scan' }
+        if ($ask -match '^(?i)y|yes|是$') { $removeUser = $true; $userToRemove = 'scanner' }
     }
     try {
         Remove-FlgScanShare -ShareName $sn -UserName $userToRemove -RemoveUser:$removeUser
@@ -442,8 +456,8 @@ $who = (Read-Host '授權帳號：1=新建本機使用者 scan（建議）  2=�
 if ($who -eq '0') { Write-Info ('已' + (Get-FlgExitLabel) + '。'); return }
 if ($who -eq '2') { $useCurrent = $true }
 
-$userName = 'scan'
-$password = New-RandomPassword 10
+$userName = 'scanner'
+$password = 'scanner1234'
 if (-not $useCurrent) {
     $uIn = (Read-Host '本機使用者名稱（預設 scan）').Trim()
     if ($uIn -eq '0') { Write-Info ('已' + (Get-FlgExitLabel) + '。'); return }
