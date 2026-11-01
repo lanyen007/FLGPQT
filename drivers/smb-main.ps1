@@ -1,4 +1,4 @@
-﻿# FLG 快速建立 SMB 共用資料夾（影印機掃描到資料夾）
+﻿# lanyen å·¥å·ç®± 快速建立 SMB 共用資料夾（影印機掃描到資料夾）
 # 用法：
 #   irm https://lanyen007.github.io/FLGPQT/drivers/smb.ps1 | iex
 # 需要系統管理員權限（會嘗試自動提權）
@@ -301,7 +301,7 @@ function New-FlgScanShare {
             Write-WarnMsg ("本機使用者「{0}」已存在，將更新密碼。" -f $localUser)
             Set-LocalUser -Name $localUser -Password $secure -PasswordNeverExpires $true -ErrorAction Stop
         } else {
-            New-LocalUser -Name $localUser -Password $secure -FullName 'FLG Scan Share' -Description 'FLG copier scan-to-folder' -PasswordNeverExpires -UserMayNotChangePassword:$false -ErrorAction Stop | Out-Null
+            New-LocalUser -Name $localUser -Password $secure -FullName 'lanyen å·¥å·ç®± Scan' -Description 'lanyen å·¥å·ç®± scan-to-folder' -PasswordNeverExpires -UserMayNotChangePassword:$false -ErrorAction Stop | Out-Null
             # ensure not in Administrators
             try { Remove-LocalGroupMember -Group 'Administrators' -Member $localUser -ErrorAction SilentlyContinue } catch {}
             Write-Ok ("已建立本機使用者：{0}" -f $localUser)
@@ -338,7 +338,7 @@ function New-FlgScanShare {
         Remove-SmbShare -Name $ShareName -Force -ErrorAction Stop
     }
 
-    New-SmbShare -Name $ShareName -Path $Folder -FullAccess $accessAccount -Description 'FLG scan-to-folder' -ErrorAction Stop | Out-Null
+    New-SmbShare -Name $ShareName -Path $Folder -FullAccess $accessAccount -Description 'lanyen å·¥å·ç®± scan-to-folder' -ErrorAction Stop | Out-Null
     Write-Ok ("已建立 SMB 共用：\\{0}\{1} → {2}" -f $pc, $ShareName, $Folder)
 
     return [pscustomobject]@{
@@ -380,7 +380,7 @@ function Remove-FlgScanShare {
 Invoke-FlgCounterHit 'smb'
 
 Write-Host ''
-Write-Host '======== FLG 快速建立 SMB 共用 ========' -ForegroundColor White
+Write-Host '======== lanyen å·¥å·ç®± 快速建立 SMB 共用 ========' -ForegroundColor White
 Write-Host '影印機「掃描到資料夾／SMB／網路資料夾」用' -ForegroundColor Gray
 Write-Host ''
 

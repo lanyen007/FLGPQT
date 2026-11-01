@@ -1,4 +1,4 @@
-# FLG FUJIFILM／全錄 驅動程式一鍵下載（包裝共用腳本）
+# lanyen å·¥å·ç®± FUJIFILM／全錄 驅動程式一鍵下載（包裝共用腳本）
 # 用法：
 #   irm https://lanyen007.github.io/FLGPQT/drivers/fuji.ps1 | iex
 #   & ([scriptblock]::Create((irm https://lanyen007.github.io/FLGPQT/drivers/fuji.ps1))) "C3070"

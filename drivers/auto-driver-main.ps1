@@ -1,4 +1,4 @@
-# FLG 自動偵測機型下載／安裝驅動 + 區網掃描
+# lanyen å·¥å·ç®± 自動偵測機型下載／安裝驅動 + 區網掃描
 # 用法：
 #   irm https://lanyen007.github.io/FLGPQT/drivers/auto-driver.ps1 | iex
 #   irm https://lanyen007.github.io/FLGPQT/drivers/auto-driver-scan.ps1 | iex
@@ -1353,7 +1353,7 @@ function Show-ScanTable($Found) {
 
 # ---- main ----
 Write-Host ''
-Write-Host '======== FLG 自動偵測機型／區網掃描 ========' -ForegroundColor White
+Write-Host '======== lanyen å·¥å·ç®± 自動偵測機型／區網掃描 ========' -ForegroundColor White
 Write-Host 'SNMP 讀機型 → 對應專用驅動下載 → 通用版安裝（黑白單面＋預設＋測試頁）' -ForegroundColor Gray
 Write-Host ''
 

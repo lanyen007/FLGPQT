@@ -1,4 +1,4 @@
-# FLG 雲端安裝驅動（Ricoh / FUJIFILM / Sharp / Canon / Konica Minolta 通用 PCL6）
+# lanyen å·¥å·ç®± 雲端安裝驅動（Ricoh / FUJIFILM / Sharp / Canon / Konica Minolta 通用 PCL6）
 # 用法（各品牌獨立指令，只問 IP）：
 #   irm https://lanyen007.github.io/FLGPQT/drivers/cloud-install.ps1 | iex
 #   irm https://lanyen007.github.io/FLGPQT/drivers/cloud-fuji.ps1 | iex
@@ -756,7 +756,7 @@ if ($args -and $args.Count -ge 1) {
 }
 
 Write-Host ''
-Write-Host '======== FLG 雲端安裝驅動 ========' -ForegroundColor White
+Write-Host '======== lanyen å·¥å·ç®± 雲端安裝驅動 ========' -ForegroundColor White
 Write-Host '通用 PCL6（Win64）｜只輸入 IP｜SNMP 偵測機型｜自動黑白單面＋預設＋測試頁' -ForegroundColor Gray
 Write-Host ''
 

@@ -1,4 +1,4 @@
-# FLG 驅動程式一鍵下載（共用邏輯）
+# lanyen å·¥å·ç®± 驅動程式一鍵下載（共用邏輯）
 # 由 ricoh-main.ps1 / sharp-main.ps1 / fuji-main.ps1 設定 $FlgDriverBrand、$FlgDriverJson 後載入
 # 亦可直接：傳入第一個參數 brand（ricoh|sharp|fuji），其餘為搜尋關鍵字
 
@@ -556,7 +556,7 @@ function Filter-Drivers {
 function Show-SeriesMenu {
     param([string[]]$SeriesList)
     Write-Host ''
-    Write-Host ("======== FLG {0} 驅動程式 · 選系列 ========" -f $FlgDriverBrand) -ForegroundColor White
+    Write-Host ("======== lanyen å·¥å·ç®± {0} 驅動程式 · 選系列 ========" -f $FlgDriverBrand) -ForegroundColor White
     Write-Host '請選擇系列：'
     $i = 1
     foreach ($s in $SeriesList) {
@@ -576,9 +576,9 @@ function Show-ModelMenu {
     )
     Write-Host ''
     if ($SeriesLabel) {
-        Write-Host ("======== FLG {0} · {1} ========" -f $FlgDriverBrand, $SeriesLabel) -ForegroundColor White
+        Write-Host ("======== lanyen å·¥å·ç®± {0} · {1} ========" -f $FlgDriverBrand, $SeriesLabel) -ForegroundColor White
     } else {
-        Write-Host ("======== FLG {0} 驅動程式 ========" -f $FlgDriverBrand) -ForegroundColor White
+        Write-Host ("======== lanyen å·¥å·ç®± {0} 驅動程式 ========" -f $FlgDriverBrand) -ForegroundColor White
     }
     Write-Host '請選擇機型（輸入編號，或直接輸入關鍵字搜尋）：'
     $i = 1

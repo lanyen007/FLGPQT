@@ -1,4 +1,4 @@
-# FLG 簡易 FTP 伺服器（影印機掃描到電腦）
+﻿# lanyen å·¥å·ç®± 簡易 FTP 伺服器（影印機掃描到電腦）
 # 用法：
 #   irm https://lanyen007.github.io/FLGPQT/drivers/ftp.ps1 | iex
 #   & script 2121                 # 指定埠
@@ -541,7 +541,7 @@ function Handle-FtpClient {
         $writer = New-Object IO.StreamWriter($stream, [Text.Encoding]::ASCII)
         $writer.NewLine = "`r`n"
         $writer.AutoFlush = $true
-        Send-FtpReply $writer '220 FLG Simple FTP ready.'
+        Send-FtpReply $writer '220 lanyen Simple FTP ready.'
 
         while ($Client.Connected) {
             $line = $reader.ReadLine()
@@ -1008,7 +1008,7 @@ if ($args -and $args.Count -ge 1) {
 Invoke-FlgCounterHit 'ftp'
 
 Write-Host ''
-Write-Host '======== FLG 簡易 FTP 伺服器 ========' -ForegroundColor White
+Write-Host '======== lanyen å·¥å·ç®± 簡易 FTP 伺服器 ========' -ForegroundColor White
 Write-Host '給影印機「掃描到 FTP／資料夾」用：把檔案存到這台電腦' -ForegroundColor Gray
 Write-Host '預設：帳號 scanner　密碼 scanner1234　埠 21' -ForegroundColor DarkGray
 Write-Host ''

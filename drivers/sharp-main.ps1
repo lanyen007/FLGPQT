@@ -1,4 +1,4 @@
-# FLG Sharp 驅動程式一鍵下載（包裝共用腳本）
+# lanyen å·¥å·ç®± Sharp 驅動程式一鍵下載（包裝共用腳本）
 # 用法：
 #   irm https://lanyen007.github.io/FLGPQT/drivers/sharp.ps1 | iex
 #   & ([scriptblock]::Create((irm https://lanyen007.github.io/FLGPQT/drivers/sharp.ps1))) "MX2600"

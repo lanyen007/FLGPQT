@@ -1,4 +1,4 @@
-﻿# FLG 檔案箱一鍵安裝
+﻿# lanyen å·¥å·ç®± 檔案箱一鍵安裝
 # 用法：
 #   irm https://lanyen007.github.io/FLGPQT/install.ps1 | iex
 #   & ([scriptblock]::Create((irm https://lanyen007.github.io/FLGPQT/install.ps1))) PQT
@@ -138,7 +138,7 @@ function Get-DesktopPath {
 }
 
 function Get-StartMenuProgramsPath {
-    Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\FLG'
+    Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\lanyen 工具箱'
 }
 
 function New-Shortcut {
@@ -215,7 +215,7 @@ function Install-OneTool {
 
 function Show-Menu {
     Write-Host ''
-    Write-Host '======== FLG 檔案箱 ========' -ForegroundColor White
+    Write-Host '======== lanyen å·¥å·ç®± 檔案箱 ========' -ForegroundColor White
     Write-Host '請選擇要安裝的工具：'
     $i = 1
     foreach ($t in $Tools) {
@@ -293,7 +293,7 @@ foreach ($item in $selected) {
 Write-Host ''
 Write-Ok ("完成，共安裝 {0} 個工具。" -f $installed.Count)
 Write-Host ("安裝位置：{0}" -f $InstallRoot)
-Write-Host '桌面與「開始」功能表（FLG）已建立捷徑。'
+Write-Host '桌面與「開始」功能表（lanyen 工具箱）已建立捷徑。'
 
 if ($installed.Count -eq 1) {
     $ans = Read-Host '要現在啟動嗎？(Y/N)'
