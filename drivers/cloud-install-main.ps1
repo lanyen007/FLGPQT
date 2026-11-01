@@ -140,6 +140,24 @@ function Get-FlgOfflineEnvPreamble {
     return (($parts -join '; ') + '; ')
 }
 
+# 舊版 FUJI 機型對照。載入失敗時，輸入 IP 仍走原本的通用驅動。
+try {
+    $__fujiLib = $null
+    $__fujiLocal = Resolve-FlgOfflinePath 'drivers\fuji-old-lib.ps1'
+    if ($__fujiLocal) {
+        $__fujiLib = [IO.File]::ReadAllText($__fujiLocal, [Text.Encoding]::UTF8)
+    } else {
+        $__fujiUrl = 'https://lanyen007.github.io/FLGPQT/drivers/fuji-old-lib.ps1?t=' + [DateTime]::UtcNow.Ticks
+        $__fujiBytes = (New-Object Net.WebClient).DownloadData($__fujiUrl)
+        $__fujiLib = [Text.Encoding]::UTF8.GetString($__fujiBytes)
+    }
+    if ($__fujiLib.Length -gt 0 -and [int][char]$__fujiLib[0] -eq 0xFEFF) { $__fujiLib = $__fujiLib.Substring(1) }
+    . ([scriptblock]::Create($__fujiLib))
+} catch {
+    Write-WarnMsg ('舊版 FUJI 對照表載入失敗，改走原本驅動：' + $_.Exception.Message)
+}
+Remove-Variable __fujiLib, __fujiLocal, __fujiUrl, __fujiBytes -ErrorAction SilentlyContinue
+
 function Invoke-FlgCounterHit([string]$Key) {
     if ([string]::IsNullOrWhiteSpace($Key)) { return }
     if (Test-FlgOffline) { return }
@@ -772,7 +790,7 @@ if ($args -and $args.Count -ge 1) {
 
 Write-Host ''
 Write-Host ('======== ' + (Get-FlgT 'lanyen 工具箱 雲端安裝驅動' 'lanyen Toolkit Cloud driver install') + ' ========') -ForegroundColor White
-Write-Host '通用 PCL6（Win64）｜只輸入 IP｜SNMP 偵測機型｜自動黑白單面＋預設＋測試頁' -ForegroundColor Gray
+Write-Host '輸入 IP｜SNMP 偵測機型｜舊版 FUJI 改裝舊版驅動，其餘用通用 PCL6｜黑白單面＋預設＋測試頁' -ForegroundColor Gray
 Write-Host ''
 
 $catalog = $null
@@ -811,6 +829,32 @@ try {
     }
 
     $detectedModel = Get-PrinterModelViaSnmp $ip
+    $oldHit = $null
+    if ($detectedModel -and (Get-Command Find-FujiOldDriver -ErrorAction SilentlyContinue)) {
+        $oldHit = Find-FujiOldDriver $detectedModel
+    }
+    if ($oldHit) {
+        Write-Ok ("對應舊版 FUJI：$($oldHit.DriverName)")
+        Write-Host ("  安裝檔：$($oldHit.Filename)") -ForegroundColor DarkGray
+        $script:FlgBrandSlug = 'fuji'
+        if ($script:ArgName) {
+            $printerName = $script:ArgName
+        } else {
+            $printerName = Get-PrinterDisplayName -Prefix 'FUJI' -Model $detectedModel -Ip $ip
+        }
+        if ($script:NonInteractive) {
+            Write-Info ("非互動模式：IP=$ip  Name=$printerName  Driver=$($oldHit.Filename)")
+        } else {
+            Write-Info ("印表機名稱：$printerName")
+        }
+        if ($IsWindowsOs) {
+            Install-FujiOldDriverPackage -DriverName ([string]$oldHit.DriverName) -DownloadUrl ([string]$oldHit.Url) -DownloadName ([string]$oldHit.Filename) -Ip $ip -PrinterName $printerName
+        } else {
+            Write-WarnMsg '目前不是 Windows，略過實際安裝。'
+        }
+        Invoke-FlgCounterHit ('install-ok-' + $script:FlgBrandSlug)
+        return
+    }
     if ($detectedModel) {
         $matched = Find-CloudDriverForModel $catalog $detectedModel $driver
         if ($matched.id -ne $driver.id) {

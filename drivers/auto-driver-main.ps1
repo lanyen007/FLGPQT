@@ -147,6 +147,24 @@ function Get-FlgOfflineEnvPreamble {
     return (($parts -join '; ') + '; ')
 }
 
+# 舊版 FUJI 機型對照。載入失敗時，自動安裝與輸入 IP 仍走原本的通用驅動。
+try {
+    $__fujiLib = $null
+    $__fujiLocal = Resolve-FlgOfflinePath 'drivers\fuji-old-lib.ps1'
+    if ($__fujiLocal) {
+        $__fujiLib = [IO.File]::ReadAllText($__fujiLocal, [Text.Encoding]::UTF8)
+    } else {
+        $__fujiUrl = 'https://lanyen007.github.io/FLGPQT/drivers/fuji-old-lib.ps1?t=' + [DateTime]::UtcNow.Ticks
+        $__fujiBytes = (New-Object Net.WebClient).DownloadData($__fujiUrl)
+        $__fujiLib = [Text.Encoding]::UTF8.GetString($__fujiBytes)
+    }
+    if ($__fujiLib.Length -gt 0 -and [int][char]$__fujiLib[0] -eq 0xFEFF) { $__fujiLib = $__fujiLib.Substring(1) }
+    . ([scriptblock]::Create($__fujiLib))
+} catch {
+    Write-WarnMsg ('舊版 FUJI 對照表載入失敗，改走原本驅動：' + $_.Exception.Message)
+}
+Remove-Variable __fujiLib, __fujiLocal, __fujiUrl, __fujiBytes -ErrorAction SilentlyContinue
+
 function Invoke-FlgCounterHit([string]$Key) {
     if ([string]::IsNullOrWhiteSpace($Key)) { return }
     if (Test-FlgOffline) { return }
@@ -1028,6 +1046,33 @@ function Show-AfterMenu([string]$Path) {
 
 function Resolve-ModelAndDrivers {
     param([string]$ModelText, $CloudCatalog)
+    if (Get-Command Find-FujiOldDriver -ErrorAction SilentlyContinue) {
+        $oldHit = Find-FujiOldDriver $ModelText
+        if ($oldHit) {
+            $oldResult = [ordered]@{
+                Brand = 'FUJIFILM'
+                Model = $ModelText
+                CatalogItem = [pscustomobject]@{
+                    title = $oldHit.Title
+                    model = $oldHit.Model
+                    filename = $oldHit.Filename
+                    url = $oldHit.Url
+                    host = 'github'
+                    kind = 'driver'
+                    type = 'Installer'
+                }
+                Candidates = @()
+                CloudDriver = $null
+                SupportUrl = $null
+                Ambiguous = $false
+                FujiOld = $true
+                FujiOldDriverName = $oldHit.DriverName
+            }
+            Write-Ok ("對應舊版 FUJI：$($oldHit.DriverName)")
+            Write-Host ("  安裝檔：$($oldHit.Filename)") -ForegroundColor DarkGray
+            return [pscustomobject]$oldResult
+        }
+    }
     $brand = Get-BrandFromModel $ModelText
     $result = [ordered]@{
         Brand = $brand
@@ -1140,21 +1185,32 @@ function Invoke-ProcessPrinter {
     }
 
     if ($Install) {
-        if (-not $resolved.CloudDriver) { throw "找不到 $($resolved.Brand) 的通用雲端驅動。" }
-        $prefix = [string]$resolved.CloudDriver.name_prefix
-        if (-not $prefix) { $prefix = $resolved.Brand }
-        $printerName = Get-PrinterDisplayName -Prefix $prefix -Model $model -Ip $Ip
-        Write-Info ("準備安裝印表機：$printerName")
-        Install-UniversalDriver -Driver $resolved.CloudDriver -Ip $Ip -PrinterName $printerName
-        $slug = 'ricoh'
-        if ($resolved.Brand -match '(?i)FUJI') { $slug = 'fuji' }
-        elseif ($resolved.Brand -match '(?i)Sharp') { $slug = 'sharp' }
-        elseif ($resolved.Brand -match '(?i)Canon') { $slug = 'canon' }
-        elseif ($resolved.Brand -match '(?i)KONICA') { $slug = 'konica' }
-        Invoke-FlgCounterHit ('install-ok-' + $slug)
+        if ($resolved.FujiOld) {
+            if (-not $downloaded) { throw '舊版 FUJI 驅動下載失敗，未安裝通用驅動。' }
+            if (-not (Get-Command Install-FujiOldDriverPackage -ErrorAction SilentlyContinue)) {
+                throw '找不到舊版 FUJI 安裝程序。'
+            }
+            $printerName = Get-PrinterDisplayName -Prefix 'FUJI' -Model $model -Ip $Ip
+            Write-Info ("準備安裝印表機：$printerName")
+            Install-FujiOldDriverPackage -DriverName ([string]$resolved.FujiOldDriverName) -ExePath $downloaded -Ip $Ip -PrinterName $printerName
+            Invoke-FlgCounterHit 'install-ok-fuji'
+        } else {
+            if (-not $resolved.CloudDriver) { throw "找不到 $($resolved.Brand) 的通用雲端驅動。" }
+            $prefix = [string]$resolved.CloudDriver.name_prefix
+            if (-not $prefix) { $prefix = $resolved.Brand }
+            $printerName = Get-PrinterDisplayName -Prefix $prefix -Model $model -Ip $Ip
+            Write-Info ("準備安裝印表機：$printerName")
+            Install-UniversalDriver -Driver $resolved.CloudDriver -Ip $Ip -PrinterName $printerName
+            $slug = 'ricoh'
+            if ($resolved.Brand -match '(?i)FUJI') { $slug = 'fuji' }
+            elseif ($resolved.Brand -match '(?i)Sharp') { $slug = 'sharp' }
+            elseif ($resolved.Brand -match '(?i)Canon') { $slug = 'canon' }
+            elseif ($resolved.Brand -match '(?i)KONICA') { $slug = 'konica' }
+            Invoke-FlgCounterHit ('install-ok-' + $slug)
+        }
     }
 
-    if (-not $SkipAfterMenu) { Show-AfterMenu $downloaded }
+    if (-not $SkipAfterMenu -and -not ($Install -and $resolved.FujiOld)) { Show-AfterMenu $downloaded }
     return [pscustomobject]@{ Ip = $Ip; Model = $model; Brand = $resolved.Brand; Downloaded = $downloaded }
 }
 
@@ -1521,7 +1577,7 @@ function Show-ScanTable($Found) {
 # ---- main ----
 Write-Host ''
 Write-Host ('======== ' + (Get-FlgT 'lanyen 工具箱 自動驅動安裝' 'lanyen Toolkit Auto driver install') + ' ========') -ForegroundColor White
-Write-Host (Get-FlgT '區網掃描（9100／SNMP）→ sysObjectID 辨識廠牌 → 雲端通用驅動安裝' 'LAN scan (9100/SNMP) → sysObjectID brand detect → cloud universal driver install') -ForegroundColor Gray
+Write-Host (Get-FlgT '區網掃描（9100／SNMP）→ 舊版 FUJI 對應舊版驅動，其餘用雲端通用驅動' 'LAN scan (9100/SNMP) → legacy FUJI uses the old installer; other models use the cloud driver') -ForegroundColor Gray
 Write-Host ''
 
 if ($script:Mode -eq 'scan') {
