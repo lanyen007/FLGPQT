@@ -2,9 +2,9 @@
   "brand": "Ricoh",
   "source": "https://printyen.blogspot.com/p/ricoh.html",
   "spreadsheet": "https://docs.google.com/spreadsheets/d/106BkPONVOQ1EMn2crrrPTal3r8lpwyTDzw9gu3fyqZo",
-  "official_note": "Official Asia-Pacific Traditional Chinese (ti) pages on support.ricoh.com; Universal Print + model packs. Installer language can be Traditional Chinese.；已補 MP C2004/C2504、MP 6002/7502/9002、MP 2553/3053/3353、MP 6503/7503/9003、MP 2001/2501",
-  "updated": "2026-10-30T18:05:22+08:00",
-  "count": 171,
+  "official_note": "Official Asia-Pacific Traditional Chinese (ti) pages on support.ricoh.com; Universal Print + model packs. Installer language can be Traditional Chinese.；已補 MP C2004/C2504、MP 6002/7502/9002、MP 2553/3053/3353、MP 6503/7503/9003、MP 2001/2501；已補 IM 系列與 MP C3504、MP C3504ex、MP C5504ex、MP C6004 的 PC-FAX",
+  "updated": "2026-11-02T20:00:00+08:00",
+  "count": 182,
   "series_list": [
     "繁體中文",
     "02",
@@ -47,6 +47,8 @@
     "MP C4504/C5504/C6004",
     "MP C5502",
     "MP C6004",
+    "MP C3504ex",
+    "MP C5504ex",
     "Universal Print（全機型）",
     "九導一鍵包",
     "設定使用者代碼",
@@ -3203,6 +3205,214 @@
       "models_covered": [
         "MP 2001",
         "MP 2501"
+      ]
+    },
+    {
+      "id": "official-172",
+      "model": "IM C2000/C2500/C3000/C3500",
+      "series": "IMC",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "IM C2000/C2500/C3000/C3500 · PC-FAX · Win64 · z07347L1f.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346242/V15500/z07347L1f.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc2000/imc2000ti.htm",
+      "filename": "z07347L1f.exe",
+      "notes": "Enhanced LAN-Fax 15.5.0.0。繁中下載頁未列出傳真，檔案與原廠英文頁相同，安裝程式可選繁體中文。",
+      "source": "official",
+      "models_covered": [
+        "IM C2000",
+        "IM C2500",
+        "IM C3000",
+        "IM C3500"
+      ]
+    },
+    {
+      "id": "official-173",
+      "model": "IM C3000",
+      "series": "IMC",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "IM C3000 · PC-FAX · Win64 · z07347L1f.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346242/V15500/z07347L1f.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc2000/imc2000ti.htm",
+      "filename": "z07347L1f.exe",
+      "notes": "Enhanced LAN-Fax 15.5.0.0。繁中下載頁未列出傳真，檔案與原廠英文頁相同，安裝程式可選繁體中文。",
+      "source": "official",
+      "models_covered": [
+        "IM C3000"
+      ]
+    },
+    {
+      "id": "official-174",
+      "model": "IM C3500",
+      "series": "IMC",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "IM C3500 · PC-FAX · Win64 · z07347L1f.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346242/V15500/z07347L1f.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc2000/imc2000ti.htm",
+      "filename": "z07347L1f.exe",
+      "notes": "Enhanced LAN-Fax 15.5.0.0。繁中下載頁未列出傳真，檔案與原廠英文頁相同，安裝程式可選繁體中文。",
+      "source": "official",
+      "models_covered": [
+        "IM C3500"
+      ]
+    },
+    {
+      "id": "official-175",
+      "model": "IM C4500/C5500/C6000",
+      "series": "IMC",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "IM C4500/C5500/C6000 · PC-FAX · Win64 · z07347L1f.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346242/V15500/z07347L1f.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc4500/imc4500ti.htm",
+      "filename": "z07347L1f.exe",
+      "notes": "Enhanced LAN-Fax 15.5.0.0。繁中下載頁未列出傳真，檔案與原廠英文頁相同，安裝程式可選繁體中文。",
+      "source": "official",
+      "models_covered": [
+        "IM C4500",
+        "IM C5500",
+        "IM C6000"
+      ]
+    },
+    {
+      "id": "official-176",
+      "model": "IM C6000",
+      "series": "IMC",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "IM C6000 · PC-FAX · Win64 · z07347L1f.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346242/V15500/z07347L1f.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc4500/imc4500ti.htm",
+      "filename": "z07347L1f.exe",
+      "notes": "Enhanced LAN-Fax 15.5.0.0。繁中下載頁未列出傳真，檔案與原廠英文頁相同，安裝程式可選繁體中文。",
+      "source": "official",
+      "models_covered": [
+        "IM C6000"
+      ]
+    },
+    {
+      "id": "official-177",
+      "model": "IM C2010/C2510/C3010/C3510",
+      "series": "IMC",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "IM C2010/C2510/C3010/C3510 · PC-FAX · Win64 · z07347L1f.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346242/V15500/z07347L1f.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc2010/imc2010ti.htm",
+      "filename": "z07347L1f.exe",
+      "notes": "Enhanced LAN-Fax 15.5.0.0。繁中下載頁未列出傳真，檔案與原廠英文頁相同，安裝程式可選繁體中文。",
+      "source": "official",
+      "models_covered": [
+        "IM C2010",
+        "IM C2510",
+        "IM C3010",
+        "IM C3510"
+      ]
+    },
+    {
+      "id": "official-178",
+      "model": "IM C4510/C5510/C6010",
+      "series": "IMC",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "IM C4510/C5510/C6010 · PC-FAX · Win64 · z07347L1f.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346242/V15500/z07347L1f.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/imc4510/imc4510ti.htm",
+      "filename": "z07347L1f.exe",
+      "notes": "Enhanced LAN-Fax 15.5.0.0。繁中下載頁未列出傳真，檔案與原廠英文頁相同，安裝程式可選繁體中文。",
+      "source": "official",
+      "models_covered": [
+        "IM C4510",
+        "IM C5510",
+        "IM C6010"
+      ]
+    },
+    {
+      "id": "official-179",
+      "model": "MP C3504",
+      "series": "04",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "MP C3504 · PC-FAX · Win64 · z07347L1f.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346242/V15500/z07347L1f.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc3004/mpc3004ti.htm",
+      "filename": "z07347L1f.exe",
+      "notes": "Enhanced LAN-Fax 15.5.0.0。繁中下載頁未列出傳真，檔案與原廠英文頁相同，安裝程式可選繁體中文。",
+      "source": "official",
+      "models_covered": [
+        "MP C3504"
+      ]
+    },
+    {
+      "id": "official-180",
+      "model": "MP C3504ex",
+      "series": "04",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "MP C3504ex · PC-FAX · Win64 · z07347L1f.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346242/V15500/z07347L1f.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc3004/mpc3004ti.htm",
+      "filename": "z07347L1f.exe",
+      "notes": "Enhanced LAN-Fax 15.5.0.0。繁中下載頁未列出傳真，檔案與原廠英文頁相同，安裝程式可選繁體中文。",
+      "source": "official",
+      "models_covered": [
+        "MP C3504ex"
+      ]
+    },
+    {
+      "id": "official-181",
+      "model": "MP C5504ex",
+      "series": "04",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "MP C5504ex · PC-FAX · Win64 · z07347L1f.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346242/V15500/z07347L1f.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc4504/mpc4504ti.htm",
+      "filename": "z07347L1f.exe",
+      "notes": "Enhanced LAN-Fax 15.5.0.0。繁中下載頁未列出傳真，檔案與原廠英文頁相同，安裝程式可選繁體中文。",
+      "source": "official",
+      "models_covered": [
+        "MP C5504ex"
+      ]
+    },
+    {
+      "id": "official-182",
+      "model": "MP C6004",
+      "series": "04",
+      "kind": "driver",
+      "type": "PC-FAX",
+      "os": "Win64",
+      "title": "MP C6004 · PC-FAX · Win64 · z07347L1f.exe",
+      "url": "https://support.ricoh.com/bb/pub_e/dr_ut_e/0001346/0001346242/V15500/z07347L1f.exe",
+      "host": "ricoh",
+      "page": "https://support.ricoh.com/bb/html/dr_ut_e/apc/model/mpc4504/mpc4504ti.htm",
+      "filename": "z07347L1f.exe",
+      "notes": "Enhanced LAN-Fax 15.5.0.0。繁中下載頁未列出傳真，檔案與原廠英文頁相同，安裝程式可選繁體中文。",
+      "source": "official",
+      "models_covered": [
+        "MP C6004"
       ]
     }
   ]
