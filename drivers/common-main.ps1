@@ -1,5 +1,5 @@
 ﻿# lanyen 工具箱 驅動程式一鍵下載（共用邏輯）
-# 由 ricoh-main.ps1 / sharp-main.ps1 / fuji-main.ps1 設定 $FlgDriverBrand、$FlgDriverJson 後載入
+# 由 ricoh-main.ps1 / sharp-main.ps1 / fuji-main.ps1 / fuji-old-main.ps1 設定 $FlgDriverBrand、$FlgDriverJson 後載入
 # 亦可直接：傳入第一個參數 brand（ricoh|sharp|fuji），其餘為搜尋關鍵字
 
 $ErrorActionPreference = 'Stop'
@@ -18,22 +18,29 @@ if (-not $FlgDriverBrand) {
     }
 }
 $FlgDriverBrand = [string]$FlgDriverBrand
+$flgJsonPreset = -not [string]::IsNullOrWhiteSpace([string]$FlgDriverJson)
 if (-not $FlgDriverJson) {
     if ($FlgDriverBrand -match '^(?i)sharp$') { $FlgDriverJson = 'sharp.json' }
     elseif ($FlgDriverBrand -match '^(?i)(fuji|fujifilm)$') { $FlgDriverJson = 'fuji.json' }
+    elseif ($FlgDriverBrand -eq '舊版 FUJI') { $FlgDriverJson = 'fuji-old.json' }
     else { $FlgDriverJson = 'ricoh.json'; $FlgDriverBrand = 'Ricoh' }
 }
 if ($FlgDriverBrand -match '^(?i)sharp$') {
     $FlgDriverBrand = 'Sharp'
-    $FlgDriverJson = 'sharp.json'
+    if (-not $flgJsonPreset) { $FlgDriverJson = 'sharp.json' }
     if (-not $FlgSearchHint) { $FlgSearchHint = 'MX2600、M266、452' }
 } elseif ($FlgDriverBrand -match '^(?i)(fuji|fujifilm)$') {
     $FlgDriverBrand = 'FUJIFILM'
-    $FlgDriverJson = 'fuji.json'
+    if (-not $flgJsonPreset) { $FlgDriverJson = 'fuji.json' }
     if (-not $FlgSearchHint) { $FlgSearchHint = 'C3070、Apeos、SC2022、MMD2' }
+} elseif ($FlgDriverBrand -eq '舊版 FUJI') {
+    if (-not $flgJsonPreset) { $FlgDriverJson = 'fuji-old.json' }
+    if (-not $FlgSearchHint) { $FlgSearchHint = '3375、5575、C5570、C2265、5070、3376、2263' }
 } else {
-    $FlgDriverBrand = 'Ricoh'
-    $FlgDriverJson = 'ricoh.json'
+    if (-not $flgJsonPreset) {
+        $FlgDriverBrand = 'Ricoh'
+        $FlgDriverJson = 'ricoh.json'
+    }
     if (-not $FlgSearchHint) { $FlgSearchHint = 'C3503、IM C3000' }
 }
 
@@ -630,13 +637,14 @@ function Open-SourcePage {
 
 if ($FlgDriverBrand -eq 'Sharp') { Invoke-FlgCounterHit 'dl-sharp' }
 elseif ($FlgDriverBrand -eq 'FUJIFILM') { Invoke-FlgCounterHit 'dl-fuji' }
+elseif ($FlgDriverBrand -eq '舊版 FUJI') { Invoke-FlgCounterHit 'dl-fuji-old' }
 else { Invoke-FlgCounterHit 'dl-ricoh' }
 
 # ---- main ----
 $catalog = Get-JsonCatalog
 Write-Ok ("清單載入完成，共 {0} 筆（{1}）" -f $catalog.count, $FlgDriverBrand)
 
-$useSeries = (($FlgDriverBrand -eq 'Ricoh') -or ($FlgDriverBrand -eq 'FUJIFILM')) -and ((Get-SeriesList -Catalog $catalog).Count -gt 0)
+$useSeries = (($FlgDriverBrand -eq 'Ricoh') -or ($FlgDriverBrand -eq 'FUJIFILM') -or ($FlgDriverBrand -eq '舊版 FUJI')) -and ((Get-SeriesList -Catalog $catalog).Count -gt 0)
 $activeSeries = ''
 $models = Get-ModelList -Catalog $catalog
 

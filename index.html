@@ -158,6 +158,11 @@
         <code class="cmd" id="fujiCmd">irm https://lanyen007.github.io/FLGPQT/drivers/fuji.ps1 | iex</code>
         <button type="button" class="btn btn-primary btn-copy" id="fujiCopyBtn" aria-label="複製 FUJIFILM 驅動指令">複製</button>
       </div>
+      <p class="hint" style="margin-top:12px;margin-bottom:6px"><strong>舊版機種</strong>（ApeosPort-IV／V、DocuCentre-IV／V／VI。官方支援站已較少提供，安裝檔放在 GitHub）</p>
+      <div class="cmd-row">
+        <code class="cmd" id="fujiOldCmd">irm https://lanyen.de/fuji-old | iex</code>
+        <button type="button" class="btn btn-primary btn-copy" id="fujiOldCopyBtn" aria-label="複製舊版 FUJI 驅動指令">複製</button>
+      </div>
     </section>
 
     <section class="panel" aria-label="雲端安裝驅動">
@@ -361,6 +366,8 @@
   }
   wireCopy("copyBtn", "installCmd");
   wireCopy("ricohCopyBtn", "ricohCmd");
+  wireCopy("fujiCopyBtn", "fujiCmd");
+  wireCopy("fujiOldCopyBtn", "fujiOldCmd");
   wireCopy("sharpCopyBtn", "sharpCmd");
   wireCopy("cloudCopyBtn", "cloudCmd");
   wireCopy("cloudFujiCopyBtn", "cloudFujiCmd");
