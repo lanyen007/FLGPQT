@@ -32,9 +32,24 @@ function Write-Ok([string]$Message) {
 function Write-WarnMsg([string]$Message) {
     Write-Host $Message -ForegroundColor Yellow
 }
+function Get-FlgUiIsZh {
+    try {
+        $n = [string](Get-UICulture).Name
+        if ([string]::IsNullOrWhiteSpace($n)) { $n = [string](Get-Culture).Name }
+        return ($n -match '^(?i)zh')
+    } catch {
+        try { return ([string](Get-Culture).Name -match '^(?i)zh') } catch { return $true }
+    }
+}
+if (-not (Get-Variable -Name FlgIsZh -Scope Script -ErrorAction SilentlyContinue)) {
+    $script:FlgIsZh = Get-FlgUiIsZh
+}
+function Get-FlgT([string]$Zh, [string]$En) {
+    if ($script:FlgIsZh) { return $Zh } else { return $En }
+}
 function Get-FlgExitLabel {
-    if ($env:FLG_FROM_MENU -eq '1') { return '回到上一頁' }
-    return '離開'
+    if ($env:FLG_FROM_MENU -eq '1') { return (Get-FlgT '回到上一頁' 'Back') }
+    return (Get-FlgT '離開' 'Exit')
 }
 
 
@@ -215,14 +230,14 @@ function Install-OneTool {
 
 function Show-Menu {
     Write-Host ''
-    Write-Host '======== lanyen 工具箱 檔案箱 ========' -ForegroundColor White
-    Write-Host '請選擇要安裝的工具：'
+    Write-Host ('======== ' + (Get-FlgT 'lanyen 工具箱 檔案箱' 'lanyen Toolkit File box') + ' ========') -ForegroundColor White
+    Write-Host (Get-FlgT '請選擇要安裝的工具：' 'Choose a tool to install:')
     $i = 1
     foreach ($t in $Tools) {
         Write-Host ("  {0}) {1}" -f $i, $t.Title)
         $i++
     }
-    Write-Host ("  {0}) 全部安裝" -f $i)
+    Write-Host ("  {0}) {1}" -f $i, (Get-FlgT '全部安裝' 'Install all'))
     Write-Host ('  0) ' + (Get-FlgExitLabel))
     Write-Host ''
 }
@@ -275,7 +290,7 @@ if (-not [string]::IsNullOrWhiteSpace($Tool)) {
     $selected = @(Resolve-Selection -InputValue $Tool)
 } else {
     Show-Menu
-    $choice = Read-Host '輸入編號或工具名稱'
+    $choice = Read-Host (Get-FlgT '輸入編號或工具名稱' 'Enter number or tool name')
     $selected = @(Resolve-Selection -InputValue $choice)
 }
 

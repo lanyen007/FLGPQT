@@ -27,9 +27,24 @@ function Write-Ok([string]$Message) { Write-Host $Message -ForegroundColor Green
 function Write-WarnMsg([string]$Message) { Write-Host $Message -ForegroundColor Yellow }
 function Write-ErrMsg([string]$Message) { Write-Host $Message -ForegroundColor Red }
 
+function Get-FlgUiIsZh {
+    try {
+        $n = [string](Get-UICulture).Name
+        if ([string]::IsNullOrWhiteSpace($n)) { $n = [string](Get-Culture).Name }
+        return ($n -match '^(?i)zh')
+    } catch {
+        try { return ([string](Get-Culture).Name -match '^(?i)zh') } catch { return $true }
+    }
+}
+if (-not (Get-Variable -Name FlgIsZh -Scope Script -ErrorAction SilentlyContinue)) {
+    $script:FlgIsZh = Get-FlgUiIsZh
+}
+function Get-FlgT([string]$Zh, [string]$En) {
+    if ($script:FlgIsZh) { return $Zh } else { return $En }
+}
 function Get-FlgExitLabel {
-    if ($env:FLG_FROM_MENU -eq '1') { return '回到上一頁' }
-    return '離開'
+    if ($env:FLG_FROM_MENU -eq '1') { return (Get-FlgT '回到上一頁' 'Back') }
+    return (Get-FlgT '離開' 'Exit')
 }
 function Exit-FlgOrReturn([int]$Code = 0) {
     if ($env:FLG_FROM_MENU -eq '1') { return }
@@ -756,7 +771,7 @@ if ($args -and $args.Count -ge 1) {
 }
 
 Write-Host ''
-Write-Host '======== lanyen 工具箱 雲端安裝驅動 ========' -ForegroundColor White
+Write-Host ('======== ' + (Get-FlgT 'lanyen 工具箱 雲端安裝驅動' 'lanyen Toolkit Cloud driver install') + ' ========') -ForegroundColor White
 Write-Host '通用 PCL6（Win64）｜只輸入 IP｜SNMP 偵測機型｜自動黑白單面＋預設＋測試頁' -ForegroundColor Gray
 Write-Host ''
 

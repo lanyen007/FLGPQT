@@ -23,9 +23,24 @@ function Write-LogLine([string]$Message) {
     Write-Host ("[{0}] {1}" -f $ts, $Message) -ForegroundColor Gray
 }
 
+function Get-FlgUiIsZh {
+    try {
+        $n = [string](Get-UICulture).Name
+        if ([string]::IsNullOrWhiteSpace($n)) { $n = [string](Get-Culture).Name }
+        return ($n -match '^(?i)zh')
+    } catch {
+        try { return ([string](Get-Culture).Name -match '^(?i)zh') } catch { return $true }
+    }
+}
+if (-not (Get-Variable -Name FlgIsZh -Scope Script -ErrorAction SilentlyContinue)) {
+    $script:FlgIsZh = Get-FlgUiIsZh
+}
+function Get-FlgT([string]$Zh, [string]$En) {
+    if ($script:FlgIsZh) { return $Zh } else { return $En }
+}
 function Get-FlgExitLabel {
-    if ($env:FLG_FROM_MENU -eq '1') { return '回到上一頁' }
-    return '離開'
+    if ($env:FLG_FROM_MENU -eq '1') { return (Get-FlgT '回到上一頁' 'Back') }
+    return (Get-FlgT '離開' 'Exit')
 }
 
 # --- FLG offline USB helpers (backwards compatible; no-op unless FLG_OFFLINE=1) ---
@@ -1008,7 +1023,7 @@ if ($args -and $args.Count -ge 1) {
 Invoke-FlgCounterHit 'ftp'
 
 Write-Host ''
-Write-Host '======== lanyen 工具箱 簡易 FTP 伺服器 ========' -ForegroundColor White
+Write-Host ('======== ' + (Get-FlgT 'lanyen 工具箱 簡易 FTP 伺服器' 'lanyen Toolkit Simple FTP server') + ' ========') -ForegroundColor White
 Write-Host '給影印機「掃描到 FTP／資料夾」用：把檔案存到這台電腦' -ForegroundColor Gray
 Write-Host '預設：帳號 scanner　密碼 scanner1234　埠 21' -ForegroundColor DarkGray
 Write-Host ''
@@ -1024,7 +1039,7 @@ if ($IsWindowsOs -and -not $auto -and -not (Test-IsAdmin)) {
 }
 
 function Show-FtpTopMenu {
-    Write-Host '請選擇：'
+    Write-Host (Get-FlgT '請選擇：' 'Choose:')
     Write-Host '  [1] 啟動 FTP 伺服器'
     Write-Host '  [2] 安裝登入後自動啟動'
     Write-Host '  [3] 移除自動啟動'
@@ -1035,7 +1050,7 @@ function Show-FtpTopMenu {
 $choice = '1'
 if (-not $auto) {
     Show-FtpTopMenu
-    $choice = (Read-Host '請輸入編號').Trim()
+    $choice = (Read-Host (Get-FlgT '請輸入編號' 'Enter number')).Trim()
     if ([string]::IsNullOrWhiteSpace($choice)) { $choice = '0' }
 }
 if ($choice -eq '0') { Write-Info ('已' + (Get-FlgExitLabel) + '。'); return }

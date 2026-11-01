@@ -49,9 +49,24 @@ function Write-Ok([string]$Message) { Write-Host $Message -ForegroundColor Green
 function Write-WarnMsg([string]$Message) { Write-Host $Message -ForegroundColor Yellow }
 function Write-ErrMsg([string]$Message) { Write-Host $Message -ForegroundColor Red }
 
+function Get-FlgUiIsZh {
+    try {
+        $n = [string](Get-UICulture).Name
+        if ([string]::IsNullOrWhiteSpace($n)) { $n = [string](Get-Culture).Name }
+        return ($n -match '^(?i)zh')
+    } catch {
+        try { return ([string](Get-Culture).Name -match '^(?i)zh') } catch { return $true }
+    }
+}
+if (-not (Get-Variable -Name FlgIsZh -Scope Script -ErrorAction SilentlyContinue)) {
+    $script:FlgIsZh = Get-FlgUiIsZh
+}
+function Get-FlgT([string]$Zh, [string]$En) {
+    if ($script:FlgIsZh) { return $Zh } else { return $En }
+}
 function Get-FlgExitLabel {
-    if ($env:FLG_FROM_MENU -eq '1') { return '回到上一頁' }
-    return '離開'
+    if ($env:FLG_FROM_MENU -eq '1') { return (Get-FlgT '回到上一頁' 'Back') }
+    return (Get-FlgT '離開' 'Exit')
 }
 function Stop-FlgScript {
     param([int]$Code = 0, [string]$Message = '')
@@ -556,15 +571,15 @@ function Filter-Drivers {
 function Show-SeriesMenu {
     param([string[]]$SeriesList)
     Write-Host ''
-    Write-Host ("======== lanyen 工具箱 {0} 驅動程式 · 選系列 ========" -f $FlgDriverBrand) -ForegroundColor White
-    Write-Host '請選擇系列：'
+    Write-Host (('======== ' + (Get-FlgT 'lanyen 工具箱 {0} 驅動程式 · 選系列' 'lanyen Toolkit {0} drivers · pick series') + ' ========') -f $FlgDriverBrand) -ForegroundColor White
+    Write-Host (Get-FlgT '請選擇系列：' 'Choose a series:')
     $i = 1
     foreach ($s in $SeriesList) {
         Write-Host ("  {0,2}) {1}" -f $i, $s)
         $i++
     }
-    Write-Host ("  {0,2}) 全部系列" -f $i)
-    Write-Host '   S) 搜尋關鍵字'
+    Write-Host ("  {0,2}) {1}" -f $i, (Get-FlgT '全部系列' 'All series'))
+    Write-Host ('   S) ' + (Get-FlgT '搜尋關鍵字' 'Search keyword'))
     Write-Host ('   0) ' + (Get-FlgExitLabel))
     Write-Host ''
 }
@@ -580,7 +595,7 @@ function Show-ModelMenu {
     } else {
         Write-Host ("======== lanyen 工具箱 {0} 驅動程式 ========" -f $FlgDriverBrand) -ForegroundColor White
     }
-    Write-Host '請選擇機型（輸入編號，或直接輸入關鍵字搜尋）：'
+    Write-Host (Get-FlgT '請選擇機型（輸入編號，或直接輸入關鍵字搜尋）：' 'Choose a model (number, or type a keyword):')
     $i = 1
     foreach ($m in $Models) {
         Write-Host ("  {0,2}) {1}" -f $i, $m)
@@ -596,7 +611,7 @@ function Show-DriverMenu {
     param($Items, [string]$ModelName)
     Write-Host ''
     Write-Host ("======== {0} ========" -f $ModelName) -ForegroundColor White
-    Write-Host '請選擇要下載的項目：'
+    Write-Host (Get-FlgT '請選擇要下載的項目：' 'Choose an item to download:')
     $i = 1
     foreach ($d in $Items) {
         $extra = ''
@@ -604,7 +619,7 @@ function Show-DriverMenu {
         Write-Host ("  {0,2}) {1} / {2}{3}" -f $i, $d.type, $d.os, $extra)
         $i++
     }
-    Write-Host '   0) 回到上一頁'
+    Write-Host ('   0) ' + (Get-FlgT '回到上一頁' 'Back'))
     Write-Host ''
 }
 
@@ -630,7 +645,7 @@ function Invoke-DriverPick {
     if (-not $Items -or $Items.Count -eq 0) { Write-WarnMsg '沒有項目。'; return }
     Show-DriverMenu -Items $Items -ModelName $Label
     Write-Host '  P) 開啟原網頁說明'
-    $sel = Read-Host '請選擇'
+    $sel = Read-Host (Get-FlgT '請選擇' 'Choose')
     if ($sel -eq '0' -or [string]::IsNullOrWhiteSpace($sel)) { return }
     if ($sel -match '^(?i)p$') { Open-SourcePage -Item $Items[0]; return }
     $n = 0
@@ -682,7 +697,7 @@ while ($true) {
     if ($useSeries -and -not $activeSeries) {
         $seriesList = Get-SeriesList -Catalog $catalog
         Show-SeriesMenu -SeriesList $seriesList
-        $choice = Read-Host '請選擇'
+        $choice = Read-Host (Get-FlgT '請選擇' 'Choose')
         if ([string]::IsNullOrWhiteSpace($choice) -or $choice -eq '0' -or $choice -match '^(?i)q|quit|exit|取消$') {
             Write-Info ('已' + (Get-FlgExitLabel) + '。')
             break

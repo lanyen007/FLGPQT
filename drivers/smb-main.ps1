@@ -18,9 +18,24 @@ function Write-Ok([string]$Message) { Write-Host $Message -ForegroundColor Green
 function Write-WarnMsg([string]$Message) { Write-Host $Message -ForegroundColor Yellow }
 function Write-ErrMsg([string]$Message) { Write-Host $Message -ForegroundColor Red }
 
+function Get-FlgUiIsZh {
+    try {
+        $n = [string](Get-UICulture).Name
+        if ([string]::IsNullOrWhiteSpace($n)) { $n = [string](Get-Culture).Name }
+        return ($n -match '^(?i)zh')
+    } catch {
+        try { return ([string](Get-Culture).Name -match '^(?i)zh') } catch { return $true }
+    }
+}
+if (-not (Get-Variable -Name FlgIsZh -Scope Script -ErrorAction SilentlyContinue)) {
+    $script:FlgIsZh = Get-FlgUiIsZh
+}
+function Get-FlgT([string]$Zh, [string]$En) {
+    if ($script:FlgIsZh) { return $Zh } else { return $En }
+}
 function Get-FlgExitLabel {
-    if ($env:FLG_FROM_MENU -eq '1') { return '回到上一頁' }
-    return '離開'
+    if ($env:FLG_FROM_MENU -eq '1') { return (Get-FlgT '回到上一頁' 'Back') }
+    return (Get-FlgT '離開' 'Exit')
 }
 
 # --- FLG offline USB helpers (backwards compatible; no-op unless FLG_OFFLINE=1) ---
@@ -380,7 +395,7 @@ function Remove-FlgScanShare {
 Invoke-FlgCounterHit 'smb'
 
 Write-Host ''
-Write-Host '======== lanyen 工具箱 快速建立 SMB 共用 ========' -ForegroundColor White
+Write-Host ('======== ' + (Get-FlgT 'lanyen 工具箱 快速建立 SMB 共用' 'lanyen Toolkit Quick SMB share') + ' ========') -ForegroundColor White
 Write-Host '影印機「掃描到資料夾／SMB／網路資料夾」用' -ForegroundColor Gray
 Write-Host ''
 
@@ -395,12 +410,12 @@ if (-not (Test-IsAdmin)) {
     return
 }
 
-Write-Host '請選擇：'
+Write-Host (Get-FlgT '請選擇：' 'Choose:')
 Write-Host '  [1] 建立／更新掃描共用'
 Write-Host '  [2] 移除掃描共用（可選刪除使用者，保留檔案）'
 Write-Host ('  [0] ' + (Get-FlgExitLabel))
 Write-Host ''
-$choice = (Read-Host '請輸入編號').Trim()
+$choice = (Read-Host (Get-FlgT '請輸入編號' 'Enter number')).Trim()
 if ($choice -eq '0' -or [string]::IsNullOrWhiteSpace($choice)) {
     Write-Info ('已' + (Get-FlgExitLabel) + '。')
     return

@@ -67,9 +67,24 @@ function Write-Ok([string]$Message) { Write-Host $Message -ForegroundColor Green
 function Write-WarnMsg([string]$Message) { Write-Host $Message -ForegroundColor Yellow }
 function Write-ErrMsg([string]$Message) { Write-Host $Message -ForegroundColor Red }
 
+function Get-FlgUiIsZh {
+    try {
+        $n = [string](Get-UICulture).Name
+        if ([string]::IsNullOrWhiteSpace($n)) { $n = [string](Get-Culture).Name }
+        return ($n -match '^(?i)zh')
+    } catch {
+        try { return ([string](Get-Culture).Name -match '^(?i)zh') } catch { return $true }
+    }
+}
+if (-not (Get-Variable -Name FlgIsZh -Scope Script -ErrorAction SilentlyContinue)) {
+    $script:FlgIsZh = Get-FlgUiIsZh
+}
+function Get-FlgT([string]$Zh, [string]$En) {
+    if ($script:FlgIsZh) { return $Zh } else { return $En }
+}
 function Get-FlgExitLabel {
-    if ($env:FLG_FROM_MENU -eq '1') { return '回到上一頁' }
-    return '離開'
+    if ($env:FLG_FROM_MENU -eq '1') { return (Get-FlgT '回到上一頁' 'Back') }
+    return (Get-FlgT '離開' 'Exit')
 }
 
 function Test-FlgOffline {
@@ -120,9 +135,9 @@ function Show-CopyrightWarning {
 
 function Show-Menu {
     Write-Host ''
-    Write-Host '======== lanyen 工具箱 常用工具下載 ========' -ForegroundColor White
+    Write-Host ('======== ' + (Get-FlgT 'lanyen 工具箱 常用工具下載' 'lanyen Toolkit Common tools') + ' ========') -ForegroundColor White
     Show-CopyrightWarning
-    Write-Host '請選擇要下載的項目：'
+    Write-Host (Get-FlgT '請選擇要下載的項目：' 'Choose an item to download:')
     $i = 1
     foreach ($t in $Tools) {
         Write-Host ("  [{0}] {1}（{2}）" -f $i, $t.Title, (Format-Size ([long]$t.Size)))
@@ -227,7 +242,7 @@ while ($true) {
         $argChoice = ''
     } else {
         Show-Menu
-        $choice = Read-Host '請輸入編號'
+        $choice = Read-Host (Get-FlgT '請輸入編號' 'Enter number')
     }
     try {
         $item = Get-ToolByChoice $choice
@@ -238,7 +253,7 @@ while ($true) {
     }
     if ($null -eq $item) {
         if ($env:FLG_FROM_MENU -eq '1') { return }
-        Write-Host '已離開。'
+        Write-Host (Get-FlgT '已離開。' 'Exited.')
         return
     }
     try {

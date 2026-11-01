@@ -48,9 +48,24 @@ function Write-Ok([string]$Message) { Write-Host $Message -ForegroundColor Green
 function Write-WarnMsg([string]$Message) { Write-Host $Message -ForegroundColor Yellow }
 function Write-ErrMsg([string]$Message) { Write-Host $Message -ForegroundColor Red }
 
+function Get-FlgUiIsZh {
+    try {
+        $n = [string](Get-UICulture).Name
+        if ([string]::IsNullOrWhiteSpace($n)) { $n = [string](Get-Culture).Name }
+        return ($n -match '^(?i)zh')
+    } catch {
+        try { return ([string](Get-Culture).Name -match '^(?i)zh') } catch { return $true }
+    }
+}
+if (-not (Get-Variable -Name FlgIsZh -Scope Script -ErrorAction SilentlyContinue)) {
+    $script:FlgIsZh = Get-FlgUiIsZh
+}
+function Get-FlgT([string]$Zh, [string]$En) {
+    if ($script:FlgIsZh) { return $Zh } else { return $En }
+}
 function Get-FlgExitLabel {
-    if ($env:FLG_FROM_MENU -eq '1') { return '回到上一頁' }
-    return '離開'
+    if ($env:FLG_FROM_MENU -eq '1') { return (Get-FlgT '回到上一頁' 'Back') }
+    return (Get-FlgT '離開' 'Exit')
 }
 
 # --- FLG offline USB helpers (backwards compatible; no-op unless FLG_OFFLINE=1) ---
@@ -325,8 +340,53 @@ function Get-SnmpOctetStringValue([byte[]]$Response) {
     if ($candidates.Count -eq 0) { return $null }
     return [string]$candidates[$candidates.Count - 1]
 }
+function ConvertFrom-BerOidContent([byte[]]$Content) {
+    if (-not $Content -or $Content.Length -lt 1) { return $null }
+    $parts = New-Object System.Collections.ArrayList
+    $first = [int]$Content[0]
+    [void]$parts.Add([int][Math]::Floor($first / 40))
+    [void]$parts.Add([int]($first % 40))
+    $n = 0
+    for ($i = 1; $i -lt $Content.Length; $i++) {
+        $b = [int]$Content[$i]
+        $n = ($n -shl 7) -bor ($b -band 0x7F)
+        if (($b -band 0x80) -eq 0) {
+            [void]$parts.Add($n)
+            $n = 0
+        }
+    }
+    return ($parts -join '.')
+}
+function Get-SnmpOidValue([byte[]]$Response) {
+    $i = 0
+    $last = $null
+    while ($i -lt $Response.Length) {
+        $tag = $Response[$i]
+        if (($i + 1) -ge $Response.Length) { break }
+        $lr = Get-BerLengthAt $Response ($i + 1)
+        $contentStart = $i + 1 + $lr.Size
+        $contentLen = $lr.Length
+        if (($contentStart + $contentLen) -gt $Response.Length) { break }
+        if ($tag -eq 0x06) {
+            $slice = New-Object byte[] $contentLen
+            [Buffer]::BlockCopy($Response, $contentStart, $slice, 0, $contentLen)
+            $oid = ConvertFrom-BerOidContent $slice
+            # Prefer enterprise OIDs over request OIDs like 1.3.6.1.2.1.1.2.0
+            if ($oid -and $oid -match '^1\.3\.6\.1\.4\.1\.') { return $oid }
+            if ($oid -and $oid -notmatch '^1\.3\.6\.1\.2\.1\.1\.2\.0$') { $last = $oid }
+            $i = $contentStart + $contentLen
+            continue
+        }
+        if ($tag -eq 0x30 -or $tag -eq 0xA0 -or $tag -eq 0xA2 -or ($tag -band 0x20) -ne 0) {
+            $i = $contentStart
+            continue
+        }
+        $i = $contentStart + $contentLen
+    }
+    return $last
+}
 function Invoke-SnmpGet {
-    param([string]$Ip, [string]$Oid, [string]$Community = 'public', [int]$TimeoutMs = 2000, [int]$Version = 1)
+    param([string]$Ip, [string]$Oid, [string]$Community = 'public', [int]$TimeoutMs = 2000, [int]$Version = 1, [ValidateSet('Octet','Oid','Auto')]$ValueType = 'Auto')
     $reqId = Get-Random -Minimum 1 -Maximum 2000000000
     $packet = New-SnmpGetRequestPacket -Community $Community -Oid $Oid -RequestId $reqId -Version $Version
     $udp = $null
@@ -337,22 +397,62 @@ function Invoke-SnmpGet {
         $null = $udp.Send($packet, $packet.Length, $Ip, 161)
         $remote = New-Object System.Net.IPEndPoint ([Net.IPAddress]::Any, 0)
         $resp = $udp.Receive([ref]$remote)
+        if ($ValueType -eq 'Oid') { return (Get-SnmpOidValue $resp) }
+        if ($ValueType -eq 'Octet') { return (Get-SnmpOctetStringValue $resp) }
+        $oidVal = Get-SnmpOidValue $resp
+        if ($oidVal) { return $oidVal }
         return (Get-SnmpOctetStringValue $resp)
     } catch { return $null } finally {
         if ($udp) { try { $udp.Close() } catch {} }
     }
 }
+function Get-BrandFromSysObjectId([string]$Oid) {
+    if ([string]::IsNullOrWhiteSpace($Oid)) { return $null }
+    $o = $Oid.Trim().TrimStart('.')
+    # enterprise under 1.3.6.1.4.1.<ent>
+    if ($o -match '^1\.3\.6\.1\.4\.1\.(\d+)') {
+        $ent = [int]$Matches[1]
+        switch ($ent) {
+            367   { return 'Ricoh' }
+            2385  { return 'Sharp' }
+            297   { return 'FUJIFILM' }      # Fuji Xerox / FUJIFILM BI
+            1602  { return 'Canon' }
+            18334 { return 'KONICA MINOLTA' }
+            1347  { return 'Kyocera' }
+            253   { return 'Xerox' }
+            11    { return 'HP' }
+            1248  { return 'Epson' }
+            2435  { return 'Brother' }
+            default { return ("Enterprise:$ent") }
+        }
+    }
+    return $null
+}
+function Test-FlgBrandSupported([string]$Brand) {
+    if ([string]::IsNullOrWhiteSpace($Brand)) { return $false }
+    return ($Brand -match '^(?i)(Ricoh|Sharp|FUJIFILM|Canon|KONICA MINOLTA)$')
+}
 function Get-PrinterModelViaSnmp([string]$Ip, [switch]$Quiet) {
-    if (-not $Quiet) { Write-Info ("SNMP 偵測機型 $Ip （community public，UDP 161）…") }
+    if (-not $Quiet) { Write-Info ((Get-FlgT "SNMP 偵測機型 $Ip （community public，UDP 161）…" "SNMP probe $Ip (community public, UDP 161)…")) }
+    $sysObjectId = $null
+    $brandFromOid = $null
+    foreach ($ver in @(1, 0)) {
+        $sysObjectId = Invoke-SnmpGet -Ip $Ip -Oid '1.3.6.1.2.1.1.2.0' -Community 'public' -TimeoutMs 1500 -Version $ver -ValueType Oid
+        if ($sysObjectId) { break }
+    }
+    if ($sysObjectId) {
+        $brandFromOid = Get-BrandFromSysObjectId $sysObjectId
+        if (-not $Quiet) { Write-Host ("  sysObjectID $sysObjectId => " + $(if ($brandFromOid) { $brandFromOid } else { '?' })) -ForegroundColor DarkGray }
+    }
     $oids = @(
-        '1.3.6.1.2.1.1.1.0',
-        '1.3.6.1.2.1.25.3.2.1.3.1',
-        '1.3.6.1.2.1.43.5.1.1.16.1'
+        '1.3.6.1.2.1.1.1.0',          # sysDescr
+        '1.3.6.1.2.1.25.3.2.1.3.1',  # hrDeviceDescr
+        '1.3.6.1.2.1.43.5.1.1.16.1'  # prtGeneralPrinterName
     )
     $hits = New-Object System.Collections.ArrayList
     foreach ($ver in @(1, 0)) {
         foreach ($oid in $oids) {
-            $val = Invoke-SnmpGet -Ip $Ip -Oid $oid -Community 'public' -TimeoutMs 1500 -Version $ver
+            $val = Invoke-SnmpGet -Ip $Ip -Oid $oid -Community 'public' -TimeoutMs 1500 -Version $ver -ValueType Octet
             if ($val) {
                 if (-not $Quiet) { Write-Host ("  OID $oid => $val") -ForegroundColor DarkGray }
                 [void]$hits.Add($val)
@@ -360,33 +460,49 @@ function Get-PrinterModelViaSnmp([string]$Ip, [switch]$Quiet) {
         }
         if ($hits.Count -gt 0) { break }
     }
-    if ($hits.Count -eq 0) {
-        if (-not $Quiet) { Write-WarnMsg 'SNMP 無回應或無法取得機型。' }
-        return $null
-    }
-    $model = [string]$hits[$hits.Count - 1]
-    foreach ($h in $hits) {
-        $s = [string]$h
-        if ($s -match '(?i)RICOH|SHARP|FUJIFILM|Xerox|Apeos|DocuCentre|DocuPrint|Canon|imageRUNNER|imageFORCE|KONICA|MINOLTA|bizhub|IM\s*C|MP\s*C|MX-|BP-|Aficio') {
-            $model = $s
+    $model = $null
+    if ($hits.Count -gt 0) {
+        $model = [string]$hits[$hits.Count - 1]
+        foreach ($h in $hits) {
+            $s = [string]$h
+            if ($s -match '(?i)RICOH|SHARP|FUJIFILM|Xerox|Apeos|DocuCentre|DocuPrint|Canon|imageRUNNER|imageFORCE|KONICA|MINOLTA|bizhub|IM\s*C|MP\s*C|MX-|BP-|Aficio|Kyocera|Brother|Epson|HP\s') {
+                $model = $s
+            }
+        }
+        if ($model.Contains("`n")) { $model = ($model -split "`n")[0].Trim() }
+        if ($model.Length -gt 80) {
+            $m2 = [regex]::Match($model, '(?i)((?:RICOH|SHARP|FUJIFILM|Fuji\s*Xerox|Xerox|Canon|KONICA\s*MINOLTA|Konica\s*Minolta|Kyocera|Brother|Epson|HP)\s+)?[A-Z0-9][A-Z0-9 \-/]{2,40}')
+            if ($m2.Success) { $model = $m2.Value.Trim() }
         }
     }
-    if ($model.Contains("`n")) { $model = ($model -split "`n")[0].Trim() }
-    if ($model.Length -gt 80) {
-        $m2 = [regex]::Match($model, '(?i)((?:RICOH|SHARP|FUJIFILM|Fuji\s*Xerox|Xerox|Canon|KONICA\s*MINOLTA|Konica\s*Minolta)\s+)?[A-Z0-9][A-Z0-9 \-/]{2,40}')
-        if ($m2.Success) { $model = $m2.Value.Trim() }
+    if (-not $model -and $brandFromOid) { $model = $brandFromOid }
+    if (-not $model) {
+        if (-not $Quiet) { Write-WarnMsg (Get-FlgT 'SNMP 無回應或無法取得機型。' 'No SNMP response or model not found.') }
+        return $null
     }
-    if (-not $Quiet) { Write-Ok ("偵測到機型：$model") }
+    if (-not $Quiet) { Write-Ok ((Get-FlgT "偵測到機型：$model" "Detected model: $model")) }
+    # stash brand hint for callers via script scope
+    $script:FlgLastSnmpBrand = $brandFromOid
+    $script:FlgLastSysObjectId = $sysObjectId
     return $model
 }
 
 function Get-BrandFromModel([string]$ModelText) {
+    if ($script:FlgLastSnmpBrand) {
+        $b = $script:FlgLastSnmpBrand
+        $script:FlgLastSnmpBrand = $null
+        return $b
+    }
     if ([string]::IsNullOrWhiteSpace($ModelText)) { return $null }
     if ($ModelText -match '(?i)RICOH|Gestetner|LANIER|SAVIN|Aficio|\bIM\s*C|\bMP\s*C|\bIMC') { return 'Ricoh' }
     if ($ModelText -match '(?i)FUJIFILM|Fuji\s*Xerox|Xerox|Apeos|DocuCentre|DocuPrint|ApeosPort') { return 'FUJIFILM' }
     if ($ModelText -match '(?i)SHARP|\bMX-|\bBP-|\bAR-') { return 'Sharp' }
     if ($ModelText -match '(?i)Canon|imageRUNNER|iR-ADV|imageFORCE|imageCLASS|i-SENSYS|imagePRESS') { return 'Canon' }
     if ($ModelText -match '(?i)KONICA|MINOLTA|bizhub|Accurio|Develop|\bineo\b') { return 'KONICA MINOLTA' }
+    if ($ModelText -match '(?i)Kyocera|ECOSYS|TASKalfa') { return 'Kyocera' }
+    if ($ModelText -match '(?i)\bHP\b|Hewlett|LaserJet|OfficeJet') { return 'HP' }
+    if ($ModelText -match '(?i)Epson|WorkForce|EcoTank') { return 'Epson' }
+    if ($ModelText -match '(?i)Brother') { return 'Brother' }
     return $null
 }
 
@@ -983,14 +1099,24 @@ function Invoke-ProcessPrinter {
         [switch]$SkipAfterMenu,
         [switch]$Install
     )
+    $script:FlgLastSnmpBrand = $null
     $model = $ModelHint
     if (-not $model) { $model = Get-PrinterModelViaSnmp $Ip }
+    $brandHint = $null
+    if ($script:FlgLastSnmpBrand) { $brandHint = $script:FlgLastSnmpBrand }
     if (-not $model) {
-        $model = (Read-Host '請手動輸入機型名稱（例如 IM C3000、Apeos C3570）').Trim()
-        if (-not $model) { throw '未提供機型，已取消。' }
+        $model = (Read-Host (Get-FlgT '請手動輸入機型名稱（例如 IM C3000、Apeos C3570）' 'Enter model name (e.g. IM C3000, Apeos C3570)')).Trim()
+        if (-not $model) { throw (Get-FlgT '未提供機型，已取消。' 'No model provided; cancelled.') }
+    }
+    if (-not $brandHint) { $brandHint = Get-BrandFromModel $model }
+    if ($brandHint -and -not (Test-FlgBrandSupported $brandHint)) {
+        Write-WarnMsg ((Get-FlgT "偵測到 $brandHint，目前工具箱無此廠牌雲端驅動。" "Detected $brandHint; no cloud driver for this brand in the toolkit.") )
+        Write-Host (Get-FlgT '可改用手動機型搜尋原廠驅動，或選支援的廠牌雲端安裝。' 'Try a manual model search on the vendor site, or use a supported brand cloud install.') -ForegroundColor DarkGray
+        $cont = (Read-Host (Get-FlgT '仍要繼續嘗試？(Y/N，預設 N)' 'Continue anyway? (Y/N, default N)')).Trim()
+        if ($cont -notmatch '^(?i)(y|yes|是)$') { throw (Get-FlgT "已跳過不支援廠牌：$brandHint" "Skipped unsupported brand: $brandHint") }
     }
     $resolved = Resolve-ModelAndDrivers -ModelText $model -CloudCatalog $CloudCatalog
-    if (-not $resolved.Brand) { throw "無法辨識品牌：$model" }
+    if (-not $resolved.Brand) { throw ((Get-FlgT '無法辨識品牌：' 'Cannot detect brand: ') + $model) }
     if ($resolved.Ambiguous -and $resolved.Candidates.Count -gt 0) {
         $resolved.CatalogItem = Prompt-PickCandidate $resolved.Candidates
     }
@@ -1257,7 +1383,7 @@ function Test-TcpPortQuick([string]$Ip, [int]$Port, [int]$TimeoutMs = 400) {
 }
 
 function Invoke-LanPrinterScan {
-    Write-Info '掃描本機區網，尋找印表機（TCP 9100/631/515 + SNMP）…'
+    Write-Info (Get-FlgT '掃描本機區網，尋找印表機（TCP 9100 + SNMP UDP 161）…' 'Scanning LAN for printers (TCP 9100 + SNMP UDP 161)…')
     $subnets = Get-LocalSubnets
     if ($subnets.Count -eq 0) { throw '找不到可用的本機 IPv4 網段。' }
     $allHosts = New-Object System.Collections.ArrayList
@@ -1280,14 +1406,16 @@ function Invoke-LanPrinterScan {
     }
     Write-Info ("待探測主機：{0} 台（平行掃描，逾時約 400ms）" -f $allHosts.Count)
 
-    $ports = @(9100, 631, 515)
+    $ports = @(9100, 161)
     $open = New-Object System.Collections.ArrayList
     $pool = [runspacefactory]::CreateRunspacePool(1, [Math]::Min(128, [Math]::Max(16, [Math]::Min($allHosts.Count, 128))))
     $pool.Open()
     $jobs = New-Object System.Collections.ArrayList
     $scriptBlock = {
         param($Ip, $Ports, $TimeoutMs)
+        # TCP 9100 first
         foreach ($p in $Ports) {
+            if ([int]$p -eq 161) { continue }
             $tcp = $null
             try {
                 $tcp = New-Object Net.Sockets.TcpClient
@@ -1297,6 +1425,43 @@ function Invoke-LanPrinterScan {
                     if ($tcp.Connected) { return @{ Ip = $Ip; Port = $p } }
                 }
             } catch {} finally { if ($tcp) { try { $tcp.Close() } catch {} } }
+        }
+        # UDP 161 SNMP GET sysObjectID (v2c/v1)
+        try {
+            function _BerLen([int]$Len) {
+                if ($Len -lt 0x80) { return ,[byte[]]@([byte]$Len) }
+                if ($Len -lt 0x100) { return ,[byte[]]@(0x81, [byte]$Len) }
+                return ,[byte[]]@(0x82, [byte](($Len -shr 8) -band 0xFF), [byte]($Len -band 0xFF))
+            }
+            function _Join([byte[][]]$Parts) {
+                $t = 0; foreach ($p in $Parts) { $t += $p.Length }
+                $o = New-Object byte[] $t; $off = 0
+                foreach ($p in $Parts) { [Buffer]::BlockCopy($p, 0, $o, $off, $p.Length); $off += $p.Length }
+                return ,$o
+            }
+            $oid = [byte[]]@(0x06, 0x08, 0x2B, 0x06, 0x01, 0x02, 0x01, 0x01, 0x02, 0x00) # 1.3.6.1.2.1.1.2.0
+            $nullb = [byte[]]@(0x05, 0x00)
+            $vb = _Join @($oid, $nullb)
+            $vb = _Join @([byte[]]@(0x30), (_BerLen $vb.Length), $vb)
+            $vbl = _Join @([byte[]]@(0x30), (_BerLen $vb.Length), $vb)
+            $rid = [byte[]]@(0x02, 0x01, 0x01)
+            $err = [byte[]]@(0x02, 0x01, 0x00)
+            $pduBody = _Join @($rid, $err, $err, $vbl)
+            $pdu = _Join @([byte[]]@(0xA0), (_BerLen $pduBody.Length), $pduBody)
+            $ver = [byte[]]@(0x02, 0x01, 0x01) # v2c
+            $com = [byte[]]@(0x04, 0x06) + [Text.Encoding]::ASCII.GetBytes('public')
+            $msg = _Join @($ver, $com, $pdu)
+            $pkt = _Join @([byte[]]@(0x30), (_BerLen $msg.Length), $msg)
+            $udp = New-Object System.Net.Sockets.UdpClient
+            $udp.Client.ReceiveTimeout = $TimeoutMs
+            $udp.Client.SendTimeout = $TimeoutMs
+            $null = $udp.Send($pkt, $pkt.Length, $Ip, 161)
+            $ep = New-Object System.Net.IPEndPoint ([Net.IPAddress]::Any, 0)
+            $null = $udp.Receive([ref]$ep)
+            $udp.Close()
+            return @{ Ip = $Ip; Port = 161 }
+        } catch {
+            try { if ($udp) { $udp.Close() } } catch {}
         }
         return $null
     }
@@ -1317,11 +1482,11 @@ function Invoke-LanPrinterScan {
     $pool.Dispose()
 
     if ($open.Count -eq 0) {
-        Write-WarnMsg '沒有發現開放列印埠的裝置。可改手動輸入 IP。'
+        Write-WarnMsg (Get-FlgT '沒有發現開放列印埠／SNMP 的裝置。可改手動輸入 IP。' 'No print-port/SNMP devices found. You can enter an IP manually.')
         return @()
     }
 
-    Write-Info ("發現 {0} 台疑似印表機，讀取 SNMP 機型…" -f $open.Count)
+    Write-Info ((Get-FlgT '發現 {0} 台疑似印表機，讀取 SNMP 機型…' 'Found {0} candidate printer(s); reading SNMP…') -f $open.Count)
     $found = New-Object System.Collections.ArrayList
     $seen = @{}
     foreach ($o in $open) {
@@ -1338,23 +1503,25 @@ function Invoke-LanPrinterScan {
 
 function Show-ScanTable($Found) {
     Write-Host ''
-    Write-Host '======== 掃描結果 ========' -ForegroundColor White
-    Write-Host ('  {0,-3} {1,-15} {2,-16} {3}' -f 'No', 'IP', '品牌', '機型')
+    Write-Host ('======== ' + (Get-FlgT '掃描結果' 'Scan results') + ' ========') -ForegroundColor White
+    $hBrand = Get-FlgT '品牌' 'Brand'
+    $hModel = Get-FlgT '機型' 'Model'
+    Write-Host ('  {0,-3} {1,-15} {2,-16} {3}' -f 'No', 'IP', $hBrand, $hModel)
     Write-Host ('  ' + ('-' * 70))
     for ($i = 0; $i -lt $Found.Count; $i++) {
         $f = $Found[$i]
         Write-Host ('  {0,-3} {1,-15} {2,-16} {3}' -f ($i + 1), $f.Ip, $f.Brand, $f.Model)
     }
     Write-Host ''
-    Write-Host '  [A] 全部安裝'
-    Write-Host '  [I] 手動輸入 IP'
+    Write-Host ('  [A] ' + (Get-FlgT '全部安裝' 'Install all'))
+    Write-Host ('  [I] ' + (Get-FlgT '手動輸入 IP' 'Enter IP manually'))
     Write-Host ('  [0] ' + (Get-FlgExitLabel))
 }
 
 # ---- main ----
 Write-Host ''
-Write-Host '======== lanyen 工具箱 自動偵測機型／區網掃描 ========' -ForegroundColor White
-Write-Host 'SNMP 讀機型 → 對應專用驅動下載 → 通用版安裝（黑白單面＋預設＋測試頁）' -ForegroundColor Gray
+Write-Host ('======== ' + (Get-FlgT 'lanyen 工具箱 自動驅動安裝' 'lanyen Toolkit Auto driver install') + ' ========') -ForegroundColor White
+Write-Host (Get-FlgT '區網掃描（9100／SNMP）→ sysObjectID 辨識廠牌 → 雲端通用驅動安裝' 'LAN scan (9100/SNMP) → sysObjectID brand detect → cloud universal driver install') -ForegroundColor Gray
 Write-Host ''
 
 if ($script:Mode -eq 'scan') {
@@ -1388,10 +1555,10 @@ try {
         }
         while ($true) {
             Show-ScanTable $found
-            $choice = (Read-Host '請選擇編號').Trim()
+            $choice = (Read-Host (Get-FlgT '請選擇編號' 'Enter number')).Trim()
             if ($choice -eq '0' -or $choice -eq '') { Write-Host ('已' + (Get-FlgExitLabel) + '。'); break }
             if ($choice -match '^(?i)i$') {
-                $mip = (Read-Host '印表機 IP').Trim()
+                $mip = (Read-Host (Get-FlgT '印表機 IP' 'Printer IP')).Trim()
                 if (-not (Test-Ipv4Address $mip)) { Write-WarnMsg 'IP 無效'; continue }
                 Invoke-ProcessPrinter -Ip $mip -CloudCatalog $cloud -Install | Out-Null
                 break
@@ -1409,12 +1576,12 @@ try {
                         Invoke-FlgCounterHit 'install-fail-ricoh'
                     }
                 }
-                Write-Ok '全部處理完畢。'
+                Write-Ok (Get-FlgT '全部處理完畢。' 'All done.')
                 break
             }
             $n = 0
             if (-not [int]::TryParse($choice, [ref]$n) -or $n -lt 1 -or $n -gt $found.Count) {
-                Write-WarnMsg '無效的編號。'; continue
+                Write-WarnMsg (Get-FlgT '無效的編號。' 'Invalid number.'); continue
             }
             $f = $found[$n - 1]
             $hint = $f.Model
@@ -1425,8 +1592,8 @@ try {
     } else {
         $ip = $script:ArgIp
         if (-not $ip) {
-            Write-Host ('請輸入印表機 IP（空白=掃描區網；0 = {0}；或輸入機型名稱）' -f (Get-FlgExitLabel)) -ForegroundColor White
-            $raw = (Read-Host 'IP / 機型').Trim()
+            Write-Host ((Get-FlgT '請輸入印表機 IP（空白=掃描區網；0 = {0}；或輸入機型名稱）' 'Enter printer IP (blank=LAN scan; 0 = {0}; or model name)') -f (Get-FlgExitLabel)) -ForegroundColor White
+            $raw = (Read-Host (Get-FlgT 'IP / 機型' 'IP / model')).Trim()
             if ($raw -eq '0') {
                 Write-Info ('已' + (Get-FlgExitLabel) + '。')
                 return
@@ -1437,7 +1604,7 @@ try {
                 $found = Invoke-LanPrinterScan
                 if ($found.Count -eq 0) { return }
                 Show-ScanTable $found
-                $choice = (Read-Host '請選擇編號').Trim()
+                $choice = (Read-Host (Get-FlgT '請選擇編號' 'Enter number')).Trim()
                 if ($choice -eq '0' -or $choice -eq '') { Write-Host ('已' + (Get-FlgExitLabel) + '。'); return }
                 if ($choice -match '^(?i)a$') {
                     foreach ($f in $found) {

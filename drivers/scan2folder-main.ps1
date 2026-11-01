@@ -1,4 +1,19 @@
-﻿# lanyen 工具箱 掃描到資料夾（GUI）
+﻿function Get-FlgUiIsZh {
+    try {
+        $n = [string](Get-UICulture).Name
+        if ([string]::IsNullOrWhiteSpace($n)) { $n = [string](Get-Culture).Name }
+        return ($n -match '^(?i)zh')
+    } catch {
+        try { return ([string](Get-Culture).Name -match '^(?i)zh') } catch { return $true }
+    }
+}
+if (-not (Get-Variable -Name FlgIsZh -Scope Script -ErrorAction SilentlyContinue)) {
+    $script:FlgIsZh = Get-FlgUiIsZh
+}
+function Get-FlgT([string]$Zh, [string]$En) {
+    if ($script:FlgIsZh) { return $Zh } else { return $En }
+}
+# lanyen 工具箱 掃描到資料夾（GUI）
 # 用法：irm https://lanyen007.github.io/FLGPQT/drivers/scan2folder.ps1 | iex
 # 需要系統管理員權限（會嘗試自動提權）
 
@@ -888,7 +903,7 @@ function Show-Scan2FolderGui {
 Invoke-FlgCounterHit 'scan2folder'
 
 Write-Host ''
-Write-Host '======== lanyen 工具箱 掃描到資料夾 ========' -ForegroundColor White
+Write-Host ('======== ' + (Get-FlgT 'lanyen 工具箱 掃描到資料夾' 'lanyen Toolkit Scan to folder') + ' ========') -ForegroundColor White
 Write-Host 'Ricoh／Sharp／FUJIFILM 掃描到 SMB／FTP 一鍵設定（視窗介面）' -ForegroundColor Gray
 Write-Host ''
 
