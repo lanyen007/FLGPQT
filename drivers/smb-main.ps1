@@ -435,14 +435,17 @@ if ($choice -ne '1') {
 }
 
 # --- create flow ---
-$defaultFolder = 'C:\掃描'
-$altDesktop = Join-Path (Get-UserProfilePath) ([IO.Path]::Combine('Desktop', '掃描'))
+$hasD = $false
+try { $hasD = [bool](Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='D:' AND DriveType=3" -ErrorAction Stop) } catch { $hasD = Test-Path 'D:\' }
+$defaultFolder = $(if ($hasD) { 'D:\scan' } else { 'C:\scan' })
+$altFolder = $(if ($hasD) { 'C:\scan' } else { $null })
 Write-Host ("預設資料夾：{0}" -f $defaultFolder) -ForegroundColor White
-Write-Host ("也可以用桌面：{0}" -f $altDesktop) -ForegroundColor DarkGray
-$folderIn = (Read-Host '直接 Enter 用 C:\掃描；輸入 D 用桌面；或貼上其他路徑').Trim()
+if ($altFolder) { Write-Host ("也可以用：{0}" -f $altFolder) -ForegroundColor DarkGray }
+$prompt = $(if ($altFolder) { "直接 Enter 用 $defaultFolder；輸入 C 用 C:\scan；或貼上其他路徑" } else { "直接 Enter 用 $defaultFolder；或貼上其他路徑" })
+$folderIn = (Read-Host $prompt).Trim()
 if ($folderIn -eq '0') { Write-Info ('已' + (Get-FlgExitLabel) + '。'); return }
 $folder = $defaultFolder
-if ($folderIn -match '^(?i)d$') { $folder = $altDesktop }
+if ($altFolder -and $folderIn -match '^(?i)c$') { $folder = $altFolder }
 elseif ($folderIn) { $folder = $folderIn }
 $folder = [IO.Path]::GetFullPath($folder)
 
