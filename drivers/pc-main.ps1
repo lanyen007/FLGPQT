@@ -86,9 +86,9 @@ function Get-GroupTitle([string]$Group) {
 function Show-Menu {
     Write-Host ''
     Write-Host ('======== ' + (Get-FlgT 'lanyen.de 重灌後常用軟體' 'lanyen.de post-reinstall apps') + ' ========') -ForegroundColor White
-    Write-Host (Get-FlgT '勾選後用 winget 安裝。LINE 與新酷音改抓官方安裝檔。' 'Selected apps install with winget. LINE and Chewing use their official installers.')
-    Write-Host (Get-FlgT '可一次輸入多個編號，例如 1,7,12' 'Enter several numbers, for example 1,7,12')
-    Write-Host ('  [A] ' + (Get-FlgT '建議組合（Reader、LibreOffice、Chrome、7-Zip、VLC、LINE、新酷音）' 'Suggested set (Reader, LibreOffice, Chrome, 7-Zip, VLC, LINE, Chewing)'))
+    Write-Host (Get-FlgT '多個編號用逗號分開，例如 1,7,12' 'Separate numbers with commas, for example 1,7,12')
+    $suggestNums = ((@($Apps | Where-Object { $_.Recommend } | ForEach-Object { $_.Num })) -join ',')
+    Write-Host ('  [A] ' + (Get-FlgT '建議組合：' 'Suggested: ') + $suggestNums)
     Write-Host ('  [0] ' + (Get-FlgExitLabel))
     Write-Host ''
     $lastGroup = ''
@@ -106,12 +106,12 @@ function Show-Menu {
 
 function Resolve-AppChoice([string]$Raw) {
     if ([string]::IsNullOrWhiteSpace($Raw)) { return @() }
-    $v = $Raw.Trim()
+    $v = $Raw.Trim() -replace '，', ','
     if ($v -eq '0' -or $v -match '^(?i)(q|quit|exit|cancel|取消|離開)$') { return $null }
     if ($v -match '^(?i)(a|suggest|suggested|建議|建議組合)$') {
         return @($Apps | Where-Object { $_.Recommend })
     }
-    $parts = @($v -split '[,\s;、]+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $parts = @($v -split '\s*,\s*' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     if ($parts.Count -eq 0) { return @() }
     $picked = @()
     foreach ($part in $parts) {
@@ -314,7 +314,7 @@ while ($true) {
         $argChoice = ''
     } else {
         Show-Menu
-        $choice = Read-Host (Get-FlgT '請輸入編號' 'Enter numbers')
+        $choice = Read-Host (Get-FlgT '請輸入編號，多個用逗號分開' 'Enter numbers, separated by commas')
     }
     try {
         $selected = Resolve-AppChoice $choice
@@ -332,6 +332,8 @@ while ($true) {
         Write-WarnMsg (Get-FlgT '沒有選擇任何軟體。' 'No apps selected.')
         continue
     }
+    $names = (@($selected | ForEach-Object { Get-AppTitle $_ }) -join ', ')
+    Write-Info ((Get-FlgT '將安裝：{0}' 'Will install: {0}') -f $names)
     try {
         Invoke-InstallSet $selected
     } catch {
