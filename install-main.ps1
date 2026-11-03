@@ -16,11 +16,8 @@ $RawBase = 'https://raw.githubusercontent.com/lanyen007/FLGPQT/main'
 $InstallRoot = Join-Path $env:LOCALAPPDATA 'FLG'
 
 $Tools = @(
-    @{ Key = 'PQT';                  File = 'PQT.exe';                  Title = 'PQT（影印機計數器／排程抄表）' }
-    @{ Key = 'RicohMfpTool';         File = 'RicohMfpTool.exe';         Title = 'RicohMfpTool（Ricoh 複合機工具）' }
-    @{ Key = 'Ricoh_UserCounter';    File = 'Ricoh_UserCounter.exe';    Title = 'Ricoh_UserCounter（使用者計數查詢）' }
-    @{ Key = 'UserCounterDownload';  File = 'UserCounterDownload.exe';  Title = 'UserCounterDownload（使用者計數下載）' }
-    @{ Key = 'FLGPQT_Download';      File = 'FLGPQT_Download.exe';      Title = 'FLGPQT_Download（多工具一鍵下載）' }
+    @{ Key = 'PQT';                  File = 'PQT.exe';                      Title = 'PQT（影印機計數器／排程抄表）' }
+    @{ Key = 'RICOH使用者計數下載'; File = 'RICOH使用者計數下載.exe';     Title = 'RICOH 使用者計數下載' }
 )
 
 function Write-Info([string]$Message) {
