@@ -110,7 +110,7 @@ function Show-Menu {
     $suggestNums = ((@($Apps | Where-Object { $_.Recommend } | ForEach-Object { $_.Num })) -join ',')
     Write-Host ('  [A] ' + (Get-FlgT '建議組合：' 'Suggested: ') + $suggestNums)
     Write-Host ('  [0] ' + (Get-FlgExitLabel))
-    Write-Host (Get-FlgT '約 60 秒沒有輸入會回到上一頁。' 'Goes back after about 60 seconds with no input.') -ForegroundColor DarkGray
+    Write-Host (Get-FlgT '約 8 秒沒有輸入會回到上一頁。' 'Goes back after about 8 seconds with no input.') -ForegroundColor DarkGray
     Write-Host ''
     $lastGroup = ''
     foreach ($app in $Apps) {
@@ -342,14 +342,14 @@ function Read-MenuLine {
     }
     Write-Host ($prompt + ': ') -NoNewline
     $buf = New-Object System.Text.StringBuilder
-    $deadline = [DateTime]::UtcNow.AddSeconds(60)
+    $deadline = [DateTime]::UtcNow.AddSeconds(8)
     while ([DateTime]::UtcNow -lt $deadline) {
         if (-not [Console]::KeyAvailable) {
             Start-Sleep -Milliseconds 100
             continue
         }
         $key = [Console]::ReadKey($true)
-        $deadline = [DateTime]::UtcNow.AddSeconds(60)
+        $deadline = [DateTime]::UtcNow.AddSeconds(8)
         if ($key.Key -eq 'Enter') {
             Write-Host ''
             return $buf.ToString()
