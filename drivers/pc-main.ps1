@@ -13,19 +13,19 @@ $LineUrl = 'https://desktop.line-scdn.net/win/new/LineInst.exe'
 $ChewingApi = 'https://api.github.com/repos/chewing/windows-chewing-tsf/releases/latest'
 
 $Apps = @(
-    @{ Num = 1;  Key = 'reader';      Group = 'pdf';     Recommend = $true;  Kind = 'winget'; Id = 'Adobe.Acrobat.Reader.64-bit'; TitleZh = 'Adobe Acrobat Reader'; TitleEn = 'Adobe Acrobat Reader'; NoteZh = '最常見的 PDF 閱讀器，適合商業與政府文件'; NoteEn = 'The usual PDF reader for office and government files' }
-    @{ Num = 2;  Key = 'pdfxchange';  Group = 'pdf';     Recommend = $false; Kind = 'winget'; Id = 'TrackerSoftware.PDF-XChangeEditor'; TitleZh = 'PDF-XChange Editor'; TitleEn = 'PDF-XChange Editor'; NoteZh = '較輕量。免費版可畫重點、加註解'; NoteEn = 'Lighter PDF editor. Free edition can highlight and comment' }
-    @{ Num = 3;  Key = 'libreoffice'; Group = 'pdf';     Recommend = $true;  Kind = 'winget'; Id = 'TheDocumentFoundation.LibreOffice'; TitleZh = 'LibreOffice'; TitleEn = 'LibreOffice'; NoteZh = '免費，可開啟 Word、Excel、PowerPoint'; NoteEn = 'Free office suite for Word, Excel, and PowerPoint files' }
-    @{ Num = 4;  Key = 'openoffice';  Group = 'pdf';     Recommend = $false; Kind = 'winget'; Id = 'Apache.OpenOffice'; TitleZh = 'OpenOffice'; TitleEn = 'OpenOffice'; NoteZh = '另一個免費辦公套件。和 LibreOffice 擇一即可'; NoteEn = 'Another free office suite. Pick this or LibreOffice, not both' }
-    @{ Num = 5;  Key = 'chrome';      Group = 'browser'; Recommend = $true;  Kind = 'winget'; Id = 'Google.Chrome'; TitleZh = 'Google Chrome'; TitleEn = 'Google Chrome'; NoteZh = '擴充功能最多的瀏覽器'; NoteEn = 'Browser with the largest extension library' }
-    @{ Num = 6;  Key = 'edge';        Group = 'browser'; Recommend = $false; Kind = 'winget'; Id = 'Microsoft.Edge'; TitleZh = 'Microsoft Edge'; TitleEn = 'Microsoft Edge'; NoteZh = 'Windows 10／11 已內建。選了會更新到最新版'; NoteEn = 'Already built into Windows 10/11. Selecting this updates it' }
-    @{ Num = 7;  Key = '7zip';        Group = 'archive'; Recommend = $true;  Kind = 'winget'; Id = '7zip.7zip'; TitleZh = '7-Zip'; TitleEn = '7-Zip'; NoteZh = '免費、無廣告，可解 ZIP、RAR、7z'; NoteEn = 'Free, no ads. Opens ZIP, RAR, and 7z' }
-    @{ Num = 8;  Key = 'winrar';      Group = 'archive'; Recommend = $false; Kind = 'winget'; Id = 'RARLab.WinRAR'; TitleZh = 'WinRAR'; TitleEn = 'WinRAR'; NoteZh = '可一直使用，會出現購買提示'; NoteEn = 'Keeps working, and shows a purchase reminder' }
-    @{ Num = 9;  Key = 'vlc';         Group = 'media';   Recommend = $true;  Kind = 'winget'; Id = 'VideoLAN.VLC'; TitleZh = 'VLC Media Player'; TitleEn = 'VLC Media Player'; NoteZh = '什麼影片格式都能播，沒有廣告'; NoteEn = 'Plays almost any video format, with no ads' }
-    @{ Num = 10; Key = 'potplayer';   Group = 'media';   Recommend = $false; Kind = 'winget'; Id = 'Daum.PotPlayer'; TitleZh = 'PotPlayer'; TitleEn = 'PotPlayer'; NoteZh = '硬體解碼順，適合調畫質與字幕'; NoteEn = 'Smooth hardware decoding, with detailed picture and subtitle options' }
-    @{ Num = 11; Key = 'capcut';      Group = 'media';   Recommend = $false; Kind = 'winget'; Id = 'ByteDance.CapCut'; TitleZh = 'CapCut（剪映）'; TitleEn = 'CapCut'; NoteZh = '免費剪輯，含特效與自動字幕'; NoteEn = 'Free editor with effects and auto captions' }
-    @{ Num = 12; Key = 'line';        Group = 'system';  Recommend = $true;  Kind = 'line';   Id = ''; TitleZh = 'LINE 電腦版'; TitleEn = 'LINE for desktop'; NoteZh = '官方安裝檔'; NoteEn = 'Official installer' }
-    @{ Num = 13; Key = 'chewing';     Group = 'system';  Recommend = $true;  Kind = 'chewing'; Id = ''; TitleZh = '新酷音輸入法'; TitleEn = 'Chewing input method'; NoteZh = '官方安裝檔。選字比內建新注音靈活'; NoteEn = 'Official installer. More flexible candidate picking than the built-in Bopomofo' }
+    @{ Num = 1;  Key = 'reader';      Group = 'pdf';     Recommend = $true;  Kind = 'winget'; Id = 'Adobe.Acrobat.Reader.64-bit'; TitleZh = 'Adobe Acrobat Reader'; TitleEn = 'Adobe Acrobat Reader' }
+    @{ Num = 2;  Key = 'pdfxchange';  Group = 'pdf';     Recommend = $false; Kind = 'winget'; Id = 'TrackerSoftware.PDF-XChangeEditor'; TitleZh = 'PDF-XChange Editor'; TitleEn = 'PDF-XChange Editor' }
+    @{ Num = 3;  Key = 'libreoffice'; Group = 'pdf';     Recommend = $true;  Kind = 'winget'; Id = 'TheDocumentFoundation.LibreOffice'; TitleZh = 'LibreOffice'; TitleEn = 'LibreOffice' }
+    @{ Num = 4;  Key = 'openoffice';  Group = 'pdf';     Recommend = $false; Kind = 'winget'; Id = 'Apache.OpenOffice'; TitleZh = 'OpenOffice'; TitleEn = 'OpenOffice' }
+    @{ Num = 5;  Key = 'chrome';      Group = 'browser'; Recommend = $true;  Kind = 'winget'; Id = 'Google.Chrome'; TitleZh = 'Google Chrome'; TitleEn = 'Google Chrome' }
+    @{ Num = 6;  Key = 'edge';        Group = 'browser'; Recommend = $false; Kind = 'winget'; Id = 'Microsoft.Edge'; TitleZh = 'Microsoft Edge'; TitleEn = 'Microsoft Edge' }
+    @{ Num = 7;  Key = '7zip';        Group = 'archive'; Recommend = $true;  Kind = 'winget'; Id = '7zip.7zip'; TitleZh = '7-Zip'; TitleEn = '7-Zip' }
+    @{ Num = 8;  Key = 'winrar';      Group = 'archive'; Recommend = $false; Kind = 'winget'; Id = 'RARLab.WinRAR'; TitleZh = 'WinRAR'; TitleEn = 'WinRAR' }
+    @{ Num = 9;  Key = 'vlc';         Group = 'media';   Recommend = $true;  Kind = 'winget'; Id = 'VideoLAN.VLC'; TitleZh = 'VLC Media Player'; TitleEn = 'VLC Media Player' }
+    @{ Num = 10; Key = 'potplayer';   Group = 'media';   Recommend = $false; Kind = 'winget'; Id = 'Daum.PotPlayer'; TitleZh = 'PotPlayer'; TitleEn = 'PotPlayer' }
+    @{ Num = 11; Key = 'capcut';      Group = 'media';   Recommend = $false; Kind = 'winget'; Id = 'ByteDance.CapCut'; TitleZh = 'CapCut（剪映）'; TitleEn = 'CapCut' }
+    @{ Num = 12; Key = 'line';        Group = 'system';  Recommend = $true;  Kind = 'line';   Id = ''; TitleZh = 'LINE 電腦版'; TitleEn = 'LINE for desktop' }
+    @{ Num = 13; Key = 'chewing';     Group = 'system';  Recommend = $true;  Kind = 'chewing'; Id = ''; TitleZh = '新酷音輸入法'; TitleEn = 'Chewing input method' }
 )
 
 function Write-Info([string]$Message) { Write-Host $Message -ForegroundColor Cyan }
@@ -72,10 +72,6 @@ function Get-AppTitle($App) {
     if ($script:FlgIsZh) { return [string]$App.TitleZh }
     return [string]$App.TitleEn
 }
-function Get-AppNote($App) {
-    if ($script:FlgIsZh) { return [string]$App.NoteZh }
-    return [string]$App.NoteEn
-}
 function Get-GroupTitle([string]$Group) {
     switch ($Group) {
         'pdf' { return (Get-FlgT '文件與 PDF' 'Documents and PDF') }
@@ -104,7 +100,6 @@ function Show-Menu {
         $mark = ''
         if ($app.Recommend) { $mark = (Get-FlgT '  （建議）' '  (suggested)') }
         Write-Host ("  [{0}] {1}{2}" -f $app.Num, (Get-AppTitle $app), $mark)
-        Write-Host ("       {0}" -f (Get-AppNote $app)) -ForegroundColor DarkGray
     }
     Write-Host ''
 }
