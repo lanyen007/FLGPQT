@@ -19,13 +19,15 @@ $Apps = @(
     @{ Num = 4;  Key = 'openoffice';  Group = 'pdf';     Recommend = $false; Kind = 'winget'; Id = 'Apache.OpenOffice'; TitleZh = 'OpenOffice'; TitleEn = 'OpenOffice' }
     @{ Num = 5;  Key = 'chrome';      Group = 'browser'; Recommend = $true;  Kind = 'winget'; Id = 'Google.Chrome'; TitleZh = 'Google Chrome'; TitleEn = 'Google Chrome' }
     @{ Num = 6;  Key = 'edge';        Group = 'browser'; Recommend = $false; Kind = 'winget'; Id = 'Microsoft.Edge'; TitleZh = 'Microsoft Edge'; TitleEn = 'Microsoft Edge' }
-    @{ Num = 7;  Key = '7zip';        Group = 'archive'; Recommend = $true;  Kind = 'winget'; Id = '7zip.7zip'; TitleZh = '7-Zip'; TitleEn = '7-Zip' }
-    @{ Num = 8;  Key = 'winrar';      Group = 'archive'; Recommend = $false; Kind = 'winget'; Id = 'RARLab.WinRAR'; TitleZh = 'WinRAR'; TitleEn = 'WinRAR' }
-    @{ Num = 9;  Key = 'vlc';         Group = 'media';   Recommend = $true;  Kind = 'winget'; Id = 'VideoLAN.VLC'; TitleZh = 'VLC Media Player'; TitleEn = 'VLC Media Player' }
-    @{ Num = 10; Key = 'potplayer';   Group = 'media';   Recommend = $false; Kind = 'winget'; Id = 'Daum.PotPlayer'; TitleZh = 'PotPlayer'; TitleEn = 'PotPlayer' }
-    @{ Num = 11; Key = 'capcut';      Group = 'media';   Recommend = $false; Kind = 'winget'; Id = 'ByteDance.CapCut'; TitleZh = 'CapCut（剪映）'; TitleEn = 'CapCut' }
-    @{ Num = 12; Key = 'line';        Group = 'system';  Recommend = $true;  Kind = 'line';   Id = ''; TitleZh = 'LINE 電腦版'; TitleEn = 'LINE for desktop' }
-    @{ Num = 13; Key = 'chewing';     Group = 'system';  Recommend = $true;  Kind = 'chewing'; Id = ''; TitleZh = '新酷音輸入法'; TitleEn = 'Chewing input method' }
+    @{ Num = 7;  Key = 'brave';       Group = 'browser'; Recommend = $false; Kind = 'winget'; Id = 'Brave.Brave'; TitleZh = 'Brave'; TitleEn = 'Brave' }
+    @{ Num = 8;  Key = 'firefox';     Group = 'browser'; Recommend = $false; Kind = 'winget'; Id = 'Mozilla.Firefox.zh-TW'; TitleZh = '火狐 Firefox'; TitleEn = 'Firefox' }
+    @{ Num = 9;  Key = '7zip';        Group = 'archive'; Recommend = $true;  Kind = 'winget'; Id = '7zip.7zip'; TitleZh = '7-Zip'; TitleEn = '7-Zip' }
+    @{ Num = 10; Key = 'winrar';      Group = 'archive'; Recommend = $false; Kind = 'winget'; Id = 'RARLab.WinRAR'; TitleZh = 'WinRAR'; TitleEn = 'WinRAR' }
+    @{ Num = 11; Key = 'vlc';         Group = 'media';   Recommend = $true;  Kind = 'winget'; Id = 'VideoLAN.VLC'; TitleZh = 'VLC Media Player'; TitleEn = 'VLC Media Player' }
+    @{ Num = 12; Key = 'potplayer';   Group = 'media';   Recommend = $false; Kind = 'winget'; Id = 'Daum.PotPlayer'; TitleZh = 'PotPlayer'; TitleEn = 'PotPlayer' }
+    @{ Num = 13; Key = 'capcut';      Group = 'media';   Recommend = $false; Kind = 'winget'; Id = 'ByteDance.CapCut'; TitleZh = 'CapCut（剪映）'; TitleEn = 'CapCut' }
+    @{ Num = 14; Key = 'line';        Group = 'system';  Recommend = $true;  Kind = 'line';   Id = ''; TitleZh = 'LINE 電腦版'; TitleEn = 'LINE for desktop' }
+    @{ Num = 15; Key = 'chewing';     Group = 'system';  Recommend = $true;  Kind = 'chewing'; Id = ''; TitleZh = '新酷音輸入法'; TitleEn = 'Chewing input method' }
 )
 
 function Write-Info([string]$Message) { Write-Host $Message -ForegroundColor Cyan }
