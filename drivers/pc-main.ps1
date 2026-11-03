@@ -57,8 +57,18 @@ function Get-FlgT([string]$Zh, [string]$En) {
     if ($script:FlgIsZh) { return $Zh } else { return $En }
 }
 function Get-FlgExitLabel {
-    if ($env:FLG_FROM_MENU -eq '1') { return (Get-FlgT '回到上一頁' 'Back') }
-    return (Get-FlgT '離開' 'Exit')
+    return (Get-FlgT '回到上一頁' 'Back')
+}
+function Test-FlgConsoleInput {
+    if ($script:FlgConsoleChecked) { return [bool]$script:FlgConsoleInput }
+    $script:FlgConsoleChecked = $true
+    try {
+        $null = [Console]::KeyAvailable
+        $script:FlgConsoleInput = $true
+    } catch {
+        $script:FlgConsoleInput = $false
+    }
+    return [bool]$script:FlgConsoleInput
 }
 function Test-FlgOffline {
     return ($env:FLG_OFFLINE -eq '1')
@@ -100,6 +110,7 @@ function Show-Menu {
     $suggestNums = ((@($Apps | Where-Object { $_.Recommend } | ForEach-Object { $_.Num })) -join ',')
     Write-Host ('  [A] ' + (Get-FlgT '建議組合：' 'Suggested: ') + $suggestNums)
     Write-Host ('  [0] ' + (Get-FlgExitLabel))
+    Write-Host (Get-FlgT '約 60 秒沒有輸入會回到上一頁。' 'Goes back after about 60 seconds with no input.') -ForegroundColor DarkGray
     Write-Host ''
     $lastGroup = ''
     foreach ($app in $Apps) {
@@ -324,6 +335,65 @@ function Invoke-InstallSet($Selected) {
     Write-Host ''
 }
 
+function Read-MenuLine {
+    $prompt = Get-FlgT '請輸入編號，多個用逗號分開' 'Enter numbers, separated by commas'
+    if (-not (Test-FlgConsoleInput)) {
+        return (Read-Host $prompt)
+    }
+    Write-Host ($prompt + ': ') -NoNewline
+    $buf = New-Object System.Text.StringBuilder
+    $deadline = [DateTime]::UtcNow.AddSeconds(60)
+    while ([DateTime]::UtcNow -lt $deadline) {
+        if (-not [Console]::KeyAvailable) {
+            Start-Sleep -Milliseconds 100
+            continue
+        }
+        $key = [Console]::ReadKey($true)
+        $deadline = [DateTime]::UtcNow.AddSeconds(60)
+        if ($key.Key -eq 'Enter') {
+            Write-Host ''
+            return $buf.ToString()
+        }
+        if ($key.Key -eq 'Backspace') {
+            if ($buf.Length -gt 0) {
+                $null = $buf.Remove($buf.Length - 1, 1)
+                Write-Host "`b `b" -NoNewline
+            }
+            continue
+        }
+        if ($key.KeyChar -and -not [char]::IsControl($key.KeyChar)) {
+            $null = $buf.Append($key.KeyChar)
+            Write-Host $key.KeyChar -NoNewline
+        }
+    }
+    Write-Host ''
+    return $null
+}
+
+function Wait-BackToMenu {
+    param([int]$Seconds = 8)
+    if (-not (Test-FlgConsoleInput)) {
+        Write-Host ((Get-FlgT '約 {0} 秒後回到目錄。' 'Back to the menu in about {0} seconds.') -f $Seconds) -ForegroundColor DarkGray
+        Start-Sleep -Seconds $Seconds
+        return 'menu'
+    }
+    for ($left = $Seconds; $left -gt 0; $left--) {
+        Write-Host ("`r" + ((Get-FlgT '約 {0} 秒後回到目錄。按 Enter 立刻返回，按 0 回到上一頁。' 'Back to the menu in about {0} s. Enter returns now, 0 goes back.') -f $left)) -NoNewline
+        $until = [DateTime]::UtcNow.AddSeconds(1)
+        while ([DateTime]::UtcNow -lt $until) {
+            if ([Console]::KeyAvailable) {
+                $key = [Console]::ReadKey($true)
+                Write-Host ''
+                if ($key.KeyChar -eq '0') { return 'back' }
+                return 'menu'
+            }
+            Start-Sleep -Milliseconds 100
+        }
+    }
+    Write-Host ''
+    return 'menu'
+}
+
 Invoke-FlgCounterHit 'dl-pc'
 
 if (Test-FlgOffline) {
@@ -340,7 +410,11 @@ while ($true) {
         $argChoice = ''
     } else {
         Show-Menu
-        $choice = Read-Host (Get-FlgT '請輸入編號，多個用逗號分開' 'Enter numbers, separated by commas')
+        $choice = Read-MenuLine
+        if ($null -eq $choice) {
+            Write-Host (Get-FlgT '時間到，回到上一頁。' 'Time is up. Going back.')
+            return
+        }
     }
     try {
         $selected = Resolve-AppChoice $choice
@@ -350,8 +424,7 @@ while ($true) {
         continue
     }
     if ($null -eq $selected) {
-        if ($env:FLG_FROM_MENU -eq '1') { return }
-        Write-Host (Get-FlgT '已離開。' 'Exited.')
+        Write-Host (Get-FlgT '回到上一頁。' 'Going back.')
         return
     }
     if (@($selected).Count -eq 0) {
@@ -364,5 +437,9 @@ while ($true) {
         Invoke-InstallSet $selected
     } catch {
         Write-ErrMsg ((Get-FlgT '失敗：' 'Failed: ') + $_.Exception.Message)
+    }
+    if ((Wait-BackToMenu -Seconds 8) -eq 'back') {
+        Write-Host (Get-FlgT '回到上一頁。' 'Going back.')
+        return
     }
 }
