@@ -17,7 +17,7 @@ $InstallRoot = Join-Path $env:LOCALAPPDATA 'FLG'
 
 $Tools = @(
     @{ Key = 'PQT';                  File = 'PQT.exe';                      Title = 'PQT（影印機計數器／排程抄表）' }
-    @{ Key = '使用者計數下載';     File = '使用者計數下載.exe';         Title = '使用者計數下載' }
+    @{ Key = 'RICOH使用者計數下載'; File = 'RICOH使用者計數下載.exe';     Title = 'RICOH 使用者計數下載（可自動更新）' }
 )
 
 function Write-Info([string]$Message) {
