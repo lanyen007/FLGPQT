@@ -29,6 +29,11 @@ $Apps = @(
     @{ Num = 14; Key = 'line';        Group = 'system';  Recommend = $true;  Kind = 'line';   Id = ''; TitleZh = 'LINE 電腦版'; TitleEn = 'LINE for desktop' }
     @{ Num = 15; Key = 'chewing';     Group = 'system';  Recommend = $true;  Kind = 'chewing'; Id = ''; TitleZh = '新酷音輸入法'; TitleEn = 'Chewing input method' }
     @{ Num = 16; Key = 'gimytv';      Group = 'desktop'; Recommend = $true;  Kind = 'link';   Id = ''; Url = 'https://gimytw.cc/'; TitleZh = 'Gimy TV'; TitleEn = 'Gimy TV' }
+    @{ Num = 17; Key = 'onedrive';    Group = 'cloud';   Recommend = $false; Kind = 'winget'; Id = 'Microsoft.OneDrive'; TitleZh = 'OneDrive'; TitleEn = 'OneDrive' }
+    @{ Num = 18; Key = 'pcloud';      Group = 'cloud';   Recommend = $false; Kind = 'winget'; Id = 'pCloudAG.pCloudDrive'; TitleZh = 'pCloud'; TitleEn = 'pCloud' }
+    @{ Num = 19; Key = 'dropbox';     Group = 'cloud';   Recommend = $false; Kind = 'winget'; Id = 'Dropbox.Dropbox'; TitleZh = 'Dropbox'; TitleEn = 'Dropbox' }
+    @{ Num = 20; Key = 'mega';        Group = 'cloud';   Recommend = $false; Kind = 'winget'; Id = 'Mega.MEGASync'; TitleZh = 'MEGA'; TitleEn = 'MEGA' }
+    @{ Num = 21; Key = 'gdrive';      Group = 'cloud';   Recommend = $false; Kind = 'winget'; Id = 'Google.GoogleDrive'; TitleZh = 'Google 雲端硬碟電腦版'; TitleEn = 'Google Drive for desktop' }
 )
 
 function Write-Info([string]$Message) { Write-Host $Message -ForegroundColor Cyan }
@@ -83,6 +88,7 @@ function Get-GroupTitle([string]$Group) {
         'media' { return (Get-FlgT '影音播放與剪輯' 'Video') }
         'system' { return (Get-FlgT '系統工具與輸入法' 'System and input') }
         'desktop' { return (Get-FlgT '桌面' 'Desktop') }
+        'cloud' { return (Get-FlgT '雲端硬碟' 'Cloud storage') }
         default { return $Group }
     }
 }
