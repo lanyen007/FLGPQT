@@ -1,6 +1,7 @@
 # lanyen.de 重灌後常用軟體
 # 用法：irm lanyen.de/pc | iex
-# 透過 Windows winget 安裝勾選的軟體。LINE 與新酷音使用官方安裝檔。
+# 透過 Windows winget 安裝勾選的軟體。
+# LINE、新酷音、AweSun、RustDesk、KMPlayer 64X、Global PotPlayer 使用官方安裝檔。
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -34,6 +35,16 @@ $Apps = @(
     @{ Num = 19; Key = 'dropbox';     Group = 'cloud';   Recommend = $false; Kind = 'winget'; Id = 'Dropbox.Dropbox'; TitleZh = 'Dropbox'; TitleEn = 'Dropbox' }
     @{ Num = 20; Key = 'mega';        Group = 'cloud';   Recommend = $false; Kind = 'winget'; Id = 'Mega.MEGASync'; TitleZh = 'MEGA'; TitleEn = 'MEGA' }
     @{ Num = 21; Key = 'gdrive';      Group = 'cloud';   Recommend = $false; Kind = 'winget'; Id = 'Google.GoogleDrive'; TitleZh = 'Google 雲端硬碟電腦版'; TitleEn = 'Google Drive for desktop' }
+    @{ Num = 22; Key = 'everything';  Group = 'system';  Recommend = $false; Kind = 'winget'; Id = 'voidtools.Everything'; TitleZh = 'Everything'; TitleEn = 'Everything' }
+    @{ Num = 23; Key = 'stickynotes'; Group = 'system';  Recommend = $false; Kind = 'winget'; Id = 'Simnet.SimpleStickyNotes'; TitleZh = 'Simple Sticky Notes'; TitleEn = 'Simple Sticky Notes' }
+    @{ Num = 24; Key = 'deskin';      Group = 'remote';  Recommend = $false; Kind = 'winget'; Id = 'ZulerTechnology.DeskIn'; TitleZh = 'DeskIn'; TitleEn = 'DeskIn' }
+    @{ Num = 25; Key = 'anydesk';     Group = 'remote';  Recommend = $false; Kind = 'winget'; Id = 'AnyDesk.AnyDesk'; TitleZh = 'AnyDesk'; TitleEn = 'AnyDesk' }
+    @{ Num = 26; Key = 'teamviewer';  Group = 'remote';  Recommend = $false; Kind = 'winget'; Id = 'TeamViewer.TeamViewer'; TitleZh = 'TeamViewer'; TitleEn = 'TeamViewer' }
+    @{ Num = 27; Key = 'awesun';      Group = 'remote';  Recommend = $false; Kind = 'awesun'; Id = ''; TitleZh = 'AweSun'; TitleEn = 'AweSun' }
+    @{ Num = 28; Key = 'rustdesk';    Group = 'remote';  Recommend = $false; Kind = 'rustdesk'; Id = ''; TitleZh = 'RustDesk'; TitleEn = 'RustDesk' }
+    @{ Num = 29; Key = 'itunes';      Group = 'media';   Recommend = $false; Kind = 'winget'; Id = 'Apple.iTunes'; TitleZh = 'Apple iTunes'; TitleEn = 'Apple iTunes' }
+    @{ Num = 30; Key = 'kmplayer';    Group = 'media';   Recommend = $false; Kind = 'kmplayer'; Id = ''; TitleZh = 'KMPlayer 64X'; TitleEn = 'KMPlayer 64X' }
+    @{ Num = 31; Key = 'potglobal';   Group = 'media';   Recommend = $false; Kind = 'potglobal'; Id = ''; TitleZh = 'Global PotPlayer'; TitleEn = 'Global PotPlayer' }
 )
 
 function Write-Info([string]$Message) { Write-Host $Message -ForegroundColor Cyan }
@@ -99,6 +110,7 @@ function Get-GroupTitle([string]$Group) {
         'system' { return (Get-FlgT '系統工具與輸入法' 'System and input') }
         'desktop' { return (Get-FlgT '桌面' 'Desktop') }
         'cloud' { return (Get-FlgT '雲端硬碟' 'Cloud storage') }
+        'remote' { return (Get-FlgT '遠端連線' 'Remote desktop') }
         default { return $Group }
     }
 }
@@ -286,11 +298,96 @@ function Install-DesktopLink($App) {
     return @{ State = 'ok'; Detail = '' }
 }
 
+function Install-DownloadedSetup([string]$Url, [string]$FileName, [string]$Label) {
+    $dest = Join-Path $DownloadDir $FileName
+    Save-UrlFile -Url $Url -Dest $dest
+    Write-Info (Get-FlgT '已開啟安裝程式，請在視窗中完成安裝。若跳出權限詢問，請按「是」。' 'The installer is open. Finish it in that window. Choose Yes if Windows asks for permission.')
+    $work = Split-Path -Parent $dest
+    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if ($isAdmin) {
+        $proc = Start-Process -FilePath $dest -WorkingDirectory $work -Wait -PassThru
+    } else {
+        $proc = Start-Process -FilePath $dest -WorkingDirectory $work -Wait -PassThru -Verb RunAs
+    }
+    if ($null -eq $proc) { return @{ State = 'fail'; Detail = $Label } }
+    if ($proc.ExitCode -eq 0 -or $null -eq $proc.ExitCode -or $proc.ExitCode -eq 3010) {
+        return @{ State = 'ok'; Detail = '' }
+    }
+    return @{ State = 'fail'; Detail = ($Label + ' ' + $proc.ExitCode) }
+}
+
+function Install-AweSunApp {
+    if (-not [Environment]::Is64BitOperatingSystem) {
+        throw (Get-FlgT 'AweSun 這裡用的是 64 位元官方安裝檔。' 'This AweSun installer is 64-bit.')
+    }
+    # 下載頁沒有固定的最新版網址。這是官方全球版，Oray 出新版時要改這一行。
+    $url = 'https://dl.oray.com/sl/windows/AweSun_16.6.0.32198_global_x64.exe'
+    Write-Info (Get-FlgT '正在下載 AweSun 官方安裝檔…' 'Downloading the official AweSun installer…')
+    return (Install-DownloadedSetup -Url $url -FileName 'AweSun_16.6.0.32198_global_x64.exe' -Label 'AweSun')
+}
+
+function Install-RustDeskApp {
+    Write-Info (Get-FlgT '正在取得 RustDesk 最新官方安裝檔…' 'Getting the latest official RustDesk installer…')
+    $wc = New-Object Net.WebClient
+    try {
+        $wc.Headers['User-Agent'] = 'lanyen-pc'
+        $json = $wc.DownloadString('https://api.github.com/repos/rustdesk/rustdesk/releases/latest')
+    } finally {
+        $wc.Dispose()
+    }
+    $rel = $json | ConvertFrom-Json
+    $arch = $env:PROCESSOR_ARCHITEW6432
+    if ([string]::IsNullOrWhiteSpace($arch)) { $arch = $env:PROCESSOR_ARCHITECTURE }
+    $pattern = '*-x86_64.exe'
+    if ($arch -eq 'ARM64') { $pattern = '*-aarch64.exe' }
+    elseif ($arch -ne 'AMD64' -and $arch -ne 'x64') { $pattern = '*-x86-sciter.exe' }
+    $asset = $rel.assets | Where-Object { $_.name -like $pattern } | Select-Object -First 1
+    if ($null -eq $asset -or [string]::IsNullOrWhiteSpace([string]$asset.browser_download_url)) {
+        throw (Get-FlgT '找不到 RustDesk 安裝檔' 'RustDesk installer was not found')
+    }
+    Write-Info (Get-FlgT '正在下載 RustDesk 官方安裝檔…' 'Downloading the official RustDesk installer…')
+    return (Install-DownloadedSetup -Url ([string]$asset.browser_download_url) -FileName ([string]$asset.name) -Label 'RustDesk')
+}
+
+function Install-KmPlayerApp {
+    if (-not [Environment]::Is64BitOperatingSystem) {
+        throw (Get-FlgT 'KMPlayer 64X 只提供 64 位元版本。' 'KMPlayer 64X is 64-bit only.')
+    }
+    Write-Info (Get-FlgT '正在取得 KMPlayer 64X 官方下載位址…' 'Getting the official KMPlayer 64X download…')
+    $wc = New-Object Net.WebClient
+    try {
+        $wc.Headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+        $wc.Headers['Referer'] = 'https://www.kmplayer.com/pc64x'
+        $page = $wc.DownloadString('https://update.kmpmedia.net/player/download/kmp64x/en')
+    } finally {
+        $wc.Dispose()
+    }
+    $found = ([regex]::Match($page, 'https://dn\.kmplayer\.com/[^"''\s>]+\.exe')).Value
+    if ([string]::IsNullOrWhiteSpace($found)) {
+        throw (Get-FlgT '找不到 KMPlayer 64X 安裝檔' 'KMPlayer 64X installer was not found')
+    }
+    $name = [IO.Path]::GetFileName(($found -split '\?')[0])
+    Write-Info (Get-FlgT '正在下載 KMPlayer 64X 官方安裝檔…' 'Downloading the official KMPlayer 64X installer…')
+    return (Install-DownloadedSetup -Url $found -FileName $name -Label 'KMPlayer')
+}
+
+function Install-PotPlayerGlobalApp {
+    $name = 'PotPlayerSetup64.exe'
+    if (-not [Environment]::Is64BitOperatingSystem) { $name = 'PotPlayerSetup.exe' }
+    $url = 'https://t1.daumcdn.net/potplayer/PotPlayer/Version/Latest/' + $name
+    Write-Info (Get-FlgT '正在下載 Global PotPlayer 官方安裝檔…' 'Downloading the official Global PotPlayer installer…')
+    return (Install-DownloadedSetup -Url $url -FileName $name -Label 'PotPlayer')
+}
+
 function Install-SelectedApp($App) {
     if ($App.Kind -eq 'winget') { return (Install-WingetApp $App) }
     if ($App.Kind -eq 'line') { return (Install-LineApp) }
     if ($App.Kind -eq 'chewing') { return (Install-ChewingApp) }
     if ($App.Kind -eq 'link') { return (Install-DesktopLink $App) }
+    if ($App.Kind -eq 'awesun') { return (Install-AweSunApp) }
+    if ($App.Kind -eq 'rustdesk') { return (Install-RustDeskApp) }
+    if ($App.Kind -eq 'kmplayer') { return (Install-KmPlayerApp) }
+    if ($App.Kind -eq 'potglobal') { return (Install-PotPlayerGlobalApp) }
     return @{ State = 'fail'; Detail = 'unknown' }
 }
 
@@ -299,9 +396,12 @@ function Invoke-InstallSet($Selected) {
     if (($keys -contains 'libreoffice') -and ($keys -contains 'openoffice')) {
         Write-WarnMsg (Get-FlgT 'LibreOffice 與 OpenOffice 功能重疊，一般裝其中一個即可。仍會照你的選擇安裝。' 'LibreOffice and OpenOffice overlap. One of them is enough. Both will still be installed.')
     }
+    if (($keys -contains 'potplayer') -and ($keys -contains 'potglobal')) {
+        Write-WarnMsg (Get-FlgT 'PotPlayer 與 Global PotPlayer 是同一套播放器，一般裝其中一個即可。仍會照你的選擇安裝。' 'PotPlayer and Global PotPlayer are the same player. One of them is enough. Both will still be installed.')
+    }
     $needsWinget = @($Selected | Where-Object { $_.Kind -eq 'winget' }).Count -gt 0
     if ($needsWinget -and -not (Test-WingetReady)) {
-        Write-ErrMsg (Get-FlgT '這台電腦還沒有 winget。請先到 Microsoft Store 更新「應用程式安裝程式」，再重跑一次。LINE 與新酷音仍可安裝。' 'This PC does not have winget yet. Update App Installer from the Microsoft Store, then run this again. LINE and Chewing can still be installed.')
+        Write-ErrMsg (Get-FlgT '這台電腦還沒有 winget。請先到 Microsoft Store 更新「應用程式安裝程式」，再重跑一次。官方安裝檔的項目仍可安裝。' 'This PC does not have winget yet. Update App Installer from the Microsoft Store, then run this again. Items that use an official installer can still be installed.')
     }
     $report = @()
     foreach ($app in $Selected) {
