@@ -28,6 +28,7 @@ $Apps = @(
     @{ Num = 13; Key = 'capcut';      Group = 'media';   Recommend = $false; Kind = 'winget'; Id = 'ByteDance.CapCut'; TitleZh = 'CapCut（剪映）'; TitleEn = 'CapCut' }
     @{ Num = 14; Key = 'line';        Group = 'system';  Recommend = $true;  Kind = 'line';   Id = ''; TitleZh = 'LINE 電腦版'; TitleEn = 'LINE for desktop' }
     @{ Num = 15; Key = 'chewing';     Group = 'system';  Recommend = $true;  Kind = 'chewing'; Id = ''; TitleZh = '新酷音輸入法'; TitleEn = 'Chewing input method' }
+    @{ Num = 16; Key = 'gimytv';      Group = 'desktop'; Recommend = $true;  Kind = 'link';   Id = ''; Url = 'https://gimytw.cc/'; TitleZh = 'Gimy TV'; TitleEn = 'Gimy TV' }
 )
 
 function Write-Info([string]$Message) { Write-Host $Message -ForegroundColor Cyan }
@@ -81,6 +82,7 @@ function Get-GroupTitle([string]$Group) {
         'archive' { return (Get-FlgT '壓縮與解壓縮' 'Archives') }
         'media' { return (Get-FlgT '影音播放與剪輯' 'Video') }
         'system' { return (Get-FlgT '系統工具與輸入法' 'System and input') }
+        'desktop' { return (Get-FlgT '桌面' 'Desktop') }
         default { return $Group }
     }
 }
@@ -252,10 +254,26 @@ function Install-ChewingApp {
     return @{ State = 'fail'; Detail = ('msiexec ' + $proc.ExitCode) }
 }
 
+function Install-DesktopLink($App) {
+    $url = [string]$App.Url
+    if ([string]::IsNullOrWhiteSpace($url)) { throw (Get-FlgT '沒有網址' 'Missing URL') }
+    $desktop = [Environment]::GetFolderPath('Desktop')
+    if ([string]::IsNullOrWhiteSpace($desktop) -or -not (Test-Path -LiteralPath $desktop)) {
+        throw (Get-FlgT '找不到桌面' 'Desktop folder was not found')
+    }
+    $name = (Get-AppTitle $App) -replace '[\\/:*?"<>|]', ''
+    $path = Join-Path $desktop ($name + '.url')
+    $body = "[InternetShortcut]`r`nURL=$url`r`n"
+    [IO.File]::WriteAllText($path, $body, [Text.Encoding]::ASCII)
+    Write-Info ((Get-FlgT '已放上桌面：{0}' 'Placed on the desktop: {0}') -f $path)
+    return @{ State = 'ok'; Detail = '' }
+}
+
 function Install-SelectedApp($App) {
     if ($App.Kind -eq 'winget') { return (Install-WingetApp $App) }
     if ($App.Kind -eq 'line') { return (Install-LineApp) }
     if ($App.Kind -eq 'chewing') { return (Install-ChewingApp) }
+    if ($App.Kind -eq 'link') { return (Install-DesktopLink $App) }
     return @{ State = 'fail'; Detail = 'unknown' }
 }
 
