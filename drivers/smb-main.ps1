@@ -285,53 +285,400 @@ function Add-FlgFujiSmbContact {
     }
 }
 
+# ---- RICOH Web Image Monitor login: copied verbatim from Ricoh_UserCounter.ps1 (RICOH使用者計數下載) ----
+$script:DefaultUser = "admin"
+$script:DefaultPassword = ""
+$script:Langs = @("en", "es", "zh", "tw", "ja", "de", "fr", "it", "pt", "ko", "nl")
+if (-not (Get-Command Write-UiLog -ErrorAction SilentlyContinue)) { function Write-UiLog { param([string]$Message, [string]$Level = "INFO") if ($Level -eq "ERROR") { Write-Host $Message -ForegroundColor DarkYellow } } }
+
+function ConvertTo-WimFormBody {
+    param($Fields)
+    $parts = New-Object System.Collections.Generic.List[string]
+    foreach ($k in @($Fields.Keys)) {
+        $parts.Add(([uri]::EscapeDataString([string]$k) + "=" + [uri]::EscapeDataString([string]$Fields[$k])))
+    }
+    return ($parts -join "&")
+}
+
+function ConvertTo-WimBase64 {
+    param([string]$Text)
+    return [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$Text))
+}
+
+function Get-WimParentDir {
+    param([string]$Url)
+    $u = [string]$Url
+    $q = $u.IndexOf('?')
+    if ($q -ge 0) { $u = $u.Substring(0, $q) }
+    return ($u -replace '/[^/]*$', '/')
+}
+
+function Resolve-WimUrl {
+    param([string]$Base, [string]$CurrentUrl, [string]$Action)
+    $a = [string]$Action
+    if ([string]::IsNullOrWhiteSpace($a)) { return $null }
+    if ($a -match '^https?://') { return $a }
+    if ($a.StartsWith('/')) { return ($Base.TrimEnd('/') + $a) }
+    return (Get-WimParentDir $CurrentUrl) + $a
+}
+
+function Invoke-DeviceWeb {
+    param(
+        [Microsoft.PowerShell.Commands.WebRequestSession]$Session,
+        [string]$Method = "GET",
+        [string]$Url,
+        [hashtable]$Form = $null,
+        [string]$BodyString = $null,
+        [string]$Referer = $null,
+        [int]$TimeoutSec = 25
+    )
+    $headers = @{ "User-Agent" = "PQT-RicohUserCounter" }
+    if ($Referer) { $headers["Referer"] = $Referer }
+    $p = @{
+        Uri             = $Url
+        Method          = $Method
+        WebSession      = $Session
+        TimeoutSec      = $TimeoutSec
+        UseBasicParsing = $true
+        Headers         = $headers
+    }
+    if ($null -ne $BodyString) {
+        $p.Body = $BodyString
+        $p.ContentType = "application/x-www-form-urlencoded"
+    } elseif ($Form) {
+        $p.Body = ConvertTo-WimFormBody $Form
+        $p.ContentType = "application/x-www-form-urlencoded"
+    }
+    return Invoke-WebRequest @p
+}
+
+function Get-WimToken {
+    param([string]$Html)
+    if ($Html -match 'name=["'']wimToken["''][^>]*value=["'']([^"'']+)["'']') { return $Matches[1] }
+    if ($Html -match 'value=["'']([^"'']+)["''][^>]*name=["'']wimToken["'']') { return $Matches[1] }
+    return $null
+}
+
+function Get-WimAutoForm {
+    param([string]$Html)
+    if ($Html -notmatch "(?is)onload=['""]?document\.form1\.submit") { return $null }
+    $action = $null
+    if ($Html -match "(?is)<form[^>]*action=['""]([^'""]+)['""]") { $action = $Matches[1] }
+    $fields = @{}
+    foreach ($m in [regex]::Matches($Html, "(?is)<input[^>]*>")) {
+        $tag = $m.Value
+        $name = $null
+        $value = ""
+        if ($tag -match "name=['""]([^'""]+)['""]") { $name = $Matches[1] }
+        if ($tag -match "value=['""]([^'""]*)['""]") { $value = $Matches[1] }
+        if ($name) { $fields[$name] = $value }
+    }
+    return @{ Action = $action; Fields = $fields }
+}
+
+function Invoke-WimFollowAutos {
+    param(
+        [Microsoft.PowerShell.Commands.WebRequestSession]$Session,
+        $Response,
+        [string]$Base,
+        [int]$Max = 6
+    )
+    $resp = $Response
+    for ($i = 0; $i -lt $Max; $i++) {
+        $af = Get-WimAutoForm ([string]$resp.Content)
+        if (-not $af -or -not $af.Action) { break }
+        $cur = $null
+        try { $cur = [string]$resp.BaseResponse.ResponseUri } catch { $cur = $Base }
+        $url = Resolve-WimUrl -Base $Base -CurrentUrl $cur -Action $af.Action
+        if (-not $url) { break }
+        $resp = Invoke-DeviceWeb -Session $Session -Method POST -Url $url -Form $af.Fields -Referer $cur
+    }
+    return $resp
+}
+
+function Invoke-WimGet {
+    param(
+        [Microsoft.PowerShell.Commands.WebRequestSession]$Session,
+        [string]$Base,
+        [string]$Url,
+        [int]$TimeoutSec = 25
+    )
+    $resp = Invoke-DeviceWeb -Session $Session -Url $Url -TimeoutSec $TimeoutSec
+    return (Invoke-WimFollowAutos -Session $Session -Response $resp -Base $Base)
+}
+
+function Get-WimLangOrder {
+    param([string]$Preferred)
+    $all = @($script:Langs)
+    $out = @()
+    if ($Preferred -and ($out -notcontains $Preferred)) { $out += $Preferred }
+    foreach ($l in $all) { if ($out -notcontains $l) { $out += $l } }
+    return $out
+}
+
+function Get-WimDefaultLang {
+    param(
+        [Microsoft.PowerShell.Commands.WebRequestSession]$Session,
+        [string]$Base
+    )
+    try {
+        $r = Invoke-DeviceWeb -Session $Session -Url "$Base/"
+        if ([string]$r.Content -match '/web/(?:guest|entry)/([a-z]{2})/') { return $Matches[1] }
+    } catch {}
+    return $null
+}
+
+function Test-WimAuthFailed {
+    param([string]$Html)
+    return ($Html -match '(?i)Authentication has failed|autenticaci[oó]n ha fallado')
+}
+
+function Get-WimLoginBodies {
+    param([string]$User, [string]$Password, [string]$Token)
+    if ($null -eq $Password) { $Password = "" }
+    $tok = [string]$Token
+    $bUser = ConvertTo-WimBase64 $User
+    $bPass = ConvertTo-WimBase64 $Password
+    $enc = if ($Password) { "" } else { "gwpwes003" }
+    $bodies = @()
+    foreach ($extra in @(
+        @{ encoding = $enc },
+        @{ encode = $enc },
+        @{},
+        @{ userid = $User; password = $Password }
+    )) {
+        $f = @{
+            wimToken      = $tok
+            userid        = $bUser
+            password      = $bPass
+            userid_work   = ""
+            password_work = ""
+            open          = ""
+        }
+        foreach ($k in @($extra.Keys)) { $f[$k] = $extra[$k] }
+        $bodies += (ConvertTo-WimFormBody $f)
+    }
+    return $bodies
+}
+
+function ConvertTo-RicohXmlEscape([string]$Text) {
+    return ([string]$Text).Replace('&', '&amp;').Replace('<', '&lt;').Replace('>', '&gt;')
+}
+
+function Get-RicohSoapStringIn {
+    param([string]$User, [string]$Password)
+    if ($null -eq $User) { $User = "" }
+    if ($null -eq $Password) { $Password = "" }
+    $u = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$User))
+    $p = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$Password))
+    $enc = if ($Password) { "" } else { "gwpwes003" }
+    return "SCHEME=QkFTSUM=;UID:UserName=$u;PWD:Password=$p;PES:Encoding=$enc"
+}
+
+function Invoke-RicohSoap {
+    param(
+        $Session,
+        [string]$Url,
+        [string]$Action,
+        [string]$Xml,
+        [int]$TimeoutSec = 25
+    )
+    $headers = @{
+        SOAPAction   = "http://www.ricoh.co.jp/xmlns/soap/rdh/udirectory#$Action"
+        "User-Agent" = "PQT-RicohUserCounter"
+    }
+    $bytes = [Text.Encoding]::UTF8.GetBytes($Xml)
+    Invoke-WebRequest -Uri $Url -Method POST -Body $bytes -ContentType "text/xml; charset=utf-8" -Headers $headers -WebSession $Session -TimeoutSec $TimeoutSec -UseBasicParsing
+}
+
+function Start-RicohSoapSession {
+    param($Session, [string]$Base, [string]$User, [string]$Password)
+    $stringIn = Get-RicohSoapStringIn -User $User -Password $Password
+    $xml = @"
+<?xml version="1.0" encoding="utf-8" ?>
+<s:Envelope
+    xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+    <s:Body>
+        <m:startSession
+            xmlns:m="http://www.ricoh.co.jp/xmlns/soap/rdh/udirectory">
+            <stringIn>__STRING_IN__</stringIn>
+            <timeLimit>300</timeLimit>
+            <lockMode>X</lockMode>
+        </m:startSession>
+    </s:Body>
+</s:Envelope>
+"@.Trim().Replace('__STRING_IN__', (ConvertTo-RicohXmlEscape $stringIn))
+    $url = $Base.TrimEnd('/') + "/DH/udirectory"
+    try {
+        $resp = Invoke-RicohSoap -Session $Session -Url $url -Action startSession -Xml $xml
+    } catch {
+        return @{ Ok = $false; Error = $_.Exception.Message }
+    }
+    $text = [string]$resp.Content
+    $fault = $null
+    if ($text -match '(?is)<errorDescription>\s*([^<]+)\s*</errorDescription>') { $fault = $Matches[1].Trim() }
+    elseif ($text -match '(?is)<faultstring>\s*([^<]+)\s*</faultstring>') { $fault = $Matches[1].Trim() }
+    elseif ($text -match '(?is)<errorCode>\s*([^<]+)\s*</errorCode>') { $fault = $Matches[1].Trim() }
+    if ($fault) { return @{ Ok = $false; Error = $fault } }
+    $sid = $null
+    if ($text -match '(?is)<stringOut>\s*([^<]+)\s*</stringOut>') { $sid = $Matches[1].Trim() }
+    if ([string]::IsNullOrWhiteSpace($sid)) { return @{ Ok = $false; Error = "Login failed" } }
+    return @{ Ok = $true; SessionId = $sid; Url = $url }
+}
+
+function Stop-RicohSoapSession {
+    param($Session, [string]$Base, [string]$SessionId)
+    if ([string]::IsNullOrWhiteSpace($SessionId) -or [string]::IsNullOrWhiteSpace($Base)) { return }
+    $xml = @"
+<?xml version="1.0" encoding="utf-8" ?>
+ <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+  <s:Body>
+   <m:terminateSession xmlns:m="http://www.ricoh.co.jp/xmlns/soap/rdh/udirectory">
+    <sessionId>__SID__</sessionId>
+   </m:terminateSession>
+  </s:Body>
+ </s:Envelope>
+"@.Trim().Replace('__SID__', (ConvertTo-RicohXmlEscape $SessionId))
+    $url = $Base.TrimEnd('/') + "/DH/udirectory"
+    try { [void](Invoke-RicohSoap -Session $Session -Url $url -Action terminateSession -Xml $xml -TimeoutSec 8) } catch {}
+}
+
+function Add-RicohSessionCookies {
+    param($Session, [string]$Base, [string]$SessionId)
+    if ([string]::IsNullOrWhiteSpace($SessionId)) { return }
+    try {
+        $uri = [Uri]($Base.TrimEnd('/') + "/")
+        foreach ($n in @("wimsesid", "risessionid")) {
+            $c = New-Object System.Net.Cookie($n, $SessionId, "/", $uri.Host)
+            $Session.Cookies.Add($c)
+        }
+    } catch {}
+}
+
+function Try-RicohLogin {
+    param(
+        [Microsoft.PowerShell.Commands.WebRequestSession]$Session,
+        [string]$Base,
+        [string]$User,
+        [string]$Password,
+        [switch]$Quiet
+    )
+    if ([string]::IsNullOrWhiteSpace($User)) { $User = $script:DefaultUser }
+    if ($null -eq $Password) { $Password = $script:DefaultPassword }
+
+    $pref = Get-WimDefaultLang -Session $Session -Base $Base
+    $langs = Get-WimLangOrder $pref
+    if ($pref) { Write-UiLog ("網頁語系：$pref") }
+
+    $sawLoginForm = $false
+    foreach ($lang in $langs) {
+        foreach ($start in @(
+            "$Base/web/guest/$lang/websys/webArch/authForm.cgi",
+            "$Base/web/entry/$lang/websys/webArch/login.cgi"
+        )) {
+            try {
+                $page = Invoke-WimGet -Session $Session -Base $Base -Url $start
+            } catch { continue }
+            $html = [string]$page.Content
+            if ($html -notmatch '(?i)userid_work|name=["'']userid["'']') { continue }
+            $sawLoginForm = $true
+            $tok = Get-WimToken $html
+            $cur = $start
+            try { $cur = [string]$page.BaseResponse.ResponseUri } catch {}
+            $postUrl = (Get-WimParentDir $cur) + "login.cgi"
+            if ($html -match "(?is)<form[^>]*action=['""]([^'""]+)['""]") {
+                $postUrl = Resolve-WimUrl -Base $Base -CurrentUrl $cur -Action $Matches[1]
+            }
+            foreach ($body in (Get-WimLoginBodies -User $User -Password $Password -Token $tok)) {
+                try {
+                    $resp = Invoke-DeviceWeb -Session $Session -Method POST -Url $postUrl -BodyString $body -Referer $cur
+                    $resp = Invoke-WimFollowAutos -Session $Session -Response $resp -Base $Base
+                } catch { continue }
+                $rh = [string]$resp.Content
+                if (Test-WimAuthFailed $rh) { continue }
+                if ($rh -match '(?i)userid_work') { continue }
+                Write-UiLog ("網頁工作階段已就緒（帳密編碼與通訊錄相同）$Base")
+                return $true
+            }
+        }
+    }
+    if (-not $Quiet) {
+        if ($sawLoginForm) {
+            Write-UiLog "網頁登入失敗：$Base" "ERROR"
+        } else {
+            Write-UiLog ("找不到登入頁：$Base")
+        }
+    }
+    return $false
+}
+# ---- end of counter-download login ----
+
 function Add-FlgRicohSmbEntry {
-    # Based on a recorded Web Image Monitor session (MP C5504): login.cgi -> adrsList.cgi -> adrsGetUserWizard.cgi -> adrsSetUserWizard.cgi (BASE, FOLDER, CONFIRM)
-    param([string]$CopierIp, [string]$Name, [string]$Path, [string]$User, [string]$Pass, [string]$AdminUser = 'admin', [string]$AdminPass = '', [int]$Port = 80)
+    # Login = same method as RICOH使用者計數下載 (Get-UserCounterCsv): GET /, SOAP startSession on /DH/udirectory,
+    # inject wimsesid/risessionid, then Try-RicohLogin (authForm.cgi -> login.cgi, all body variants, all languages).
+    # Address-book steps follow the recorded MP C5504 session: adrsList.cgi -> adrsGetUserWizard.cgi -> adrsSetUserWizard.cgi (BASE, FOLDER, CONFIRM).
+    param([string]$CopierIp, [string]$Name, [string]$Path, [string]$User, [string]$Pass, [string]$AdminUser = '', [string]$AdminPass = $null, [int]$Port = 80)
+    if ([string]::IsNullOrWhiteSpace($AdminUser)) { $AdminUser = $script:DefaultUser }
+    if ($null -eq $AdminPass) { $AdminPass = $script:DefaultPassword }
     $base = $(if ($Port -eq 80) { "http://$CopierIp" } else { "http://${CopierIp}:$Port" })
-    function B64([string]$s) { return [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$s)) }
     function U([string]$s) { return [Uri]::EscapeDataString([string]$s) }
     function Txt($r) { if ($r.Content -is [byte[]]) { return [Text.Encoding]::UTF8.GetString($r.Content) } else { return [string]$r.Content } }
-    function Tok([string]$html) { return [regex]::Match($html, 'name="wimToken"\s+value="(\d+)"').Groups[1].Value }
-    $s = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-    $s.Cookies.Add((New-Object Net.Cookie ('cookieOnOffChecker', 'on', '/', $CopierIp)))
-    $ajax = @{ 'X-Requested-With' = 'XMLHttpRequest'; 'Referer' = "$base/web/entry/tw/address/adrsList.cgi" }
-    $ct = 'application/x-www-form-urlencoded; charset=UTF-8'
-    $step = 'login'
-    try {
-        $r = Invoke-WebRequest -Uri "$base/web/guest/tw/websys/webArch/authForm.cgi" -WebSession $s -UseBasicParsing -TimeoutSec 15
-        $tok = Tok (Txt $r)
-        $body = 'wimToken=' + $tok + '&userid_work=&userid=' + (U (B64 $AdminUser)) + '&password_work=&password=' + (U $(if ($AdminPass) { B64 $AdminPass } else { '' })) + '&open='
-try { $null = Invoke-WebRequest -Uri "$base/web/guest/tw/websys/webArch/login.cgi" -Method Post -Body $body -ContentType 'application/x-www-form-urlencoded' -Headers @{ Referer = "$base/web/guest/tw/websys/webArch/authForm.cgi" } -WebSession $s -UseBasicParsing -TimeoutSec 15 } catch {}  # result is checked via adrsList.cgi below
-        $step = 'list'
-        $r = Invoke-WebRequest -Uri "$base/web/entry/tw/address/adrsList.cgi" -WebSession $s -UseBasicParsing -TimeoutSec 15
-        $tok = Tok (Txt $r)
-        if (-not $tok) { return [pscustomobject]@{ Ok = $false; Auth = $true; Message = 'login failed / no wimToken on address list' } }
-        $step = 'wizard'
-        $r = Invoke-WebRequest -Uri "$base/web/entry/tw/address/adrsGetUserWizard.cgi" -Method Post -Body ('mode=ADDUSER&outputSpecifyModeIn=DEFAULT&wimToken=' + $tok) -ContentType $ct -Headers $ajax -WebSession $s -UseBasicParsing -TimeoutSec 15
+    function Invoke-Wizard([string]$lang, $session) {
+        $dir = "$base/web/entry/$lang/address/"
+        $ct = 'application/x-www-form-urlencoded; charset=UTF-8'
+        $ajax = @{ 'X-Requested-With' = 'XMLHttpRequest'; 'Referer' = $dir + 'adrsList.cgi' }
+        $r = Invoke-WimGet -Session $session -Base $base -Url ($dir + 'adrsList.cgi')
+        $tok = Get-WimToken (Txt $r)
+        if (-not $tok) { return [pscustomobject]@{ Ok = $false; Auth = $true; Message = "no wimToken on address list ($lang)" } }
+        $r = Invoke-WebRequest -Uri ($dir + 'adrsGetUserWizard.cgi') -Method Post -Body ('mode=ADDUSER&outputSpecifyModeIn=DEFAULT&wimToken=' + $tok) -ContentType $ct -Headers $ajax -WebSession $session -UseBasicParsing -TimeoutSec 25
         $w = Txt $r
         $idx = [regex]::Match($w, 'name="entryIndexIn"\s+value="(\d+)"').Groups[1].Value
-        $t2 = Tok $w; if ($t2) { $tok = $t2 }
+        $t2 = Get-WimToken $w; if ($t2) { $tok = $t2 }
         if (-not $idx) { return [pscustomobject]@{ Ok = $false; Message = 'no free entry index from wizard' } }
         $disp = $(if ($Name.Length -gt 16) { $Name.Substring(0, 16) } else { $Name })
-        $step = 'BASE'
-        $r = Invoke-WebRequest -Uri "$base/web/entry/tw/address/adrsSetUserWizard.cgi" -Method Post -Body ('mode=ADDUSER&step=BASE&wimToken=' + $tok + '&entryIndexIn=' + $idx + '&entryNameIn=' + (U $Name) + '&entryDisplayNameIn=' + (U $disp) + '&entryTagInfoIn=1&entryTagInfoIn=1&entryTagInfoIn=1&entryTagInfoIn=1') -ContentType $ct -Headers $ajax -WebSession $s -UseBasicParsing -TimeoutSec 15
+        $r = Invoke-WebRequest -Uri ($dir + 'adrsSetUserWizard.cgi') -Method Post -Body ('mode=ADDUSER&step=BASE&wimToken=' + $tok + '&entryIndexIn=' + $idx + '&entryNameIn=' + (U $Name) + '&entryDisplayNameIn=' + (U $disp) + '&entryTagInfoIn=1&entryTagInfoIn=1&entryTagInfoIn=1&entryTagInfoIn=1') -ContentType $ct -Headers $ajax -WebSession $session -UseBasicParsing -TimeoutSec 25
         $a = Txt $r; if ($a -notmatch '^\s*\[') { return [pscustomobject]@{ Ok = $false; Message = "BASE: $a" } }
-        $step = 'FOLDER'
-        $pw = U (B64 $Pass)
-        $r = Invoke-WebRequest -Uri "$base/web/entry/tw/address/adrsSetUserWizard.cgi" -Method Post -Body ('mode=ADDUSER&step=FOLDER&wimToken=' + $tok + '&folderProtocolIn=SMB_O&folderPortNoIn=21&folderServerNameIn=&folderPathNameIn=' + (U $Path) + '&folderAuthUserNameIn=' + (U $User) + '&wk_folderPasswordIn=&folderPasswordIn=' + $pw + '&wk_folderPasswordConfirmIn=&folderPasswordConfirmIn=' + $pw) -ContentType $ct -Headers $ajax -WebSession $s -UseBasicParsing -TimeoutSec 15
+        $pw = U (ConvertTo-WimBase64 $Pass)
+        $r = Invoke-WebRequest -Uri ($dir + 'adrsSetUserWizard.cgi') -Method Post -Body ('mode=ADDUSER&step=FOLDER&wimToken=' + $tok + '&folderProtocolIn=SMB_O&folderPortNoIn=21&folderServerNameIn=&folderPathNameIn=' + (U $Path) + '&folderAuthUserNameIn=' + (U $User) + '&wk_folderPasswordIn=&folderPasswordIn=' + $pw + '&wk_folderPasswordConfirmIn=&folderPasswordConfirmIn=' + $pw) -ContentType $ct -Headers $ajax -WebSession $session -UseBasicParsing -TimeoutSec 25
         $a = Txt $r; if ($a -notmatch '^\s*\[') { return [pscustomobject]@{ Ok = $false; Message = "FOLDER: $a" } }
-        $step = 'CONFIRM'
-        $r = Invoke-WebRequest -Uri "$base/web/entry/tw/address/adrsSetUserWizard.cgi" -Method Post -Body ('wimToken=' + $tok + '&stepListIn=BASE&stepListIn=FOLDER&mode=ADDUSER&step=CONFIRM') -ContentType $ct -Headers $ajax -WebSession $s -UseBasicParsing -TimeoutSec 15
+        $r = Invoke-WebRequest -Uri ($dir + 'adrsSetUserWizard.cgi') -Method Post -Body ('wimToken=' + $tok + '&stepListIn=BASE&stepListIn=FOLDER&mode=ADDUSER&step=CONFIRM') -ContentType $ct -Headers $ajax -WebSession $session -UseBasicParsing -TimeoutSec 25
         $a = Txt $r
-        $ok = ($a -match "^\s*\[\[" -and $a -match "'$idx'")
-        try { $null = Invoke-WebRequest -Uri "$base/web/entry/tw/websys/webArch/logout.cgi" -Method Post -Body ('wimToken=' + $tok + '&open=') -ContentType 'application/x-www-form-urlencoded' -WebSession $s -UseBasicParsing -TimeoutSec 5 } catch {}
-        if ($ok) { return [pscustomobject]@{ Ok = $true; Index = $idx; Message = '' } }
-        return [pscustomobject]@{ Ok = $false; Message = "CONFIRM: " + $a.Substring(0, [Math]::Min(200, $a.Length)) }
-    } catch {
-        $code = $null; try { $code = [int]$_.Exception.Response.StatusCode } catch {}
-        return [pscustomobject]@{ Ok = $false; Code = $code; Auth = ($step -eq 'list' -and ($code -eq 401 -or $code -eq 403)); Message = "${step}: " + $_.Exception.Message }
+        if ($a -match "^\s*\[\[" -and $a -match "'$idx'") { return [pscustomobject]@{ Ok = $true; Index = $idx; Message = '' } }
+        return [pscustomobject]@{ Ok = $false; Message = 'CONFIRM: ' + $a.Substring(0, [Math]::Min(200, $a.Length)) }
     }
+    $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+    try { [void](Invoke-DeviceWeb -Session $session -Url "$base/" -TimeoutSec 8) } catch { return [pscustomobject]@{ Ok = $false; Message = "cannot reach $base ($($_.Exception.Message))" } }
+    $soap = Start-RicohSoapSession -Session $session -Base $base -User $AdminUser -Password $AdminPass
+    if (-not $soap.Ok) {
+        $err = [string]$soap.Error
+        $isAuth = ($err -eq 'Login failed' -or $err -match '(?i)auth|password|login')
+        if ($isAuth) { return [pscustomobject]@{ Ok = $false; Auth = $true; Message = "login failed ($err)" } }
+    } else { Add-RicohSessionCookies -Session $session -Base $base -SessionId $soap.SessionId }
+    $res = $null
+    try {
+        $formOk = Try-RicohLogin -Session $session -Base $base -User $AdminUser -Password $AdminPass -Quiet
+        if (-not $formOk -and -not $soap.Ok) { return [pscustomobject]@{ Ok = $false; Auth = $true; Message = 'login failed' } }
+        $langs = Get-WimLangOrder (Get-WimDefaultLang -Session $session -Base $base)
+        foreach ($lang in $langs) {
+            try { $res = Invoke-Wizard $lang $session } catch { $c = $null; try { $c = [int]$_.Exception.Response.StatusCode } catch {}; $res = [pscustomobject]@{ Ok = $false; Auth = ($c -eq 404); Message = "${lang}: " + $_.Exception.Message } }
+            if ($res.Ok -or -not $res.Auth) { break }
+        }
+        if (-not $res.Ok -and $soap.Ok) {
+            # address book may be locked by our own SOAP session (lockMode X): release it and retry with the form login only
+            Stop-RicohSoapSession -Session $session -Base $base -SessionId $soap.SessionId; $soap.Ok = $false
+            $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+            if (Try-RicohLogin -Session $session -Base $base -User $AdminUser -Password $AdminPass -Quiet) {
+                foreach ($lang in $langs) {
+                    try { $res = Invoke-Wizard $lang $session } catch { $c = $null; try { $c = [int]$_.Exception.Response.StatusCode } catch {}; $res = [pscustomobject]@{ Ok = $false; Auth = ($c -eq 404); Message = "${lang}: " + $_.Exception.Message } }
+                    if ($res.Ok -or -not $res.Auth) { break }
+                }
+            }
+        }
+    } finally {
+        if ($soap.Ok) { Stop-RicohSoapSession -Session $session -Base $base -SessionId $soap.SessionId }
+    }
+    if (-not $res) { $res = [pscustomobject]@{ Ok = $false; Message = 'address book page not found' } }
+    return $res
 }
 
 function Request-Elevation {
