@@ -384,8 +384,13 @@ function Add-FlgRicohSmbEntry {
         foreach ($rx in @('name=["'']entryIndexIn["''][^>]*value=["''](\d{1,5})["'']', 'value=["''](\d{1,5})["''][^>]*name=["'']entryIndexIn["'']', 'span_entryIndexIn["'']?>\s*(\d{1,5})\s*<', 'entryIndexIn\D{0,80}?(\d{5})')) {
             $mm = [regex]::Match([string]$w, $rx); if ($mm.Success) { $idx = $mm.Groups[1].Value; break }
         }
-        if (-not $idx -and $used.Count -gt 0) { $n = 1; while ($used.Contains($n)) { $n++ }; $idx = $n.ToString('00000'); Write-FlgSmbLog "RICOH entry index from list (first free): $idx" }
-        elseif (-not $idx) { $idx = '00001'; Write-FlgSmbLog 'RICOH entry index fallback 00001 (empty list)' }
+        # user rule: entry number = highest existing number + 1 (wizard proposal only if the list could not be read)
+        if ($used.Count -gt 0) {
+            $mx = ($used | Measure-Object -Maximum).Maximum
+            $wiz = $idx; $idx = ([int]$mx + 1).ToString('00000')
+            Write-FlgSmbLog "RICOH entry index = max+1: $idx (wizard proposed: $wiz)"
+        } elseif (-not $idx) { $idx = '00001'; Write-FlgSmbLog 'RICOH entry index fallback 00001 (empty list, no wizard index)' }
+        else { Write-FlgSmbLog "RICOH entry index from wizard: $idx (list empty/unreadable)" }
         if ($idx.Length -lt 5) { $idx = ([int]$idx).ToString('00000') }
         $t2 = [regex]::Match([string]$w, 'name="wimToken"[^>]*value="([^"]+)"').Groups[1].Value; if ($t2) { $tok = $t2 }
         if (-not $idx) { return [pscustomobject]@{ Ok = $false; Message = 'no free entry index from wizard' } }
