@@ -3,6 +3,7 @@
 # PCL6 3.2.0.0 package. c4503 is the PCL6 3.1.0.0 package.
 # SNMP model text such as "RICOH MP C3504ex" selects the driver name inside that package.
 # ex is a different driver from the non-ex model.
+# imc3000.exe and imc6000.exe are the same PCL6 3.4.0.0 package (IM C2000 through IM C6000).
 
 $script:RicohModelPackages = @{
     'pcl6-04' = @{
@@ -16,6 +17,12 @@ $script:RicohModelPackages = @{
         Url = 'https://github.com/lanyen007/FLGPQT/releases/download/drivers-ricoh-pcl6-model-3.2.0.0/RICOH_PCL6_C4503_3.1.0.0.zip'
         Sha256 = '3a47fc98aff3426ee9ae9b2dc928975f8cdbd62d99f1e69ba5d2b1febb751722'
         Version = '3.1.0.0'
+    }
+    'pcl6-im' = @{
+        File = 'RICOH_PCL6_IM_C3000_C6000_3.4.0.0.zip'
+        Url = 'https://github.com/lanyen007/FLGPQT/releases/download/drivers-ricoh-pcl6-model-3.2.0.0/RICOH_PCL6_IM_C3000_C6000_3.4.0.0.zip'
+        Sha256 = '3aae8f3be8b1ea5f2833c6ec9e9951083a24162f11972de7cf68208f8f0d9b7d'
+        Version = '3.4.0.0'
     }
 }
 
@@ -39,15 +46,22 @@ $script:RicohModelDrivers = @{
     'MPC4503'    = @{ Name = 'RICOH MP C4503 PCL 6';    Package = 'pcl6-03' }
     'MPC5503'    = @{ Name = 'RICOH MP C5503 PCL 6';    Package = 'pcl6-03' }
     'MPC6003'    = @{ Name = 'RICOH MP C6003 PCL 6';    Package = 'pcl6-03' }
+    'IMC2000'    = @{ Name = 'RICOH IM C2000 PCL 6';    Package = 'pcl6-im' }
+    'IMC2500'    = @{ Name = 'RICOH IM C2500 PCL 6';    Package = 'pcl6-im' }
+    'IMC3000'    = @{ Name = 'RICOH IM C3000 PCL 6';    Package = 'pcl6-im' }
+    'IMC3500'    = @{ Name = 'RICOH IM C3500 PCL 6';    Package = 'pcl6-im' }
+    'IMC4500'    = @{ Name = 'RICOH IM C4500 PCL 6';    Package = 'pcl6-im' }
+    'IMC5500'    = @{ Name = 'RICOH IM C5500 PCL 6';    Package = 'pcl6-im' }
+    'IMC6000'    = @{ Name = 'RICOH IM C6000 PCL 6';    Package = 'pcl6-im' }
 }
 
 function Get-RicohModelKey([string]$ModelText) {
     if ([string]::IsNullOrWhiteSpace($ModelText)) { return $null }
     $t = $ModelText.ToUpperInvariant()
-    $m = [regex]::Match($t, 'MP\s*C\s*(\d{4})(\s*EX\b)?')
+    $m = [regex]::Match($t, '(?<fam>IM|MP)\s*C\s*(?<num>\d{4})(?<ex>\s*EX)?\b')
     if (-not $m.Success) { return $null }
-    $key = 'MPC' + $m.Groups[1].Value
-    if ($m.Groups[2].Success) { $key += 'EX' }
+    $key = $m.Groups['fam'].Value + 'C' + $m.Groups['num'].Value
+    if ($m.Groups['ex'].Success) { $key += 'EX' }
     return $key
 }
 
