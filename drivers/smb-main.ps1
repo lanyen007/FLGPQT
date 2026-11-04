@@ -307,13 +307,22 @@ function Invoke-FlgRicohHttp {
         $req.ContentLength = $bytes.Length
         $st = $req.GetRequestStream(); try { $st.Write($bytes, 0, $bytes.Length) } finally { $st.Close() }
     }
-    $resp = [Net.HttpWebResponse]$req.GetResponse()
+    $logForm = ([string]$Form) -replace '((?:password|folderPassword|folderPasswordConfirm)In?=)[^&]*', '$1***'
+    try { $resp = [Net.HttpWebResponse]$req.GetResponse() } catch {
+        $code = ''; try { $code = [int]$_.Exception.Response.StatusCode } catch {}
+        Write-FlgSmbLog ("RICOH HTTP $Method $Url form=[$logForm] -> ERROR $code " + $_.Exception.Message)
+        throw
+    }
     try {
         $ms = New-Object IO.MemoryStream
         $rs = $resp.GetResponseStream(); if ($rs) { $rs.CopyTo($ms); $rs.Close() }
         $enc = [Text.Encoding]::UTF8
         try { if ($resp.CharacterSet) { $enc = [Text.Encoding]::GetEncoding($resp.CharacterSet) } } catch {}
-        return $enc.GetString($ms.ToArray())
+        $txt = $enc.GetString($ms.ToArray())
+        $snip = ($txt -replace '\s+', ' '); if ($snip.Length -gt 800) { $snip = $snip.Substring(0, 800) }
+        $snip = $snip -replace '(name="password[^"]*"[^>]*value=")[^"]*', '$1***'
+        Write-FlgSmbLog ("RICOH HTTP $Method $Url form=[$logForm] -> " + [int]$resp.StatusCode + " len=" + $txt.Length + " body: " + $snip)
+        return $txt
     } finally { $resp.Close() }
 }
 
@@ -360,8 +369,24 @@ function Add-FlgRicohSmbEntry {
         $html = Invoke-FlgRicohHttp -Cookies $cookies -Method GET -Url ($dir + 'adrsList.cgi') -Referer "$base/web/entry/$Lang/websys/webArch/topPage.cgi"
         $tok = [regex]::Match([string]$html, 'name="wimToken"[^>]*value="([^"]+)"').Groups[1].Value
         if (-not $tok) { return [pscustomobject]@{ Ok = $false; Auth = $true; Message = 'no wimToken on address list' } }
+        # recorded browser order: adrsListLoadEntry.cgi (existing entries) -> adrsGetUserWizard.cgi
+        $used = New-Object System.Collections.Generic.HashSet[int]
+        for ($pg = 1; $pg -le 40; $pg++) {
+            $lst = ''
+            try { $lst = [string](Invoke-FlgRicohHttp -Cookies $cookies -Method GET -Url ($dir + 'adrsListLoadEntry.cgi?_=' + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() + '&listCountIn=50&getCountIn=' + $pg) -Referer $ref -Headers $ajax) } catch { break }
+            $ms2 = [regex]::Matches($lst, "\[\d+,\d+,'(\d{1,5})'")
+            $new = 0; foreach ($m in $ms2) { if ($used.Add([int]$m.Groups[1].Value)) { $new++ } }
+            if ($ms2.Count -lt 50 -or $new -eq 0) { break }
+        }
+        Write-FlgSmbLog ('RICOH existing entry numbers: ' + (($used | Sort-Object) -join ','))
         $w = Invoke-FlgRicohHttp -Cookies $cookies -Method POST -Url ($dir + 'adrsGetUserWizard.cgi') -Form ('mode=ADDUSER&outputSpecifyModeIn=DEFAULT&wimToken=' + $tok) -Referer $ref -Headers $ajax
-        $idx = [regex]::Match([string]$w, 'name="entryIndexIn"\s+value="(\d+)"').Groups[1].Value
+        $idx = ''
+        foreach ($rx in @('name=["'']entryIndexIn["''][^>]*value=["''](\d{1,5})["'']', 'value=["''](\d{1,5})["''][^>]*name=["'']entryIndexIn["'']', 'span_entryIndexIn["'']?>\s*(\d{1,5})\s*<', 'entryIndexIn\D{0,80}?(\d{5})')) {
+            $mm = [regex]::Match([string]$w, $rx); if ($mm.Success) { $idx = $mm.Groups[1].Value; break }
+        }
+        if (-not $idx -and $used.Count -gt 0) { $n = 1; while ($used.Contains($n)) { $n++ }; $idx = $n.ToString('00000'); Write-FlgSmbLog "RICOH entry index from list (first free): $idx" }
+        elseif (-not $idx) { $idx = '00001'; Write-FlgSmbLog 'RICOH entry index fallback 00001 (empty list)' }
+        if ($idx.Length -lt 5) { $idx = ([int]$idx).ToString('00000') }
         $t2 = [regex]::Match([string]$w, 'name="wimToken"[^>]*value="([^"]+)"').Groups[1].Value; if ($t2) { $tok = $t2 }
         if (-not $idx) { return [pscustomobject]@{ Ok = $false; Message = 'no free entry index from wizard' } }
         $disp = $(if ($Name.Length -gt 16) { $Name.Substring(0, 16) } else { $Name })
