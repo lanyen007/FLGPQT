@@ -540,7 +540,7 @@ if ($who -eq '0') { Write-Info ('已' + (Get-FlgExitLabel) + '。'); return }
 if ($who -eq '2') { $useCurrent = $true }
 
 $userName = 'scanner'
-$password = 'scanner'
+$password = 'scanner1234'
 if (-not $useCurrent) {
     $uIn = (Read-Host '本機使用者名稱（預設 scan）').Trim()
     if ($uIn -eq '0') { Write-Info ('已' + (Get-FlgExitLabel) + '。'); return }
