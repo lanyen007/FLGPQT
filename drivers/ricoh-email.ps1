@@ -1,4 +1,4 @@
-﻿# RICOH address book: Add-UserEmail (ASCII bootstrap; downloads UTF-8 scripts, then runs the file)
+# RICOH address book: Add-UserEmail (ASCII bootstrap; downloads UTF-8 scripts, then runs the file)
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}
 $__dir = Join-Path ([IO.Path]::GetTempPath()) 'lanyen-ricoh-ab'
