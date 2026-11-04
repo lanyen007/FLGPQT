@@ -12,7 +12,7 @@ try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 } catch {}
 
-$RawBase = 'https://raw.githubusercontent.com/lanyen007/FLGPQT/main'
+$RawBase = 'https://raw.githubusercontent.com/lanyen007/DW_tools/main'
 $InstallRoot = Join-Path $env:LOCALAPPDATA 'FLG'
 
 $Tools = @(

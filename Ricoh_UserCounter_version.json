@@ -1,5 +1,0 @@
-{
-  "version": "1.3.0",
-  "url": "https://github.com/lanyen007/FLGPQT/raw/main/Ricoh_UserCounter.exe",
-  "notes": "1.3.0 獨立版本：登入改與通訊錄相同（SOAP startSession）；內建 icon.ico 與 LINE QR；自動更新會下載並取代本程式"
-}

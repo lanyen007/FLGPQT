@@ -12,9 +12,9 @@ param(
 $ErrorActionPreference = 'Stop'
 $script:AppVersion = "4.1.21"
 $script:InstallDir = "C:\FLGPQT"
-$script:DefaultUpdateUrl = "https://raw.githubusercontent.com/lanyen007/FLGPQT/main/version.json"
-$script:DefaultDownloadUrl = "https://github.com/lanyen007/FLGPQT/raw/main/PQT.exe"
-$script:GitHubCommitsApi = "https://api.github.com/repos/lanyen007/FLGPQT/commits/main"
+$script:DefaultUpdateUrl = "https://raw.githubusercontent.com/lanyen007/DW_tools/main/version.json"
+$script:DefaultDownloadUrl = "https://github.com/lanyen007/DW_tools/raw/main/PQT.exe"
+$script:GitHubCommitsApi = "https://api.github.com/repos/lanyen007/DW_tools/commits/main"
 
 $procFile = $null
 try { $procFile = [Diagnostics.Process]::GetCurrentProcess().MainModule.FileName } catch {}
