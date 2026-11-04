@@ -1625,7 +1625,7 @@ function Show-ScanTable($Found) {
 # ---- main ----
 Write-Host ''
 Write-Host ('======== ' + (Get-FlgT 'lanyen 工具箱 自動驅動安裝' 'lanyen Toolkit Auto driver install') + ' ========') -ForegroundColor White
-Write-Host (Get-FlgT '區網掃描（9100／SNMP）→ Ricoh IM C3000／C6000、MP C3004／C3504／C4504／C6004（含 ex）與 MP C4503 系列裝機型 PCL6；舊版 FUJI 裝舊版驅動；其餘用雲端通用驅動' 'LAN scan (9100/SNMP) → Ricoh IM C3000/C6000, MP C3004/C3504/C4504/C6004 (including ex) and MP C4503 series use the model PCL6; legacy FUJI uses the old installer; other models use the cloud driver') -ForegroundColor Gray
+Write-Host (Get-FlgT '區網掃描（9100／SNMP）→ Ricoh IM C300、IM C3000／C6000、MP C3004／C3504／C4504／C6004（含 ex）與 MP C4503 系列裝機型 PCL6；舊版 FUJI 裝舊版驅動；其餘用雲端通用驅動' 'LAN scan (9100/SNMP) → Ricoh IM C300, IM C3000/C6000, MP C3004/C3504/C4504/C6004 (including ex) and MP C4503 series use the model PCL6; legacy FUJI uses the old installer; other models use the cloud driver') -ForegroundColor Gray
 Write-Host ''
 
 if ($script:Mode -eq 'scan') {

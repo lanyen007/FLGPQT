@@ -4,6 +4,7 @@
 # SNMP model text such as "RICOH MP C3504ex" selects the driver name inside that package.
 # ex is a different driver from the non-ex model.
 # imc3000.exe and imc6000.exe are the same PCL6 3.4.0.0 package (IM C2000 through IM C6000).
+# IMC300F.exe is the PCL6 3.2.0.0 package whose driver name is RICOH IM C300 PCL 6.
 
 $script:RicohModelPackages = @{
     'pcl6-04' = @{
@@ -23,6 +24,12 @@ $script:RicohModelPackages = @{
         Url = 'https://github.com/lanyen007/FLGPQT/releases/download/drivers-ricoh-pcl6-model-3.2.0.0/RICOH_PCL6_IM_C3000_C6000_3.4.0.0.zip'
         Sha256 = '3aae8f3be8b1ea5f2833c6ec9e9951083a24162f11972de7cf68208f8f0d9b7d'
         Version = '3.4.0.0'
+    }
+    'pcl6-im300' = @{
+        File = 'RICOH_PCL6_IM_C300_3.2.0.0.zip'
+        Url = 'https://github.com/lanyen007/FLGPQT/releases/download/drivers-ricoh-pcl6-model-3.2.0.0/RICOH_PCL6_IM_C300_3.2.0.0.zip'
+        Sha256 = '45e3077145667d9b44d2c9e1d053bc3ccb9ba54eddbdc293ed61089a1abb1308'
+        Version = '3.2.0.0'
     }
 }
 
@@ -53,15 +60,21 @@ $script:RicohModelDrivers = @{
     'IMC4500'    = @{ Name = 'RICOH IM C4500 PCL 6';    Package = 'pcl6-im' }
     'IMC5500'    = @{ Name = 'RICOH IM C5500 PCL 6';    Package = 'pcl6-im' }
     'IMC6000'    = @{ Name = 'RICOH IM C6000 PCL 6';    Package = 'pcl6-im' }
+    'IMC300'     = @{ Name = 'RICOH IM C300 PCL 6';     Package = 'pcl6-im300' }
+    'IMC300F'    = @{ Name = 'RICOH IM C300 PCL 6';     Package = 'pcl6-im300' }
+    'IMC400'     = @{ Name = 'RICOH IM C400 PCL 6';     Package = 'pcl6-im300' }
+    'IMC400SR'   = @{ Name = 'RICOH IM C400SR PCL 6';   Package = 'pcl6-im300' }
 }
 
 function Get-RicohModelKey([string]$ModelText) {
     if ([string]::IsNullOrWhiteSpace($ModelText)) { return $null }
     $t = $ModelText.ToUpperInvariant()
-    $m = [regex]::Match($t, '(?<fam>IM|MP)\s*C\s*(?<num>\d{4})(?<ex>\s*EX)?\b')
+    $m = [regex]::Match($t, '(?<fam>IM|MP)\s*C\s*(?<num>\d{3,4})(?<tail>EX|FB|SR|F)?\b')
     if (-not $m.Success) { return $null }
     $key = $m.Groups['fam'].Value + 'C' + $m.Groups['num'].Value
-    if ($m.Groups['ex'].Success) { $key += 'EX' }
+    $tail = $m.Groups['tail'].Value
+    if ($tail -eq 'EX') { $key += 'EX' }
+    elseif ($tail) { $key += $tail }
     return $key
 }
 
