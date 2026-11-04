@@ -407,7 +407,7 @@ function Add-FlgRicohSmbEntry {
     # SOAP http://IP/DH/udirectory, not the Web Image Monitor address wizard.
     # On MP C6004ex the wizard returns "too many users" / session-timeout HTML, and SOAP port 21 returns result code 302.
     # The body must be UTF-8 bytes. Windows PowerShell 5.1 Invoke-WebRequest stores CJK names as "??".
-    # The path must be \\<this PC's IPv4>\share. A computer-name UNC is stored, but the copier often cannot resolve it.
+    # The path is \\<PC hostname>\<share name> (user rule).
     param([string]$CopierIp, [string]$Name, [string]$Path, [string]$User, [string]$Pass, [string]$AdminUser = 'admin', [string]$AdminPass = '', [string]$Lang = 'tw', [int]$Port = 80)
     $hostName = $(if ($Port -eq 80) { $CopierIp } else { "${CopierIp}:$Port" })
     $ns = 'http://www.ricoh.co.jp/xmlns/soap/rdh/udirectory'
@@ -1044,7 +1044,7 @@ if ($isRicoh -and -not $useCurrent) {
     $abName = (Read-Host ((Get-FlgT '名稱（Enter = {0}）' 'Name (Enter = {0})') -f '掃描')).Trim()
     if (-not $abName) { $abName = '掃描' }   # 名稱 = 按鍵名稱
     $abUser = [string]$result.UserName   # both Ricoh recordings use the bare user name (scanner)
-    $abHost = Get-FlgIpv4ForCopier $copier.Ip
+    $abHost = $pc   # user rule: \\<PC hostname>\<share name>
     $abPath = "\\$abHost\$($result.ShareName)"
     Write-Info ((Get-FlgT '登錄到 {0} 通訊錄…' 'Adding to {0} address book…') -f $copier.Ip)
     $ab = Add-FlgRicohSmbEntry -CopierIp $copier.Ip -Name $abName -Path $abPath -User $abUser -Pass $result.Password
