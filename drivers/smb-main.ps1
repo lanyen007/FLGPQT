@@ -299,7 +299,13 @@ function Invoke-FlgRicohHttp {
     $req.AutomaticDecompression = [Net.DecompressionMethods]::GZip -bor [Net.DecompressionMethods]::Deflate
     $req.KeepAlive = $true
     if ($Referer) { $req.Referer = $Referer }
+    # headers as recorded from Chrome on MP C5504 / MP C6004ex (WIM answers AJAX calls with a JS array only for XHR-style requests)
+    $isXhr = ($Headers -and $Headers.ContainsKey('X-Requested-With'))
+    $req.Accept = $(if ($isXhr) { 'text/plain, */*' } else { 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' })
+    $req.Headers['Accept-Language'] = 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7'
+    if ($Method -eq 'POST') { try { $u0 = [Uri]$Url; $req.Headers['Origin'] = $u0.Scheme + '://' + $u0.Authority } catch {} }
     if ($Headers) { foreach ($k in $Headers.Keys) { $req.Headers[$k] = [string]$Headers[$k] } }
+    if ($isXhr -and $Method -ne 'POST') { $req.ContentType = 'application/x-www-form-urlencoded; charset=UTF-8' }
     $req.Method = $Method
     if ($Method -eq 'POST') {
         $req.ContentType = $(if ($Headers -and $Headers.ContainsKey('X-Requested-With')) { 'application/x-www-form-urlencoded; charset=UTF-8' } else { 'application/x-www-form-urlencoded' })
@@ -307,7 +313,7 @@ function Invoke-FlgRicohHttp {
         $req.ContentLength = $bytes.Length
         $st = $req.GetRequestStream(); try { $st.Write($bytes, 0, $bytes.Length) } finally { $st.Close() }
     }
-    $logForm = ([string]$Form) -replace '((?:password|folderPassword|folderPasswordConfirm)In?=)[^&]*', '$1***'
+    $logForm = ([string]$Form) -replace '((?i)password\w*=)[^&]*', '$1***'
     try { $resp = [Net.HttpWebResponse]$req.GetResponse() } catch {
         $code = ''; try { $code = [int]$_.Exception.Response.StatusCode } catch {}
         Write-FlgSmbLog ("RICOH HTTP $Method $Url form=[$logForm] -> ERROR $code " + $_.Exception.Message)
@@ -319,7 +325,10 @@ function Invoke-FlgRicohHttp {
         $enc = [Text.Encoding]::UTF8
         try { if ($resp.CharacterSet) { $enc = [Text.Encoding]::GetEncoding($resp.CharacterSet) } } catch {}
         $txt = $enc.GetString($ms.ToArray())
-        $snip = ($txt -replace '\s+', ' '); if ($snip.Length -gt 800) { $snip = $snip.Substring(0, 800) }
+        $snip = ($txt -replace '\s+', ' ')
+        $bi = $snip.IndexOf('<body'); if ($bi -gt 0) { $snip = $snip.Substring($bi) }   # skip <head> (scripts/css) so the log shows the real message
+        $snip = $snip -replace '<script.*?</script>', '' -replace '<style.*?</style>', ''
+        if ($snip.Length -gt 1200) { $snip = $snip.Substring(0, 1200) }
         $snip = $snip -replace '(name="password[^"]*"[^>]*value=")[^"]*', '$1***'
         Write-FlgSmbLog ("RICOH HTTP $Method $Url form=[$logForm] -> " + [int]$resp.StatusCode + " len=" + $txt.Length + " body: " + $snip)
         return $txt
@@ -371,9 +380,11 @@ function Add-FlgRicohSmbEntry {
         if (-not $tok) { return [pscustomobject]@{ Ok = $false; Auth = $true; Message = 'no wimToken on address list' } }
         # recorded browser order: adrsListLoadEntry.cgi (existing entries) -> adrsGetUserWizard.cgi
         $used = New-Object System.Collections.Generic.HashSet[int]
+        $listOk = $false
         for ($pg = 1; $pg -le 40; $pg++) {
             $lst = ''
             try { $lst = [string](Invoke-FlgRicohHttp -Cookies $cookies -Method GET -Url ($dir + 'adrsListLoadEntry.cgi?_=' + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() + '&listCountIn=50&getCountIn=' + $pg) -Referer $ref -Headers $ajax) } catch { break }
+            if ($lst -match '^\s*\[') { $listOk = $true } else { Write-FlgSmbLog 'RICOH entry list is not a JS array (copier returned HTML)'; break }
             $ms2 = [regex]::Matches($lst, "\[\d+,\d+,'(\d{1,5})'")
             $new = 0; foreach ($m in $ms2) { if ($used.Add([int]$m.Groups[1].Value)) { $new++ } }
             if ($ms2.Count -lt 50 -or $new -eq 0) { break }
@@ -389,7 +400,7 @@ function Add-FlgRicohSmbEntry {
             $mx = ($used | Measure-Object -Maximum).Maximum
             $wiz = $idx; $idx = ([int]$mx + 1).ToString('00000')
             Write-FlgSmbLog "RICOH entry index = max+1: $idx (wizard proposed: $wiz)"
-        } elseif (-not $idx) { $idx = '00001'; Write-FlgSmbLog 'RICOH entry index fallback 00001 (empty list, no wizard index)' }
+        } elseif (-not $idx -and $listOk) { $idx = '00001'; Write-FlgSmbLog 'RICOH entry index 00001 (address book empty)' }
         else { Write-FlgSmbLog "RICOH entry index from wizard: $idx (list empty/unreadable)" }
         if ($idx.Length -lt 5) { $idx = ([int]$idx).ToString('00000') }
         $t2 = [regex]::Match([string]$w, 'name="wimToken"[^>]*value="([^"]+)"').Groups[1].Value; if ($t2) { $tok = $t2 }
