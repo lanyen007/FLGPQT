@@ -821,8 +821,8 @@ if ($isFuji -and -not $useCurrent) {
 try {
 if ($isRicoh -and -not $useCurrent) {
     Write-Host ''
-    $abName = (Read-Host ((Get-FlgT '通訊錄名稱（Enter = {0}）' 'Address book name (Enter = {0})') -f $pc)).Trim()
-    if (-not $abName) { $abName = $pc }
+    $abName = (Read-Host ((Get-FlgT '名稱（Enter = {0}）' 'Name (Enter = {0})') -f '掃描')).Trim()
+    if (-not $abName) { $abName = '掃描' }   # 名稱 = 按鍵名稱
     $abUser = [string]$result.UserName   # both Ricoh recordings use the bare user name (scanner)
     $abPath = "\\$pc\$($result.ShareName)"
     Write-Info ((Get-FlgT '登錄到 {0} 通訊錄…' 'Adding to {0} address book…') -f $copier.Ip)
