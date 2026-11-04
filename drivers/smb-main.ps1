@@ -266,7 +266,7 @@ function Add-FlgFujiSmbContact {
     if ($Credential) { $args2.Credential = $Credential }
     try {
         $r = Invoke-WebRequest @args2
-        $txt = [string]$r.Content
+        $txt = $(if ($r.Content -is [byte[]]) { [Text.Encoding]::UTF8.GetString($r.Content) } else { [string]$r.Content })
         if ($txt -match 'AddContactResponse' -and $txt -match '<Identifier') { return [pscustomobject]@{ Ok = $true; Message = '' } }
         $fault = [regex]::Match($txt, '<faultstring[^>]*>([^<]*)').Groups[1].Value
         return [pscustomobject]@{ Ok = $false; Message = $(if ($fault) { $fault } else { $txt.Substring(0, [Math]::Min(200, $txt.Length)) }) }
@@ -632,20 +632,21 @@ if ($isFuji) {
 }
 if ($isFuji -and -not $useCurrent) {
     Write-Host ''
-    $ans = (Read-Host (Get-FlgT '自動登錄到影印機通訊錄？(Y/N，預設 Y)' 'Add this to the copier address book automatically? (Y/N, default Y)')).Trim()
-    if ($ans -eq '' -or $ans -match '^(?i)(y|yes|是)$') {
+    $abName = (Read-Host ((Get-FlgT '通訊錄名稱（Enter = {0}）' 'Address book name (Enter = {0})') -f $pc)).Trim()
+    if (-not $abName) { $abName = $pc }
+    if ($true) {
         $abUser = "$pc\$($result.UserName)"
         Write-Info ((Get-FlgT '登錄到 {0} 通訊錄…' 'Adding to {0} address book…') -f $copier.Ip)
-        $ab = Add-FlgFujiSmbContact -CopierIp $copier.Ip -DisplayName $pc -Server $pc -Share $result.ShareName -User $abUser -Pass $result.Password
+        $ab = Add-FlgFujiSmbContact -CopierIp $copier.Ip -DisplayName $abName -Server $pc -Share $result.ShareName -User $abUser -Pass $result.Password
         if (-not $ab.Ok -and ($ab.Code -eq 401 -or $ab.Code -eq 403 -or $ab.Message -match '(?i)auth|permission|denied')) {
             Write-WarnMsg (Get-FlgT '影印機要求管理員登入。' 'The copier requires an admin login.')
             $au = (Read-Host (Get-FlgT '管理員帳號（預設 11111）' 'Admin user (default 11111)')).Trim(); if (-not $au) { $au = '11111' }
             $ap = Read-Host (Get-FlgT '管理員密碼（預設 x-admin）' 'Admin password (default x-admin)'); if (-not $ap) { $ap = 'x-admin' }
             $cred = New-Object pscredential ($au, (ConvertTo-SecureString $ap -AsPlainText -Force))
-            $ab = Add-FlgFujiSmbContact -CopierIp $copier.Ip -DisplayName $pc -Server $pc -Share $result.ShareName -User $abUser -Pass $result.Password -Credential $cred
+            $ab = Add-FlgFujiSmbContact -CopierIp $copier.Ip -DisplayName $abName -Server $pc -Share $result.ShareName -User $abUser -Pass $result.Password -Credential $cred
         }
         if ($ab.Ok) {
-            Write-Ok ((Get-FlgT '已登錄到影印機通訊錄：{0}（伺服器 {1}，共用 {2}，使用者 {3}）' 'Added to copier address book: {0} (server {1}, share {2}, user {3})') -f $pc, $pc, $result.ShareName, $abUser)
+            Write-Ok ((Get-FlgT '已登錄到影印機通訊錄：{0}（伺服器 {1}，共用 {2}，使用者 {3}）' 'Added to copier address book: {0} (server {1}, share {2}, user {3})') -f $abName, $pc, $result.ShareName, $abUser)
         } else {
             Write-ErrMsg ((Get-FlgT '自動登錄失敗：' 'Automatic add failed: ') + $ab.Message)
             Write-Host ((Get-FlgT '  請開啟 http://{0}/ → 通訊錄 → 新增，手動輸入上面的登錄資訊。' '  Open http://{0}/ → Address Book → Add, and enter the login info above manually.') -f $copier.Ip) -ForegroundColor Yellow
