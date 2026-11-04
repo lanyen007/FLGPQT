@@ -386,10 +386,11 @@ function Add-FlgRicohSmbEntry {
         # recorded browser order: adrsListLoadEntry.cgi (existing entries) -> adrsGetUserWizard.cgi
         $used = New-Object System.Collections.Generic.HashSet[int]
         $listOk = $false
+        $pageText = [string]$html   # adrsList.cgi page
         for ($pg = 1; $pg -le 40; $pg++) {
             $lst = ''
             try { $lst = [string](Invoke-FlgRicohHttp -Cookies $cookies -Method GET -Url ($dir + 'adrsListLoadEntry.cgi?_=' + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() + '&listCountIn=50&getCountIn=' + $pg) -Referer $ref -Headers $ajax) } catch { break }
-            if ($lst -match '^\s*\[') { $listOk = $true } else { Write-FlgSmbLog 'RICOH entry list is not a JS array (copier returned HTML)'; break }
+            if ($lst -match '^\s*\[') { $listOk = $true; $pageText += "`n" + $lst } else { Write-FlgSmbLog 'RICOH entry list is not a JS array (copier returned HTML)'; break }
             $ms2 = [regex]::Matches($lst, "\[\d+,\d+,'(\d{1,5})'")
             $new = 0; foreach ($m in $ms2) { if ($used.Add([int]$m.Groups[1].Value)) { $new++ } }
             if ($ms2.Count -lt 50 -or $new -eq 0) { break }
@@ -400,13 +401,20 @@ function Add-FlgRicohSmbEntry {
         foreach ($rx in @('name=["'']entryIndexIn["''][^>]*value=["''](\d{1,5})["'']', 'value=["''](\d{1,5})["''][^>]*name=["'']entryIndexIn["'']', 'span_entryIndexIn["'']?>\s*(\d{1,5})\s*<', 'entryIndexIn\D{0,80}?(\d{5})')) {
             $mm = [regex]::Match([string]$w, $rx); if ($mm.Success) { $idx = $mm.Groups[1].Value; break }
         }
-        # user rule: entry number = highest existing number + 1 (wizard proposal only if the list could not be read)
-        if ($used.Count -gt 0) {
-            $mx = ($used | Measure-Object -Maximum).Maximum
-            $wiz = $idx; $idx = ([int]$mx + 1).ToString('00000')
-            Write-FlgSmbLog "RICOH entry index = max+1: $idx (wizard proposed: $wiz)"
-        } elseif (-not $idx -and $listOk) { $idx = '00001'; Write-FlgSmbLog 'RICOH entry index 00001 (address book empty)' }
-        else { Write-FlgSmbLog "RICOH entry index from wizard: $idx (list empty/unreadable)" }
+        # user rule: search the address list for 00001, 00002, ... ; the first number NOT found is the entry number.
+        # adrsList.cgi itself has no entries (the list is filled by adrsListLoadEntry.cgi via AJAX), so both texts are searched.
+        $wiz = $idx; $idx = ''
+        $found = New-Object System.Collections.Generic.List[string]
+        for ($n = 1; $n -le 99999; $n++) {
+            $s5 = $n.ToString('00000')
+            if ($pageText -match ('(?<!\d)' + $s5 + '(?!\d)')) { $found.Add($s5) } else { $idx = $s5; break }
+        }
+        Write-FlgSmbLog ('RICOH numbers found in address list: ' + $(if ($found.Count) { $found -join ',' } else { '(none)' }) + ' | list readable: ' + $listOk + ' | first not found: ' + $idx + ' | wizard proposed: ' + $wiz)
+        if (-not $listOk) {
+            # entries could not be read: "first not found" would always be 00001, so use the wizard proposal or stop
+            $idx = $wiz
+            Write-FlgSmbLog "RICOH entry list unreadable -> using wizard proposal: $idx"
+        }
         if ($idx -and $idx.Length -lt 5) { $idx = ([int]$idx).ToString('00000') }
         if ($idx -eq '00000') { $idx = '' }
         $t2 = [regex]::Match([string]$w, 'name="wimToken"[^>]*value="([^"]+)"').Groups[1].Value; if ($t2) { $tok = $t2 }
