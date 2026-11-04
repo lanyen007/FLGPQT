@@ -351,11 +351,13 @@ function Add-FlgRicohSmbEntry {
         if (-not (Invoke-FlgRicohLogin -HostName $hostName -Lang $Lang -User $AdminUser -Pass $AdminPass -Cookies $cookies)) {
             return [pscustomobject]@{ Ok = $false; Auth = $true; Message = 'login failed (check admin password / web language)' }
         }
-        try { [void](Invoke-FlgRicohHttp -Cookies $cookies -Method GET -Url "$base/web/guest/$Lang/websys/webArch/topPage.cgi") } catch {}
+        # recorded (MP C5504 / MP C6004ex): login.cgi 302 -> entry mainFrame.cgi -> header.cgi + topPage.cgi
+        try { [void](Invoke-FlgRicohHttp -Cookies $cookies -Method GET -Url "$base/web/entry/$Lang/websys/webArch/header.cgi" -Referer "$base/web/entry/$Lang/websys/webArch/mainFrame.cgi") } catch {}
+        try { [void](Invoke-FlgRicohHttp -Cookies $cookies -Method GET -Url "$base/web/entry/$Lang/websys/webArch/topPage.cgi" -Referer "$base/web/entry/$Lang/websys/webArch/mainFrame.cgi") } catch {}
         $dir = "$base/web/entry/$Lang/address/"
         $ajax = @{ 'X-Requested-With' = 'XMLHttpRequest' }
         $ref = $dir + 'adrsList.cgi'
-        $html = Invoke-FlgRicohHttp -Cookies $cookies -Method GET -Url ($dir + 'adrsList.cgi')
+        $html = Invoke-FlgRicohHttp -Cookies $cookies -Method GET -Url ($dir + 'adrsList.cgi') -Referer "$base/web/entry/$Lang/websys/webArch/topPage.cgi"
         $tok = [regex]::Match([string]$html, 'name="wimToken"[^>]*value="([^"]+)"').Groups[1].Value
         if (-not $tok) { return [pscustomobject]@{ Ok = $false; Auth = $true; Message = 'no wimToken on address list' } }
         $w = Invoke-FlgRicohHttp -Cookies $cookies -Method POST -Url ($dir + 'adrsGetUserWizard.cgi') -Form ('mode=ADDUSER&outputSpecifyModeIn=DEFAULT&wimToken=' + $tok) -Referer $ref -Headers $ajax
@@ -717,6 +719,7 @@ if ($copier) {
 $isFuji = ($copier -and ([string]$copier.Model -match '(?i)FUJI\s*XEROX|FUJIFILM|Apeos|DocuCentre'))
 $isRicoh = ($copier -and -not $isFuji -and ([string]$copier.Model -match '(?i)RICOH'))
 if ($isFuji -or $isRicoh) {
+    if ($isRicoh -and -not $useCurrent) { $userShown = [string]$result.UserName }
     Write-Host ''
     Write-Host (Get-FlgT '登錄資訊' 'Login info') -ForegroundColor White
     Write-Host ((Get-FlgT '  主機名稱  {0}（設定的電腦主機名稱）' '  Host name  {0} (this PC host name)') -f $pc) -ForegroundColor Green
@@ -765,7 +768,7 @@ if ($isRicoh -and -not $useCurrent) {
     Write-Host ''
     $abName = (Read-Host ((Get-FlgT '通訊錄名稱（Enter = {0}）' 'Address book name (Enter = {0})') -f $pc)).Trim()
     if (-not $abName) { $abName = $pc }
-    $abUser = "$pc\$($result.UserName)"
+    $abUser = [string]$result.UserName   # both Ricoh recordings use the bare user name (scanner)
     $abPath = "\\$pc\$($result.ShareName)"
     Write-Info ((Get-FlgT '登錄到 {0} 通訊錄…' 'Adding to {0} address book…') -f $copier.Ip)
     $ab = Add-FlgRicohSmbEntry -CopierIp $copier.Ip -Name $abName -Path $abPath -User $abUser -Pass $result.Password
