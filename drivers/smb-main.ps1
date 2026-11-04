@@ -362,74 +362,239 @@ function Invoke-FlgRicohLogin {
 }
 # ---- end of counter-download login ----
 
+function Get-FlgIpv4ForCopier([string]$CopierIp) {
+    $ips = @(Get-LocalIPv4List | Where-Object { $_ -and $_ -ne '127.0.0.1' })
+    if ($CopierIp -match '^(\d+\.\d+\.\d+)\.') {
+        $pre = $Matches[1] + '.'
+        $same = @($ips | Where-Object { [string]$_ -like ($pre + '*') })
+        if ($same.Count -gt 0) { return [string]$same[0] }
+    }
+    if ($ips.Count -gt 0) { return [string]$ips[0] }
+    return [string]$env:COMPUTERNAME
+}
+
 function Add-FlgRicohSmbEntry {
-    # Login = RICOH使用者計數下載.exe: authForm.cgi (wimToken) -> login.cgi, user admin / blank password, language 'tw', then GET topPage.cgi.
-    # Address-book steps follow the recorded MP C5504 session: adrsList.cgi -> adrsGetUserWizard.cgi -> adrsSetUserWizard.cgi (BASE, FOLDER, CONFIRM).
+    # SOAP http://IP/DH/udirectory, not the Web Image Monitor address wizard.
+    # On MP C6004ex the wizard returns "too many users" / session-timeout HTML, and SOAP port 21 returns result code 302.
+    # The body must be UTF-8 bytes. Windows PowerShell 5.1 Invoke-WebRequest stores CJK names as "??".
+    # The path must be \\<this PC's IPv4>\share. A computer-name UNC is stored, but the copier often cannot resolve it.
     param([string]$CopierIp, [string]$Name, [string]$Path, [string]$User, [string]$Pass, [string]$AdminUser = 'admin', [string]$AdminPass = '', [string]$Lang = 'tw', [int]$Port = 80)
     $hostName = $(if ($Port -eq 80) { $CopierIp } else { "${CopierIp}:$Port" })
-    $base = "http://$hostName"
-    function U([string]$s) { return [Uri]::EscapeDataString([string]$s) }
-    $cookies = New-Object Net.CookieContainer
+    $ns = 'http://www.ricoh.co.jp/xmlns/soap/rdh/udirectory'
+    function XmlEscape([string]$s) {
+        if ($null -eq $s) { return '' }
+        return (([string]$s).Replace('&', '&amp;').Replace('<', '&lt;').Replace('>', '&gt;').Replace('"', '&quot;'))
+    }
+    function New-PropItems([object[]]$Pairs) {
+        $sb = New-Object Text.StringBuilder
+        for ($i = 0; $i -lt $Pairs.Count; $i += 2) {
+            [void]$sb.Append('<item><propName>')
+            [void]$sb.Append((XmlEscape ([string]$Pairs[$i])))
+            [void]$sb.Append('</propName><propVal>')
+            [void]$sb.Append((XmlEscape ([string]$Pairs[$i + 1])))
+            [void]$sb.Append('</propVal></item>')
+        }
+        return $sb.ToString()
+    }
+    function New-Soap([string]$Inner) {
+        return @"
+<?xml version="1.0" encoding="utf-8"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+  <s:Body>
+$Inner
+  </s:Body>
+</s:Envelope>
+"@
+    }
+    function Send-FlgSoap([string]$Action, [string]$Xml) {
+        $req = [Net.HttpWebRequest]::Create("http://$hostName/DH/udirectory")
+        $req.Method = 'POST'
+        $req.ContentType = 'text/xml; charset=utf-8'
+        $req.Timeout = 90000
+        $req.ReadWriteTimeout = 90000
+        $req.Headers.Add('SOAPAction', ($ns + '#' + $Action))
+        $bytes = [Text.Encoding]::UTF8.GetBytes($Xml)
+        $req.ContentLength = $bytes.Length
+        $st = $req.GetRequestStream()
+        try { $st.Write($bytes, 0, $bytes.Length) } finally { $st.Close() }
+        try {
+            $resp = [Net.HttpWebResponse]$req.GetResponse()
+        } catch [System.Net.WebException] {
+            $txt = ''
+            $er = $_.Exception.Response
+            if ($er) {
+                try {
+                    $sr = New-Object IO.StreamReader($er.GetResponseStream(), [Text.Encoding]::UTF8)
+                    $txt = $sr.ReadToEnd()
+                    $sr.Close()
+                } catch {}
+            }
+            $detail = ''
+            if ($txt -match 'errorDescription>([^<]+)') { $detail = $Matches[1] }
+            elseif ($txt -match 'errorCode>([^<]+)') { $detail = $Matches[1] }
+            elseif ($txt -match 'faultstring>([^<]+)') { $detail = $Matches[1] }
+            $ex = New-Object System.Exception($(if ($detail) { $detail } else { $_.Exception.Message }))
+            $ex | Add-Member -NotePropertyName FaultText -NotePropertyValue $txt -Force
+            throw $ex
+        }
+        try {
+            $sr = New-Object IO.StreamReader($resp.GetResponseStream(), [Text.Encoding]::UTF8)
+            $txt = $sr.ReadToEnd()
+            $sr.Close()
+            return $txt
+        } finally { $resp.Close() }
+    }
+    function Read-FlgEntryMaps([string]$XmlText) {
+        $doc = New-Object Xml.XmlDocument
+        $doc.LoadXml($XmlText)
+        $list = @()
+        foreach ($entry in $doc.GetElementsByTagName('item')) {
+            $props = @($entry.SelectNodes('./item[propName]'))
+            if ($props.Count -eq 0) { continue }
+            $map = @{}
+            foreach ($p in $props) { $map[[string]$p.propName] = [string]$p.propVal }
+            if ($map.ContainsKey('id')) {
+                $wrap = New-Object psobject
+                $wrap | Add-Member -NotePropertyName Map -NotePropertyValue $map
+                $list += $wrap
+            }
+        }
+        return $list
+    }
+    $entryName = [string]$Name
+    if ($entryName.Length -gt 20) { $entryName = $entryName.Substring(0, 20) }
+    $disp = $entryName
+    if ($disp.Length -gt 16) { $disp = $disp.Substring(0, 16) }
+    $pw = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$Pass))
+    $props = New-PropItems @(
+        'entryType', 'user',
+        'name', $entryName,
+        'longName', $disp,
+        'displayedOrder', '5',
+        'tagId', '1',
+        'isDestination', 'true',
+        'remoteFolder:', 'true',
+        'remoteFolder:type', 'smb',
+        'remoteFolder:path', [string]$Path,
+        'remoteFolder:port', '445',
+        'remoteFolder:select', 'private',
+        'remoteFolder:accountName', [string]$User,
+        'remoteFolder:password', $pw
+    )
+    $sid = ''
     try {
-        if (-not (Invoke-FlgRicohLogin -HostName $hostName -Lang $Lang -User $AdminUser -Pass $AdminPass -Cookies $cookies)) {
-            return [pscustomobject]@{ Ok = $false; Auth = $true; Message = 'login failed (check admin password / web language)' }
+        $scheme = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('BASIC'))
+        $u = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$AdminUser))
+        $p = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$AdminPass))
+        $start = New-Soap @"
+    <u:startSession xmlns:u="$ns">
+      <stringIn>SCHEME=$scheme;UID:UserName=$u;PWD:Password=$p;PES:Encoding=</stringIn>
+      <timeLimit>60</timeLimit>
+      <lockMode>X</lockMode>
+    </u:startSession>
+"@
+        try {
+            $raw = Send-FlgSoap 'startSession' $start
+        } catch {
+            $fault = [string]$_.Exception.Message + ' ' + [string]$_.Exception.FaultText
+            $auth = $fault -match 'NOT_AUTHENTICATED|AUTH'
+            return [pscustomobject]@{ Ok = $false; Auth = [bool]$auth; Message = ('login failed: ' + $_.Exception.Message) }
         }
-        # recorded (MP C5504 / MP C6004ex): login.cgi 302 -> entry mainFrame.cgi -> header.cgi + topPage.cgi
-        try { [void](Invoke-FlgRicohHttp -Cookies $cookies -Method GET -Url "$base/web/entry/$Lang/websys/webArch/header.cgi" -Referer "$base/web/entry/$Lang/websys/webArch/mainFrame.cgi") } catch {}
-        try { [void](Invoke-FlgRicohHttp -Cookies $cookies -Method GET -Url "$base/web/entry/$Lang/websys/webArch/topPage.cgi" -Referer "$base/web/entry/$Lang/websys/webArch/mainFrame.cgi") } catch {}
-        $dir = "$base/web/entry/$Lang/address/"
-        $ajax = @{ 'X-Requested-With' = 'XMLHttpRequest' }
-        $ref = $dir + 'adrsList.cgi'
-        $html = Invoke-FlgRicohHttp -Cookies $cookies -Method GET -Url ($dir + 'adrsList.cgi') -Referer "$base/web/entry/$Lang/websys/webArch/topPage.cgi"
-        $tok = [regex]::Match([string]$html, 'name="wimToken"[^>]*value="([^"]+)"').Groups[1].Value
-        if (-not $tok) { return [pscustomobject]@{ Ok = $false; Auth = $true; Message = 'no wimToken on address list' } }
-        # recorded browser order: adrsListLoadEntry.cgi (existing entries) -> adrsGetUserWizard.cgi
-        $used = New-Object System.Collections.Generic.HashSet[int]
-        $listOk = $false
-        $pageText = [string]$html   # adrsList.cgi page
-        for ($pg = 1; $pg -le 40; $pg++) {
-            $lst = ''
-            try { $lst = [string](Invoke-FlgRicohHttp -Cookies $cookies -Method GET -Url ($dir + 'adrsListLoadEntry.cgi?_=' + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() + '&listCountIn=50&getCountIn=' + $pg) -Referer $ref -Headers $ajax) } catch { break }
-            if ($lst -match '^\s*\[') { $listOk = $true; $pageText += "`n" + $lst } else { Write-FlgSmbLog 'RICOH entry list is not a JS array (copier returned HTML)'; break }
-            $ms2 = [regex]::Matches($lst, "\[\d+,\d+,'(\d{1,5})'")
-            $new = 0; foreach ($m in $ms2) { if ($used.Add([int]$m.Groups[1].Value)) { $new++ } }
-            if ($ms2.Count -lt 50 -or $new -eq 0) { break }
+        $sm = [regex]::Match([string]$raw, '<stringOut>([^<]+)</stringOut>')
+        if (-not $sm.Success) { return [pscustomobject]@{ Ok = $false; Auth = $true; Message = 'no SOAP session' } }
+        $sid = $sm.Groups[1].Value
+        $existingId = ''
+        try {
+            $search = New-Soap @"
+    <u:searchObjects xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soap-enc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:ricoh="http://www.ricoh.co.jp/xmlns/schema/rdh/commontypes" xmlns:u="$ns">
+      <sessionId>$(XmlEscape $sid)</sessionId>
+      <selectProps xsi:type="soap-enc:Array" soap-enc:arrayType="xs:string[]"><item>id</item></selectProps>
+      <fromClass>entry</fromClass>
+      <rowOffset>0</rowOffset>
+      <rowCount>50</rowCount>
+    </u:searchObjects>
+"@
+            $found = Send-FlgSoap 'searchObjects' $search
+            $ids = New-Object System.Collections.Generic.List[string]
+            foreach ($m in [regex]::Matches([string]$found, '<propName>id</propName>\s*<propVal>(\d+)</propVal>')) {
+                $n = [int64]$m.Groups[1].Value
+                if ($n -gt 0 -and $n -lt 100000) { [void]$ids.Add([string]$n) }
+            }
+            if ($ids.Count -gt 0) {
+                $idXml = ($ids | ForEach-Object { '<item>entry:' + $_ + '</item>' }) -join ''
+                $get = New-Soap @"
+    <u:getObjectsProps xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soap-enc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:ricoh="http://www.ricoh.co.jp/xmlns/schema/rdh/commontypes" xmlns:u="$ns">
+      <sessionId>$(XmlEscape $sid)</sessionId>
+      <objectIdList xsi:type="soap-enc:Array" soap-enc:arrayType="xs:string[]">$idXml</objectIdList>
+      <selectProps xsi:type="soap-enc:Array" soap-enc:arrayType="xs:string[]"><item>id</item><item>index</item><item>name</item><item>remoteFolder:path</item></selectProps>
+    </u:getObjectsProps>
+"@
+                $maps = @(Read-FlgEntryMaps (Send-FlgSoap 'getObjectsProps' $get))
+                $hit = @($maps | Where-Object { [string]$_.Map['name'] -eq $entryName } | Select-Object -First 1)
+                if ($hit.Count -gt 0) { $existingId = [string]$hit[0].Map['id'] }
+            }
+        } catch {
+            Write-FlgSmbLog ('RICOH search skipped: ' + $_.Exception.Message)
         }
-        Write-FlgSmbLog ('RICOH existing entry numbers: ' + (($used | Sort-Object) -join ','))
-        $w = Invoke-FlgRicohHttp -Cookies $cookies -Method POST -Url ($dir + 'adrsGetUserWizard.cgi') -Form ('mode=ADDUSER&outputSpecifyModeIn=DEFAULT&wimToken=' + $tok) -Referer $ref -Headers $ajax
-        $idx = ''
-        foreach ($rx in @('name=["'']entryIndexIn["''][^>]*value=["''](\d{1,5})["'']', 'value=["''](\d{1,5})["''][^>]*name=["'']entryIndexIn["'']', 'span_entryIndexIn["'']?>\s*(\d{1,5})\s*<', 'entryIndexIn\D{0,80}?(\d{5})')) {
-            $mm = [regex]::Match([string]$w, $rx); if ($mm.Success) { $idx = $mm.Groups[1].Value; break }
+        if ($existingId) {
+            $upd = New-Soap @"
+    <u:putObjectProps xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soap-enc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:ricoh="http://www.ricoh.co.jp/xmlns/schema/rdh/commontypes" xmlns:u="$ns">
+      <sessionId>$(XmlEscape $sid)</sessionId>
+      <objectId>entry:$(XmlEscape $existingId)</objectId>
+      <propList xsi:type="soap-enc:Array" soap-enc:arrayType="ricoh:property[]">$props</propList>
+    </u:putObjectProps>
+"@
+            [void](Send-FlgSoap 'putObjectProps' $upd)
+            $wroteId = $existingId
+            Write-FlgSmbLog ("RICOH updated entry id=$wroteId")
+        } else {
+            $add = New-Soap @"
+    <u:putObjects xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soap-enc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:ricoh="http://www.ricoh.co.jp/xmlns/schema/rdh/commontypes" xmlns:u="$ns">
+      <sessionId>$(XmlEscape $sid)</sessionId>
+      <objectClass>entry</objectClass>
+      <propListList xsi:type="soap-enc:Array" soap-enc:arrayType="ricoh:propertyList[]"><item>$props</item></propListList>
+    </u:putObjects>
+"@
+            $added = Send-FlgSoap 'putObjects' $add
+            $im = [regex]::Match([string]$added, '<item>(\d+)</item>')
+            if (-not $im.Success) { return [pscustomobject]@{ Ok = $false; Message = 'putObjects returned no id' } }
+            $wroteId = $im.Groups[1].Value
+            Write-FlgSmbLog ("RICOH added entry id=$wroteId")
         }
-        # user rule: search the address list for 00001, 00002, ... ; the first number NOT found is the entry number.
-        # adrsList.cgi itself has no entries (the list is filled by adrsListLoadEntry.cgi via AJAX), so both texts are searched.
-        $wiz = $idx; $idx = ''
-        $found = New-Object System.Collections.Generic.List[string]
-        for ($n = 1; $n -le 99999; $n++) {
-            $s5 = $n.ToString('00000')
-            if ($pageText -match ('(?<!\d)' + $s5 + '(?!\d)')) { $found.Add($s5) } else { $idx = $s5; break }
+        $check = New-Soap @"
+    <u:getObjectsProps xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soap-enc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:ricoh="http://www.ricoh.co.jp/xmlns/schema/rdh/commontypes" xmlns:u="$ns">
+      <sessionId>$(XmlEscape $sid)</sessionId>
+      <objectIdList xsi:type="soap-enc:Array" soap-enc:arrayType="xs:string[]"><item>entry:$(XmlEscape $wroteId)</item></objectIdList>
+      <selectProps xsi:type="soap-enc:Array" soap-enc:arrayType="xs:string[]"><item>id</item><item>index</item><item>name</item><item>longName</item><item>remoteFolder:type</item><item>remoteFolder:path</item><item>remoteFolder:port</item><item>remoteFolder:accountName</item></selectProps>
+    </u:getObjectsProps>
+"@
+        $back = @(Read-FlgEntryMaps (Send-FlgSoap 'getObjectsProps' $check) | Select-Object -First 1)
+        if ($back.Count -eq 0) { return [pscustomobject]@{ Ok = $false; Message = 'wrote the entry but could not read it back' } }
+        $row = $back[0].Map
+        $readPath = [string]$row['remoteFolder:path']
+        $readName = [string]$row['name']
+        $readUser = [string]$row['remoteFolder:accountName']
+        $readPort = [string]$row['remoteFolder:port']
+        Write-FlgSmbLog ("RICOH readback index=$($row['index']) name=$readName path=$readPath port=$readPort account=$readUser")
+        if ($readPath -ne [string]$Path -or $readName -ne $entryName -or $readUser -ne [string]$User -or $readPort -ne '445') {
+            return [pscustomobject]@{ Ok = $false; Index = [string]$row['index']; Id = $wroteId; Name = $readName; Path = $readPath; Account = $readUser; Message = "readback mismatch path=$readPath name=$readName account=$readUser port=$readPort" }
         }
-        Write-FlgSmbLog ('RICOH numbers found in address list: ' + $(if ($found.Count) { $found -join ',' } else { '(none)' }) + ' | list readable: ' + $listOk + ' | first not found: ' + $idx + ' | wizard proposed: ' + $wiz)
-        if (-not $listOk) {
-            # entries could not be read: "first not found" would always be 00001, so use the wizard proposal or stop
-            $idx = $wiz
-            Write-FlgSmbLog "RICOH entry list unreadable -> using wizard proposal: $idx"
-        }
-        if ($idx -and $idx.Length -lt 5) { $idx = ([int]$idx).ToString('00000') }
-        if ($idx -eq '00000') { $idx = '' }
-        $t2 = [regex]::Match([string]$w, 'name="wimToken"[^>]*value="([^"]+)"').Groups[1].Value; if ($t2) { $tok = $t2 }
-        if (-not $idx) { return [pscustomobject]@{ Ok = $false; Message = 'no free entry index (copier error page: ' + ([string]$script:FlgRicohLastError).Substring(0, [Math]::Min(300, ([string]$script:FlgRicohLastError).Length)) + ')' } }
-        $disp = $(if ($Name.Length -gt 16) { $Name.Substring(0, 16) } else { $Name })
-        $a = Invoke-FlgRicohHttp -Cookies $cookies -Method POST -Url ($dir + 'adrsSetUserWizard.cgi') -Form ('mode=ADDUSER&step=BASE&wimToken=' + $tok + '&entryIndexIn=' + $idx + '&entryNameIn=' + (U $Name) + '&entryDisplayNameIn=' + (U $disp) + '&entryTagInfoIn=1&entryTagInfoIn=1&entryTagInfoIn=1&entryTagInfoIn=1') -Referer $ref -Headers $ajax
-        if ([string]$a -notmatch '^\s*\[') { return [pscustomobject]@{ Ok = $false; Message = "BASE: $a" } }
-        $pw = U ([Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$Pass)))
-        $a = Invoke-FlgRicohHttp -Cookies $cookies -Method POST -Url ($dir + 'adrsSetUserWizard.cgi') -Form ('mode=ADDUSER&step=FOLDER&wimToken=' + $tok + '&folderProtocolIn=SMB_O&folderPortNoIn=21&folderServerNameIn=&folderPathNameIn=' + (U $Path) + '&folderAuthUserNameIn=' + (U $User) + '&wk_folderPasswordIn=&folderPasswordIn=' + $pw + '&wk_folderPasswordConfirmIn=&folderPasswordConfirmIn=' + $pw) -Referer $ref -Headers $ajax
-        if ([string]$a -notmatch '^\s*\[') { return [pscustomobject]@{ Ok = $false; Message = "FOLDER: $a" } }
-        $a = [string](Invoke-FlgRicohHttp -Cookies $cookies -Method POST -Url ($dir + 'adrsSetUserWizard.cgi') -Form ('wimToken=' + $tok + '&stepListIn=BASE&stepListIn=FOLDER&mode=ADDUSER&step=CONFIRM') -Referer $ref -Headers $ajax)
-        if ($a -match "^\s*\[\[" -and $a -match "'$idx'") { return [pscustomobject]@{ Ok = $true; Index = $idx; Message = '' } }
-        return [pscustomobject]@{ Ok = $false; Message = 'CONFIRM: ' + $a.Substring(0, [Math]::Min(200, $a.Length)) }
+        return [pscustomobject]@{ Ok = $true; Index = [string]$row['index']; Id = $wroteId; Name = $readName; Path = $readPath; Account = $readUser; Message = '' }
     } catch {
-        return [pscustomobject]@{ Ok = $false; Message = $_.Exception.Message }
+        $fault = [string]$_.Exception.Message
+        $auth = $fault -match 'NOT_AUTHENTICATED'
+        return [pscustomobject]@{ Ok = $false; Auth = [bool]$auth; Message = $fault }
+    } finally {
+        if ($sid) {
+            try {
+                $end = New-Soap @"
+    <u:terminateSession xmlns:u="$ns"><sessionId>$(XmlEscape $sid)</sessionId></u:terminateSession>
+"@
+                [void](Send-FlgSoap 'terminateSession' $end)
+            } catch {
+                Write-FlgSmbLog ('RICOH terminate failed: ' + $_.Exception.Message)
+            }
+        }
     }
 }
 
@@ -824,7 +989,8 @@ if ($isRicoh -and -not $useCurrent) {
     $abName = (Read-Host ((Get-FlgT '名稱（Enter = {0}）' 'Name (Enter = {0})') -f '掃描')).Trim()
     if (-not $abName) { $abName = '掃描' }   # 名稱 = 按鍵名稱
     $abUser = [string]$result.UserName   # both Ricoh recordings use the bare user name (scanner)
-    $abPath = "\\$pc\$($result.ShareName)"
+    $abHost = Get-FlgIpv4ForCopier $copier.Ip
+    $abPath = "\\$abHost\$($result.ShareName)"
     Write-Info ((Get-FlgT '登錄到 {0} 通訊錄…' 'Adding to {0} address book…') -f $copier.Ip)
     $ab = Add-FlgRicohSmbEntry -CopierIp $copier.Ip -Name $abName -Path $abPath -User $abUser -Pass $result.Password
     if (-not $ab.Ok -and $ab.Auth) {
