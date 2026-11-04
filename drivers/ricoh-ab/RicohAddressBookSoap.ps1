@@ -1,9 +1,74 @@
 ﻿# Ricoh 通訊錄 SOAP（/DH/udirectory）。供「新增使用者代碼」「新增使用者EMAIL」使用。
+# 可用檔案執行，也可用 irm | iex 的 scriptblock 執行。
 $ErrorActionPreference = 'Stop'
 
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 } catch {
+}
+
+# 192.168.x.x 會把 SOAP 從 HTTP 轉到 HTTPS，憑證是自簽的。只接受區網位址。
+if (-not ('FlgCopierCert' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System.Net;
+using System.Net.Security;
+using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
+public static class FlgCopierCert {
+    public static bool Allow(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors errors) {
+        if (errors == SslPolicyErrors.None) return true;
+        HttpWebRequest req = sender as HttpWebRequest;
+        if (req == null || req.RequestUri == null) return false;
+        IPAddress ip;
+        if (!IPAddress.TryParse(req.RequestUri.Host, out ip)) return false;
+        if (ip.AddressFamily != AddressFamily.InterNetwork) return false;
+        byte[] b = ip.GetAddressBytes();
+        if (b[0] == 10 || b[0] == 127) return true;
+        if (b[0] == 192 && b[1] == 168) return true;
+        if (b[0] == 172 && b[1] >= 16 && b[1] <= 31) return true;
+        return false;
+    }
+    public static void Install() {
+        ServicePointManager.ServerCertificateValidationCallback = new RemoteCertificateValidationCallback(Allow);
+    }
+}
+'@
+}
+function Enable-RicohCopierCert { [FlgCopierCert]::Install() }
+
+function Get-RicohHostFile {
+    $name = 'lanyen-ricoh-host.txt'
+    # The irm download folder is deleted on exit, so the remembered IP stays beside it.
+    if (-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) {
+        $leaf = Split-Path -Leaf $PSScriptRoot
+        if ($leaf -ne 'lanyen-ricoh-ab') {
+            return (Join-Path $PSScriptRoot $name)
+        }
+    }
+    return (Join-Path ([IO.Path]::GetTempPath()) $name)
+}
+
+function ConvertTo-RicohUserMessage {
+    param([string]$Text)
+    if ([string]::IsNullOrWhiteSpace($Text)) {
+        return '影印機沒有回傳錯誤說明。'
+    }
+    if ($Text -match '帳號或密碼錯誤|通訊錄使用中|無法連上影印機') {
+        return $Text
+    }
+    if ($Text -match 'NOT_AUTHENTICATED') {
+        return '帳號或密碼錯誤。'
+    }
+    if ($Text -match 'SYSTEM_BUSY') {
+        return '通訊錄使用中或被鎖定，請稍後再試。'
+    }
+    if ($Text -match '信任關係|遠端憑證|SSL|TLS|secure channel') {
+        return '無法連上影印機的 HTTPS。機器使用自簽憑證，請改用最新版腳本。'
+    }
+    if ($Text -match '空字串|它是 Null|PSScriptRoot') {
+        return '腳本找不到自己的資料夾。請改用最新版腳本。'
+    }
+    return $Text
 }
 
 $script:RicohStartSessionXml = @'
@@ -45,7 +110,7 @@ $script:RicohEndSessionXml = @'
 
 function ConvertTo-RicohBase64 {
     param([string]$Text)
-    [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($Text))
+    [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$Text))
 }
 
 function ConvertTo-RicohUri {
@@ -65,43 +130,65 @@ function Get-RicohKeyDisplay {
     $Name.Substring(0, 16)
 }
 
-function Get-RicohFaultText {
-    param($ErrorRecord)
+function Invoke-RicohSoapOnce {
+    param(
+        [uri]$Endpoint,
+        [byte[]]$Bytes,
+        [string]$Method
+    )
 
-    $text = $null
-    if ($ErrorRecord.ErrorDetails) {
-        $text = [string]$ErrorRecord.ErrorDetails.Message
-    }
-    if ([string]::IsNullOrWhiteSpace($text) -and $ErrorRecord.Exception.Response) {
-        try {
-            $stream = $ErrorRecord.Exception.Response.GetResponseStream()
-            $reader = New-Object System.IO.StreamReader($stream)
-            $text = $reader.ReadToEnd()
-            $reader.Dispose()
-        } catch {
+    Enable-RicohCopierCert
+    $req = [Net.HttpWebRequest]::Create($Endpoint)
+    $req.Method = 'POST'
+    $req.AllowAutoRedirect = $false
+    $req.ContentType = 'text/xml; charset=utf-8'
+    $req.Timeout = 90000
+    $req.ReadWriteTimeout = 90000
+    $req.Headers.Add('SOAPAction', "http://www.ricoh.co.jp/xmlns/soap/rdh/udirectory#$Method")
+    $req.ContentLength = $Bytes.Length
+    $stream = $req.GetRequestStream()
+    try { $stream.Write($Bytes, 0, $Bytes.Length) } finally { $stream.Close() }
+
+    $response = $null
+    try {
+        $response = [Net.HttpWebResponse]$req.GetResponse()
+    } catch [System.Net.WebException] {
+        $errorResponse = $_.Exception.Response
+        $code = 0
+        try { if ($errorResponse) { $code = [int]$errorResponse.StatusCode } } catch {}
+        if ($code -ge 300 -and $code -lt 400 -and $errorResponse) {
+            $location = [string]$errorResponse.Headers['Location']
+            try { $errorResponse.Close() } catch {}
+            return [pscustomobject]@{ Redirect = $location; Text = '' }
         }
-    }
-    if ($text -and $text.TrimStart().StartsWith('<')) {
-        try {
-            [xml]$xml = $text
-            $fault = $xml.Envelope.Body.Fault
-            $desc = [string]$fault.detail.rdhError.errorDescription
-            if ([string]::IsNullOrWhiteSpace($desc)) {
-                $desc = [string]$fault.detail.rdhError.errorCode
-            }
-            if ([string]::IsNullOrWhiteSpace($desc)) {
-                $desc = [string]$fault.faultstring
-            }
-            if (-not [string]::IsNullOrWhiteSpace($desc)) {
-                return $desc
-            }
-        } catch {
+        $faultText = ''
+        if ($errorResponse) {
+            try {
+                $reader = New-Object System.IO.StreamReader($errorResponse.GetResponseStream(), [Text.Encoding]::UTF8)
+                $faultText = $reader.ReadToEnd()
+                $reader.Close()
+            } catch {}
+            try { $errorResponse.Close() } catch {}
         }
+        $detail = $_.Exception.Message
+        if ($faultText -match 'errorDescription>([^<]+)') { $detail = $Matches[1] }
+        elseif ($faultText -match 'errorCode>([^<]+)') { $detail = $Matches[1] }
+        elseif ($faultText -match 'faultstring>([^<]+)') { $detail = $Matches[1] }
+        throw (ConvertTo-RicohUserMessage $detail)
     }
-    if ([string]::IsNullOrWhiteSpace($text)) {
-        return $ErrorRecord.Exception.Message
+
+    try {
+        $code = [int]$response.StatusCode
+        if ($code -ge 300 -and $code -lt 400) {
+            return [pscustomobject]@{ Redirect = [string]$response.Headers['Location']; Text = '' }
+        }
+        $reader = New-Object System.IO.StreamReader($response.GetResponseStream(), [Text.Encoding]::UTF8)
+        $text = $reader.ReadToEnd()
+        $reader.Close()
+        return [pscustomobject]@{ Redirect = ''; Text = $text }
+    } finally {
+        $response.Close()
     }
-    return $text
 }
 
 function Invoke-RicohSoap {
@@ -113,27 +200,21 @@ function Invoke-RicohSoap {
 
     $endpoint = [uri]::new($PrinterUri, '/DH/udirectory')
     $bytes = [Text.Encoding]::UTF8.GetBytes($Body.OuterXml)
-    $headers = @{
-        SOAPAction = "http://www.ricoh.co.jp/xmlns/soap/rdh/udirectory#$Method"
-    }
-    $skipCert = $PrinterUri.Scheme -eq 'https'
-    $previous = [Net.ServicePointManager]::ServerCertificateValidationCallback
-    try {
-        if ($skipCert) {
-            [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+    $result = Invoke-RicohSoapOnce -Endpoint $endpoint -Bytes $bytes -Method $Method
+    if ($result.Redirect) {
+        $next = [string]$result.Redirect
+        if ($next -notmatch '^https?://') {
+            $next = ([uri]::new($endpoint, $next)).AbsoluteUri
         }
-        $response = Invoke-WebRequest -Uri $endpoint -Method Post -ContentType 'text/xml; charset=utf-8' -Headers $headers -Body $bytes -UseBasicParsing
-        if ([string]::IsNullOrWhiteSpace($response.Content)) {
-            return $null
-        }
-        return [xml]$response.Content
-    } catch {
-        throw (Get-RicohFaultText $_)
-    } finally {
-        if ($skipCert) {
-            [Net.ServicePointManager]::ServerCertificateValidationCallback = $previous
+        $result = Invoke-RicohSoapOnce -Endpoint ([uri]$next) -Bytes $bytes -Method $Method
+        if ($result.Redirect) {
+            throw ('影印機轉址沒有完成：' + $result.Redirect)
         }
     }
+    if ([string]::IsNullOrWhiteSpace($result.Text)) {
+        return $null
+    }
+    return [xml]$result.Text
 }
 
 function Open-RicohSession {
@@ -151,10 +232,25 @@ function Open-RicohSession {
     $node.lockMode = 'X'
     $node.timeLimit = '60'
 
-    $response = Invoke-RicohSoap -PrinterUri $PrinterUri -Body $xml -Method 'startSession'
+    $lastError = $null
+    $response = $null
+    for ($try = 1; $try -le 3; $try++) {
+        try {
+            $response = Invoke-RicohSoap -PrinterUri $PrinterUri -Body $xml -Method 'startSession'
+            $lastError = $null
+            break
+        } catch {
+            $lastError = [string]$_.Exception.Message
+            if ($lastError -match 'SYSTEM_BUSY|通訊錄使用中' -and $try -lt 3) {
+                Start-Sleep -Seconds 2
+                continue
+            }
+            throw (ConvertTo-RicohUserMessage $lastError)
+        }
+    }
     $sessionId = [string]$response.Envelope.Body.startSessionResponse.stringOut
     if ([string]::IsNullOrWhiteSpace($sessionId)) {
-        throw '登入失敗，機器沒有回傳 session。'
+        throw '登入失敗，機器沒有回傳登入階段。'
     }
     $sessionId
 }
@@ -232,7 +328,7 @@ function New-RicohCommonProperties {
 }
 
 function Read-RicohConnection {
-    $hostFile = Join-Path $PSScriptRoot 'ricoh-host.txt'
+    $hostFile = Get-RicohHostFile
     $defaultHost = ''
     if (Test-Path -LiteralPath $hostFile) {
         $defaultHost = (Get-Content -LiteralPath $hostFile -Encoding UTF8 | Select-Object -First 1)
@@ -265,7 +361,7 @@ function Read-RicohConnection {
     $sessionId = Open-RicohSession -PrinterUri $printerUri -Credential $credential
     Close-RicohSession -PrinterUri $printerUri -SessionId $sessionId
     Set-Content -LiteralPath $hostFile -Value $printerUri.AbsoluteUri -Encoding UTF8
-    Write-Host "登入成功：$($printerUri.AbsoluteUri)"
+    Write-Host "登入成功：$($printerUri.Host)"
     Write-Host ''
 
     [PSCustomObject]@{
