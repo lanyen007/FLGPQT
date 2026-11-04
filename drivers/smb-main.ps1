@@ -587,13 +587,22 @@ if ($copier) {
     Write-Host (Get-FlgT '  抓到機器名稱：（未找到，請確認影印機已開機並開啟 SNMP）' '  Copier model: (not found; check the copier is on and SNMP is enabled)') -ForegroundColor DarkYellow
     Write-Host (Get-FlgT '  抓到機器 IP：  （未找到）' '  Copier IP:    (not found)') -ForegroundColor DarkYellow
 }
-Write-Host ''
-Write-Host (Get-FlgT '登錄資訊' 'Login info') -ForegroundColor White
-Write-Host ((Get-FlgT '  主機名稱  {0}（設定的電腦主機名稱）' '  Host name  {0} (this PC host name)') -f $pc) -ForegroundColor Green
-Write-Host ((Get-FlgT '  共用名稱  {0}（設定固定資料夾名稱）' '  Share name {0} (fixed shared folder name)') -f $result.ShareName) -ForegroundColor Green
-Write-Host ((Get-FlgT '  使用者名稱 {0}（電腦主機\設定的登錄使用者）' '  User name  {0} (PC host\login user)') -f $userShown) -ForegroundColor Green
-Write-Host ((Get-FlgT '  密碼      {0}（預設使用者登錄密碼）' '  Password   {0} (default login password)') -f $result.Password) -ForegroundColor Green
-Write-Host ((Get-FlgT '  本機資料夾 {0}' '  Local folder {0}') -f $result.Folder) -ForegroundColor DarkGray
+$isFuji = ($copier -and ([string]$copier.Model -match '(?i)FUJI\s*XEROX|FUJIFILM|Apeos|DocuCentre'))
+if ($isFuji) {
+    Write-Host ''
+    Write-Host (Get-FlgT '登錄資訊' 'Login info') -ForegroundColor White
+    Write-Host ((Get-FlgT '  主機名稱  {0}（設定的電腦主機名稱）' '  Host name  {0} (this PC host name)') -f $pc) -ForegroundColor Green
+    Write-Host ((Get-FlgT '  共用名稱  {0}（設定固定資料夾名稱）' '  Share name {0} (fixed shared folder name)') -f $result.ShareName) -ForegroundColor Green
+    Write-Host ((Get-FlgT '  使用者名稱 {0}（電腦主機\設定的登錄使用者）' '  User name  {0} (PC host\login user)') -f $userShown) -ForegroundColor Green
+    Write-Host ((Get-FlgT '  密碼      {0}（預設使用者登錄密碼）' '  Password   {0} (default login password)') -f $result.Password) -ForegroundColor Green
+    Write-Host ((Get-FlgT '  本機資料夾 {0}' '  Local folder {0}') -f $result.Folder) -ForegroundColor DarkGray
+} elseif ($copier) {
+    Write-Host ''
+    Write-Host (Get-FlgT '  此廠牌的掃描登錄資訊暫不支援（目前只支援 FUJIFILM／富士全錄）。' '  Scan login info for this brand is not supported yet (FUJIFILM / Fuji Xerox only for now).') -ForegroundColor DarkYellow
+} else {
+    Write-Host ''
+    Write-Host (Get-FlgT '  未偵測到 FUJIFILM／富士全錄機器，略過登錄資訊。' '  No FUJIFILM / Fuji Xerox copier detected; login info skipped.') -ForegroundColor DarkYellow
+}
 foreach ($ip in $ips) { Write-Host ((Get-FlgT '  路徑（IP） \\{0}\{1}' '  Path (IP)  \\{0}\{1}') -f $ip, $result.ShareName) -ForegroundColor DarkGray }
 
 Write-Host ''
