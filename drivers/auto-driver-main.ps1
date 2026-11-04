@@ -165,6 +165,24 @@ try {
 }
 Remove-Variable __fujiLib, __fujiLocal, __fujiUrl, __fujiBytes -ErrorAction SilentlyContinue
 
+# Ricoh 機型 PCL6。SNMP 機型對得上才裝專用驅動；對不上仍用通用驅動。
+try {
+    $__ricohLib = $null
+    $__ricohLocal = Resolve-FlgOfflinePath 'drivers\ricoh-model-lib.ps1'
+    if ($__ricohLocal) {
+        $__ricohLib = [IO.File]::ReadAllText($__ricohLocal, [Text.Encoding]::UTF8)
+    } else {
+        $__ricohUrl = 'https://lanyen007.github.io/FLGPQT/drivers/ricoh-model-lib.ps1?t=' + [DateTime]::UtcNow.Ticks
+        $__ricohBytes = (New-Object Net.WebClient).DownloadData($__ricohUrl)
+        $__ricohLib = [Text.Encoding]::UTF8.GetString($__ricohBytes)
+    }
+    if ($__ricohLib.Length -gt 0 -and [int][char]$__ricohLib[0] -eq 0xFEFF) { $__ricohLib = $__ricohLib.Substring(1) }
+    . ([scriptblock]::Create($__ricohLib))
+} catch {
+    Write-WarnMsg ('Ricoh 機型對照表載入失敗，改走原本驅動：' + $_.Exception.Message)
+}
+Remove-Variable __ricohLib, __ricohLocal, __ricohUrl, __ricohBytes -ErrorAction SilentlyContinue
+
 function Invoke-FlgCounterHit([string]$Key) {
     if ([string]::IsNullOrWhiteSpace($Key)) { return }
     if (Test-FlgOffline) { return }
@@ -1046,6 +1064,26 @@ function Show-AfterMenu([string]$Path) {
 
 function Resolve-ModelAndDrivers {
     param([string]$ModelText, $CloudCatalog)
+    if (Get-Command Find-RicohModelDriver -ErrorAction SilentlyContinue) {
+        $ricohHit = Find-RicohModelDriver $ModelText
+        if ($ricohHit) {
+            $ricohResult = [ordered]@{
+                Brand = 'Ricoh'
+                Model = $ModelText
+                CatalogItem = $null
+                Candidates = @()
+                CloudDriver = $null
+                SupportUrl = $null
+                Ambiguous = $false
+                RicohModel = $true
+                RicohDriverName = [string]$ricohHit.DriverName
+                RicohPackageId = [string]$ricohHit.PackageId
+            }
+            Write-Ok ("對應 Ricoh 機型驅動：$($ricohHit.DriverName)")
+            Write-Host ("  驅動包：$($ricohHit.Package.File)  v$($ricohHit.Package.Version)") -ForegroundColor DarkGray
+            return [pscustomobject]$ricohResult
+        }
+    }
     if (Get-Command Find-FujiOldDriver -ErrorAction SilentlyContinue) {
         $oldHit = Find-FujiOldDriver $ModelText
         if ($oldHit) {
@@ -1166,7 +1204,9 @@ function Invoke-ProcessPrinter {
         $resolved.CatalogItem = Prompt-PickCandidate $resolved.Candidates
     }
     $downloaded = $null
-    if ($resolved.CatalogItem) {
+    if ($resolved.RicohModel) {
+        Write-Info ('使用機型 PCL6：' + $resolved.RicohDriverName)
+    } elseif ($resolved.CatalogItem) {
         try {
             $downloaded = Download-CatalogItem -Item $resolved.CatalogItem -ModelLabel $model
         } catch {
@@ -1185,7 +1225,15 @@ function Invoke-ProcessPrinter {
     }
 
     if ($Install) {
-        if ($resolved.FujiOld) {
+        if ($resolved.RicohModel) {
+            if (-not (Get-Command Install-RicohModelDriverPackage -ErrorAction SilentlyContinue)) {
+                throw '找不到 Ricoh 機型安裝程序。'
+            }
+            $printerName = Get-PrinterDisplayName -Prefix 'RICOH' -Model $model -Ip $Ip
+            Write-Info ("準備安裝印表機：$printerName")
+            Install-RicohModelDriverPackage -DriverName ([string]$resolved.RicohDriverName) -PackageId ([string]$resolved.RicohPackageId) -Ip $Ip -PrinterName $printerName
+            Invoke-FlgCounterHit 'install-ok-ricoh'
+        } elseif ($resolved.FujiOld) {
             if (-not $downloaded) { throw '舊版 FUJI 驅動下載失敗，未安裝通用驅動。' }
             if (-not (Get-Command Install-FujiOldDriverPackage -ErrorAction SilentlyContinue)) {
                 throw '找不到舊版 FUJI 安裝程序。'
@@ -1210,7 +1258,7 @@ function Invoke-ProcessPrinter {
         }
     }
 
-    if (-not $SkipAfterMenu -and -not ($Install -and $resolved.FujiOld)) { Show-AfterMenu $downloaded }
+    if (-not $SkipAfterMenu -and -not ($Install -and ($resolved.FujiOld -or $resolved.RicohModel))) { Show-AfterMenu $downloaded }
     return [pscustomobject]@{ Ip = $Ip; Model = $model; Brand = $resolved.Brand; Downloaded = $downloaded }
 }
 
@@ -1577,7 +1625,7 @@ function Show-ScanTable($Found) {
 # ---- main ----
 Write-Host ''
 Write-Host ('======== ' + (Get-FlgT 'lanyen 工具箱 自動驅動安裝' 'lanyen Toolkit Auto driver install') + ' ========') -ForegroundColor White
-Write-Host (Get-FlgT '區網掃描（9100／SNMP）→ 舊版 FUJI 對應舊版驅動，其餘用雲端通用驅動' 'LAN scan (9100/SNMP) → legacy FUJI uses the old installer; other models use the cloud driver') -ForegroundColor Gray
+Write-Host (Get-FlgT '區網掃描（9100／SNMP）→ Ricoh MP C3004／C3504／C4504／C6004（含 ex）與 MP C4503 系列裝機型 PCL6；舊版 FUJI 裝舊版驅動；其餘用雲端通用驅動' 'LAN scan (9100/SNMP) → Ricoh MP C3004/C3504/C4504/C6004 (including ex) and MP C4503 series use the model PCL6; legacy FUJI uses the old installer; other models use the cloud driver') -ForegroundColor Gray
 Write-Host ''
 
 if ($script:Mode -eq 'scan') {
@@ -1682,6 +1730,12 @@ try {
                 # treat as manual model name without IP — download only
                 Write-WarnMsg '未提供 IP，只下載驅動、不安裝印表機。'
                 $resolved = Resolve-ModelAndDrivers -ModelText $raw -CloudCatalog $cloud
+                if ($resolved.RicohModel) {
+                    $downloaded = Save-RicohModelPackage -PackageId ([string]$resolved.RicohPackageId)
+                    Write-Ok ("機型驅動：$($resolved.RicohDriverName)")
+                    Show-AfterMenu $downloaded
+                    return
+                }
                 if ($resolved.Ambiguous) { $resolved.CatalogItem = Prompt-PickCandidate $resolved.Candidates }
                 $downloaded = $null
                 if ($resolved.CatalogItem) {
