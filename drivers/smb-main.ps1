@@ -249,6 +249,33 @@ function Find-FlgCopiers {
     return @($found | Sort-Object { [version]$_.Ip })
 }
 
+function Add-FlgFujiSmbContact {
+    # Based on a recorded CWIS session (ApeosPort C5570): SOAP AddContact to /ssm/Management/Anonymous/Contact
+    param([string]$CopierIp, [string]$DisplayName, [string]$Server, [string]$Share, [string]$User, [string]$Pass, [pscredential]$Credential)
+    function X([string]$s) { return [Security.SecurityElement]::Escape([string]$s) }
+    $ns = 'http://www.fujixerox.co.jp/2014/08/ssm/management'
+    $action = "$ns/contact#AddContact"
+    $body = '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Header><msg:MessageInformation xmlns:msg="' + $ns + '/message"><msg:MessageExchangeType>RequestResponse</msg:MessageExchangeType><msg:MessageType>Request</msg:MessageType><msg:Action>' + $action + '</msg:Action><msg:From><msg:Address>' + $ns + '/soap/epr/client</msg:Address><msg:ReferenceParameters/></msg:From></msg:MessageInformation></soap:Header>' +
+        '<soap:Body><ct:AddContact xmlns:ct="' + $ns + '/contact"><ct:DataSource>Local</ct:DataSource><ct:Contacts><ct:Contact><ct:Type>Destination</ct:Type><ct:Favorite>false</ct:Favorite>' +
+        '<ct:DisplayName xml:space="preserve">' + (X $DisplayName) + '</ct:DisplayName><ct:SurName xml:space="preserve"></ct:SurName><ct:GivenName xml:space="preserve"></ct:GivenName><ct:CompanyName xml:space="preserve"></ct:CompanyName><ct:Key xml:space="preserve"></ct:Key>' +
+        '<ct:Destination><ct:Type>Server</ct:Type><ct:Favorite>false</ct:Favorite><ct:Server><ct:Type>SMB</ct:Type><ct:Address xml:space="preserve">' + (X $Server) + '</ct:Address><ct:Port>0</ct:Port>' +
+        '<ct:UserName xml:space="preserve">' + (X $User) + '</ct:UserName><ct:Password xml:space="preserve">' + (X $Pass) + '</ct:Password><ct:Volume xml:space="preserve">' + (X $Share) + '</ct:Volume><ct:Path xml:space="preserve"></ct:Path></ct:Server></ct:Destination></ct:Contact></ct:Contacts>' +
+        '<ct:Responds><cmn:Respond xmlns:cmn="http://www.fujixerox.co.jp/2012/07/ssm/management/common">#DESCENDANT</cmn:Respond></ct:Responds></ct:AddContact></soap:Body></soap:Envelope>'
+    $headers = @{ 'soapAction' = '"' + $action + '"'; 'X-Requested-With' = 'XMLHttpRequest'; 'Referer' = "http://$CopierIp/addressbook/index.html" }
+    $args2 = @{ Uri = "http://$CopierIp/ssm/Management/Anonymous/Contact"; Method = 'Post'; Body = [Text.Encoding]::UTF8.GetBytes($body); ContentType = 'text/xml; charset=UTF-8'; Headers = $headers; UseBasicParsing = $true; TimeoutSec = 15 }
+    if ($Credential) { $args2.Credential = $Credential }
+    try {
+        $r = Invoke-WebRequest @args2
+        $txt = [string]$r.Content
+        if ($txt -match 'AddContactResponse' -and $txt -match '<Identifier') { return [pscustomobject]@{ Ok = $true; Message = '' } }
+        $fault = [regex]::Match($txt, '<faultstring[^>]*>([^<]*)').Groups[1].Value
+        return [pscustomobject]@{ Ok = $false; Message = $(if ($fault) { $fault } else { $txt.Substring(0, [Math]::Min(200, $txt.Length)) }) }
+    } catch {
+        $code = $null; try { $code = [int]$_.Exception.Response.StatusCode } catch {}
+        return [pscustomobject]@{ Ok = $false; Code = $code; Message = $_.Exception.Message }
+    }
+}
+
 function Request-Elevation {
     Write-WarnMsg '需要系統管理員權限，即將跳出 UAC 提示…'
     $boot = 'https://lanyen007.github.io/FLGPQT/drivers/smb.ps1'
@@ -602,6 +629,28 @@ if ($isFuji) {
 } else {
     Write-Host ''
     Write-Host (Get-FlgT '  未偵測到 FUJIFILM／富士全錄機器，略過登錄資訊。' '  No FUJIFILM / Fuji Xerox copier detected; login info skipped.') -ForegroundColor DarkYellow
+}
+if ($isFuji -and -not $useCurrent) {
+    Write-Host ''
+    $ans = (Read-Host (Get-FlgT '自動登錄到影印機通訊錄？(Y/N，預設 Y)' 'Add this to the copier address book automatically? (Y/N, default Y)')).Trim()
+    if ($ans -eq '' -or $ans -match '^(?i)(y|yes|是)$') {
+        $abUser = "$pc\$($result.UserName)"
+        Write-Info ((Get-FlgT '登錄到 {0} 通訊錄…' 'Adding to {0} address book…') -f $copier.Ip)
+        $ab = Add-FlgFujiSmbContact -CopierIp $copier.Ip -DisplayName $pc -Server $pc -Share $result.ShareName -User $abUser -Pass $result.Password
+        if (-not $ab.Ok -and ($ab.Code -eq 401 -or $ab.Code -eq 403 -or $ab.Message -match '(?i)auth|permission|denied')) {
+            Write-WarnMsg (Get-FlgT '影印機要求管理員登入。' 'The copier requires an admin login.')
+            $au = (Read-Host (Get-FlgT '管理員帳號（預設 11111）' 'Admin user (default 11111)')).Trim(); if (-not $au) { $au = '11111' }
+            $ap = Read-Host (Get-FlgT '管理員密碼（預設 x-admin）' 'Admin password (default x-admin)'); if (-not $ap) { $ap = 'x-admin' }
+            $cred = New-Object pscredential ($au, (ConvertTo-SecureString $ap -AsPlainText -Force))
+            $ab = Add-FlgFujiSmbContact -CopierIp $copier.Ip -DisplayName $pc -Server $pc -Share $result.ShareName -User $abUser -Pass $result.Password -Credential $cred
+        }
+        if ($ab.Ok) {
+            Write-Ok ((Get-FlgT '已登錄到影印機通訊錄：{0}（伺服器 {1}，共用 {2}，使用者 {3}）' 'Added to copier address book: {0} (server {1}, share {2}, user {3})') -f $pc, $pc, $result.ShareName, $abUser)
+        } else {
+            Write-ErrMsg ((Get-FlgT '自動登錄失敗：' 'Automatic add failed: ') + $ab.Message)
+            Write-Host ((Get-FlgT '  請開啟 http://{0}/ → 通訊錄 → 新增，手動輸入上面的登錄資訊。' '  Open http://{0}/ → Address Book → Add, and enter the login info above manually.') -f $copier.Ip) -ForegroundColor Yellow
+        }
+    }
 }
 foreach ($ip in $ips) { Write-Host ((Get-FlgT '  路徑（IP） \\{0}\{1}' '  Path (IP)  \\{0}\{1}') -f $ip, $result.ShareName) -ForegroundColor DarkGray }
 
