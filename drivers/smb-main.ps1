@@ -330,6 +330,11 @@ function Invoke-FlgRicohHttp {
         $snip = $snip -replace '<script.*?</script>', '' -replace '<style.*?</style>', ''
         if ($snip.Length -gt 1200) { $snip = $snip.Substring(0, 1200) }
         $snip = $snip -replace '(name="password[^"]*"[^>]*value=")[^"]*', '$1***'
+        if ($txt -match 'class="errorMessage"') {
+            $plain = (($txt -replace '(?s)<script.*?</script>', '' -replace '(?s)<style.*?</style>', '' -replace '<[^>]+>', ' ') -replace '&nbsp;', ' ' -replace '\s+', ' ').Trim()
+            Write-FlgSmbLog ('RICOH ERROR PAGE TEXT: ' + $(if ($plain.Length -gt 1500) { $plain.Substring(0, 1500) } else { $plain }))
+            $script:FlgRicohLastError = $plain
+        }
         Write-FlgSmbLog ("RICOH HTTP $Method $Url form=[$logForm] -> " + [int]$resp.StatusCode + " len=" + $txt.Length + " body: " + $snip)
         return $txt
     } finally { $resp.Close() }
@@ -402,9 +407,10 @@ function Add-FlgRicohSmbEntry {
             Write-FlgSmbLog "RICOH entry index = max+1: $idx (wizard proposed: $wiz)"
         } elseif (-not $idx -and $listOk) { $idx = '00001'; Write-FlgSmbLog 'RICOH entry index 00001 (address book empty)' }
         else { Write-FlgSmbLog "RICOH entry index from wizard: $idx (list empty/unreadable)" }
-        if ($idx.Length -lt 5) { $idx = ([int]$idx).ToString('00000') }
+        if ($idx -and $idx.Length -lt 5) { $idx = ([int]$idx).ToString('00000') }
+        if ($idx -eq '00000') { $idx = '' }
         $t2 = [regex]::Match([string]$w, 'name="wimToken"[^>]*value="([^"]+)"').Groups[1].Value; if ($t2) { $tok = $t2 }
-        if (-not $idx) { return [pscustomobject]@{ Ok = $false; Message = 'no free entry index from wizard' } }
+        if (-not $idx) { return [pscustomobject]@{ Ok = $false; Message = 'no free entry index (copier error page: ' + ([string]$script:FlgRicohLastError).Substring(0, [Math]::Min(300, ([string]$script:FlgRicohLastError).Length)) + ')' } }
         $disp = $(if ($Name.Length -gt 16) { $Name.Substring(0, 16) } else { $Name })
         $a = Invoke-FlgRicohHttp -Cookies $cookies -Method POST -Url ($dir + 'adrsSetUserWizard.cgi') -Form ('mode=ADDUSER&step=BASE&wimToken=' + $tok + '&entryIndexIn=' + $idx + '&entryNameIn=' + (U $Name) + '&entryDisplayNameIn=' + (U $disp) + '&entryTagInfoIn=1&entryTagInfoIn=1&entryTagInfoIn=1&entryTagInfoIn=1') -Referer $ref -Headers $ajax
         if ([string]$a -notmatch '^\s*\[') { return [pscustomobject]@{ Ok = $false; Message = "BASE: $a" } }
