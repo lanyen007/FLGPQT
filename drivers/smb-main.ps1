@@ -235,10 +235,19 @@ function Find-FlgCopiers {
         foreach ($v in 1, 0) { $hr = Get-Str $Ip $hrDev $v; if ($hr) { break } }
         if (-not $m) { foreach ($v in 1, 0) { $m = Get-Str $Ip $sysDescr $v; if ($m) { break } } }
         $model = $m
+        $isRicohOid = $false
+        try {
+            $oidPkt = W 0x30 ([byte[]]@(2, 1, 1) + (W 4 ([Text.Encoding]::ASCII.GetBytes('public'))) + (W 0xA0 ([byte[]]@(2, 1, 2, 2, 1, 0, 2, 1, 0) + (W 0x30 (W 0x30 ([byte[]]@(6, 8, 0x2B, 6, 1, 2, 1, 1, 2, 0, 5, 0)))))))
+            $u2 = New-Object Net.Sockets.UdpClient; $u2.Client.ReceiveTimeout = 1200
+            [void]$u2.Send($oidPkt, $oidPkt.Length, $Ip, 161); $ep2 = New-Object Net.IPEndPoint ([Net.IPAddress]::Any, 0); $rr = $u2.Receive([ref]$ep2); $u2.Close()
+            $hex = [BitConverter]::ToString($rr)
+            if ($hex -match '2B-06-01-04-01-82-6F') { $isRicohOid = $true }
+        } catch {}
         if ($hr -and ($hr -match '(?i)RICOH|SHARP|FUJI|XEROX|Apeos|Canon|KONICA|bizhub|Kyocera|Epson|Brother|HP|Printer|MFP')) { $model = $hr }
         if (-not $model) { $model = $(if ($open) { '?' } else { $null }) }
         if (-not $model) { return $null }
         if ($model.Contains("`n")) { $model = ($model -split "`n")[0].Trim() }
+        if ($isRicohOid -and $model -notmatch '(?i)RICOH') { $model = 'RICOH ' + $model }
         return [pscustomobject]@{ Ip = $Ip; Model = $model }
     }
     $pool = [runspacefactory]::CreateRunspacePool(1, 64); $pool.Open()
@@ -273,6 +282,55 @@ function Add-FlgFujiSmbContact {
     } catch {
         $code = $null; try { $code = [int]$_.Exception.Response.StatusCode } catch {}
         return [pscustomobject]@{ Ok = $false; Code = $code; Message = $_.Exception.Message }
+    }
+}
+
+function Add-FlgRicohSmbEntry {
+    # Based on a recorded Web Image Monitor session (MP C5504): login.cgi -> adrsList.cgi -> adrsGetUserWizard.cgi -> adrsSetUserWizard.cgi (BASE, FOLDER, CONFIRM)
+    param([string]$CopierIp, [string]$Name, [string]$Path, [string]$User, [string]$Pass, [string]$AdminUser = 'admin', [string]$AdminPass = '', [int]$Port = 80)
+    $base = $(if ($Port -eq 80) { "http://$CopierIp" } else { "http://${CopierIp}:$Port" })
+    function B64([string]$s) { return [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$s)) }
+    function U([string]$s) { return [Uri]::EscapeDataString([string]$s) }
+    function Txt($r) { if ($r.Content -is [byte[]]) { return [Text.Encoding]::UTF8.GetString($r.Content) } else { return [string]$r.Content } }
+    function Tok([string]$html) { return [regex]::Match($html, 'name="wimToken"\s+value="(\d+)"').Groups[1].Value }
+    $s = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+    $s.Cookies.Add((New-Object Net.Cookie ('cookieOnOffChecker', 'on', '/', $CopierIp)))
+    $ajax = @{ 'X-Requested-With' = 'XMLHttpRequest'; 'Referer' = "$base/web/entry/tw/address/adrsList.cgi" }
+    $ct = 'application/x-www-form-urlencoded; charset=UTF-8'
+    $step = 'login'
+    try {
+        $r = Invoke-WebRequest -Uri "$base/web/guest/tw/websys/webArch/authForm.cgi" -WebSession $s -UseBasicParsing -TimeoutSec 15
+        $tok = Tok (Txt $r)
+        $body = 'wimToken=' + $tok + '&userid_work=&userid=' + (U (B64 $AdminUser)) + '&password_work=&password=' + (U $(if ($AdminPass) { B64 $AdminPass } else { '' })) + '&open='
+try { $null = Invoke-WebRequest -Uri "$base/web/guest/tw/websys/webArch/login.cgi" -Method Post -Body $body -ContentType 'application/x-www-form-urlencoded' -Headers @{ Referer = "$base/web/guest/tw/websys/webArch/authForm.cgi" } -WebSession $s -UseBasicParsing -TimeoutSec 15 } catch {}  # result is checked via adrsList.cgi below
+        $step = 'list'
+        $r = Invoke-WebRequest -Uri "$base/web/entry/tw/address/adrsList.cgi" -WebSession $s -UseBasicParsing -TimeoutSec 15
+        $tok = Tok (Txt $r)
+        if (-not $tok) { return [pscustomobject]@{ Ok = $false; Auth = $true; Message = 'login failed / no wimToken on address list' } }
+        $step = 'wizard'
+        $r = Invoke-WebRequest -Uri "$base/web/entry/tw/address/adrsGetUserWizard.cgi" -Method Post -Body ('mode=ADDUSER&outputSpecifyModeIn=DEFAULT&wimToken=' + $tok) -ContentType $ct -Headers $ajax -WebSession $s -UseBasicParsing -TimeoutSec 15
+        $w = Txt $r
+        $idx = [regex]::Match($w, 'name="entryIndexIn"\s+value="(\d+)"').Groups[1].Value
+        $t2 = Tok $w; if ($t2) { $tok = $t2 }
+        if (-not $idx) { return [pscustomobject]@{ Ok = $false; Message = 'no free entry index from wizard' } }
+        $disp = $(if ($Name.Length -gt 16) { $Name.Substring(0, 16) } else { $Name })
+        $step = 'BASE'
+        $r = Invoke-WebRequest -Uri "$base/web/entry/tw/address/adrsSetUserWizard.cgi" -Method Post -Body ('mode=ADDUSER&step=BASE&wimToken=' + $tok + '&entryIndexIn=' + $idx + '&entryNameIn=' + (U $Name) + '&entryDisplayNameIn=' + (U $disp) + '&entryTagInfoIn=1&entryTagInfoIn=1&entryTagInfoIn=1&entryTagInfoIn=1') -ContentType $ct -Headers $ajax -WebSession $s -UseBasicParsing -TimeoutSec 15
+        $a = Txt $r; if ($a -notmatch '^\s*\[') { return [pscustomobject]@{ Ok = $false; Message = "BASE: $a" } }
+        $step = 'FOLDER'
+        $pw = U (B64 $Pass)
+        $r = Invoke-WebRequest -Uri "$base/web/entry/tw/address/adrsSetUserWizard.cgi" -Method Post -Body ('mode=ADDUSER&step=FOLDER&wimToken=' + $tok + '&folderProtocolIn=SMB_O&folderPortNoIn=21&folderServerNameIn=&folderPathNameIn=' + (U $Path) + '&folderAuthUserNameIn=' + (U $User) + '&wk_folderPasswordIn=&folderPasswordIn=' + $pw + '&wk_folderPasswordConfirmIn=&folderPasswordConfirmIn=' + $pw) -ContentType $ct -Headers $ajax -WebSession $s -UseBasicParsing -TimeoutSec 15
+        $a = Txt $r; if ($a -notmatch '^\s*\[') { return [pscustomobject]@{ Ok = $false; Message = "FOLDER: $a" } }
+        $step = 'CONFIRM'
+        $r = Invoke-WebRequest -Uri "$base/web/entry/tw/address/adrsSetUserWizard.cgi" -Method Post -Body ('wimToken=' + $tok + '&stepListIn=BASE&stepListIn=FOLDER&mode=ADDUSER&step=CONFIRM') -ContentType $ct -Headers $ajax -WebSession $s -UseBasicParsing -TimeoutSec 15
+        $a = Txt $r
+        $ok = ($a -match "^\s*\[\[" -and $a -match "'$idx'")
+        try { $null = Invoke-WebRequest -Uri "$base/web/entry/tw/websys/webArch/logout.cgi" -Method Post -Body ('wimToken=' + $tok + '&open=') -ContentType 'application/x-www-form-urlencoded' -WebSession $s -UseBasicParsing -TimeoutSec 5 } catch {}
+        if ($ok) { return [pscustomobject]@{ Ok = $true; Index = $idx; Message = '' } }
+        return [pscustomobject]@{ Ok = $false; Message = "CONFIRM: " + $a.Substring(0, [Math]::Min(200, $a.Length)) }
+    } catch {
+        $code = $null; try { $code = [int]$_.Exception.Response.StatusCode } catch {}
+        return [pscustomobject]@{ Ok = $false; Code = $code; Auth = ($step -eq 'list' -and ($code -eq 401 -or $code -eq 403)); Message = "${step}: " + $_.Exception.Message }
     }
 }
 
@@ -615,7 +673,8 @@ if ($copier) {
     Write-Host (Get-FlgT '  抓到機器 IP：  （未找到）' '  Copier IP:    (not found)') -ForegroundColor DarkYellow
 }
 $isFuji = ($copier -and ([string]$copier.Model -match '(?i)FUJI\s*XEROX|FUJIFILM|Apeos|DocuCentre'))
-if ($isFuji) {
+$isRicoh = ($copier -and -not $isFuji -and ([string]$copier.Model -match '(?i)RICOH'))
+if ($isFuji -or $isRicoh) {
     Write-Host ''
     Write-Host (Get-FlgT '登錄資訊' 'Login info') -ForegroundColor White
     Write-Host ((Get-FlgT '  主機名稱  {0}（設定的電腦主機名稱）' '  Host name  {0} (this PC host name)') -f $pc) -ForegroundColor Green
@@ -625,10 +684,10 @@ if ($isFuji) {
     Write-Host ((Get-FlgT '  本機資料夾 {0}' '  Local folder {0}') -f $result.Folder) -ForegroundColor DarkGray
 } elseif ($copier) {
     Write-Host ''
-    Write-Host (Get-FlgT '  此廠牌的掃描登錄資訊暫不支援（目前只支援 FUJIFILM／富士全錄）。' '  Scan login info for this brand is not supported yet (FUJIFILM / Fuji Xerox only for now).') -ForegroundColor DarkYellow
+    Write-Host (Get-FlgT '  此廠牌的掃描登錄資訊暫不支援（目前只支援 FUJIFILM／富士全錄、RICOH）。' '  Scan login info for this brand is not supported yet (FUJIFILM / Fuji Xerox and RICOH only for now).') -ForegroundColor DarkYellow
 } else {
     Write-Host ''
-    Write-Host (Get-FlgT '  未偵測到 FUJIFILM／富士全錄機器，略過登錄資訊。' '  No FUJIFILM / Fuji Xerox copier detected; login info skipped.') -ForegroundColor DarkYellow
+    Write-Host (Get-FlgT '  未偵測到 FUJIFILM／富士全錄或 RICOH 機器，略過登錄資訊。' '  No FUJIFILM / Fuji Xerox or RICOH copier detected; login info skipped.') -ForegroundColor DarkYellow
 }
 if ($isFuji -and -not $useCurrent) {
     Write-Host ''
@@ -651,6 +710,26 @@ if ($isFuji -and -not $useCurrent) {
             Write-ErrMsg ((Get-FlgT '自動登錄失敗：' 'Automatic add failed: ') + $ab.Message)
             Write-Host ((Get-FlgT '  請開啟 http://{0}/ → 通訊錄 → 新增，手動輸入上面的登錄資訊。' '  Open http://{0}/ → Address Book → Add, and enter the login info above manually.') -f $copier.Ip) -ForegroundColor Yellow
         }
+    }
+}
+if ($isRicoh -and -not $useCurrent) {
+    Write-Host ''
+    $abName = (Read-Host ((Get-FlgT '通訊錄名稱（Enter = {0}）' 'Address book name (Enter = {0})') -f $pc)).Trim()
+    if (-not $abName) { $abName = $pc }
+    $abUser = "$pc\$($result.UserName)"
+    $abPath = "\\$pc\$($result.ShareName)"
+    Write-Info ((Get-FlgT '登錄到 {0} 通訊錄…' 'Adding to {0} address book…') -f $copier.Ip)
+    $ab = Add-FlgRicohSmbEntry -CopierIp $copier.Ip -Name $abName -Path $abPath -User $abUser -Pass $result.Password
+    if (-not $ab.Ok -and $ab.Auth) {
+        Write-WarnMsg (Get-FlgT '影印機管理員登入失敗（預設 admin／空白密碼）。' 'Copier admin login failed (default admin / blank password).')
+        $ap = Read-Host (Get-FlgT '輸入 admin 密碼（Enter = 略過）' 'Enter the admin password (Enter = skip)')
+        if ($ap) { $ab = Add-FlgRicohSmbEntry -CopierIp $copier.Ip -Name $abName -Path $abPath -User $abUser -Pass $result.Password -AdminPass $ap }
+    }
+    if ($ab.Ok) {
+        Write-Ok ((Get-FlgT '已登錄到影印機通訊錄：{0}（編號 {1}，路徑 {2}，使用者 {3}）' 'Added to copier address book: {0} (no. {1}, path {2}, user {3})') -f $abName, $ab.Index, $abPath, $abUser)
+    } else {
+        Write-ErrMsg ((Get-FlgT '自動登錄失敗：' 'Automatic add failed: ') + $ab.Message)
+        Write-Host ((Get-FlgT '  請開啟 http://{0}/ → 登入 admin → 通訊錄 → 新增使用者 → 資料夾（SMB），手動輸入上面的登錄資訊。' '  Open http://{0}/ → log in as admin → Address Book → Add User → Folder (SMB), and enter the login info above manually.') -f $copier.Ip) -ForegroundColor Yellow
     }
 }
 foreach ($ip in $ips) { Write-Host ((Get-FlgT '  路徑（IP） \\{0}\{1}' '  Path (IP)  \\{0}\{1}') -f $ip, $result.ShareName) -ForegroundColor DarkGray }
