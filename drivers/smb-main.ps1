@@ -8,6 +8,35 @@ $script:FlgSmbLog = Join-Path ([IO.Path]::GetTempPath()) 'lanyen_smb.log'
 trap { Write-FlgSmbLog ('FATAL: ' + ($_ | Out-String) + $_.ScriptStackTrace); Write-Host ('錯誤 / Error: ' + $_.Exception.Message) -ForegroundColor Red; Write-Host ('Log: ' + $script:FlgSmbLog) -ForegroundColor Yellow; try { [void](Read-Host 'Press Enter / 按 Enter 結束') } catch {}; break }
 function Write-FlgSmbLog([string]$Message) { try { Add-Content -LiteralPath $script:FlgSmbLog -Value ('{0:yyyy-MM-dd HH:mm:ss} {1}' -f (Get-Date), $Message) -Encoding UTF8 } catch {} }
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
+# Ricoh on 192.168.x.x redirects SOAP from HTTP to HTTPS and presents a self-signed certificate.
+# Accept that certificate only for private IPv4 addresses. Public hosts keep normal validation.
+if (-not ('FlgCopierCert' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System.Net;
+using System.Net.Security;
+using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
+public static class FlgCopierCert {
+    public static bool Allow(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors errors) {
+        if (errors == SslPolicyErrors.None) return true;
+        HttpWebRequest req = sender as HttpWebRequest;
+        if (req == null || req.RequestUri == null) return false;
+        IPAddress ip;
+        if (!IPAddress.TryParse(req.RequestUri.Host, out ip)) return false;
+        if (ip.AddressFamily != AddressFamily.InterNetwork) return false;
+        byte[] b = ip.GetAddressBytes();
+        if (b[0] == 10 || b[0] == 127) return true;
+        if (b[0] == 192 && b[1] == 168) return true;
+        if (b[0] == 172 && b[1] >= 16 && b[1] <= 31) return true;
+        return false;
+    }
+    public static void Install() {
+        ServicePointManager.ServerCertificateValidationCallback = new RemoteCertificateValidationCallback(Allow);
+    }
+}
+'@
+}
+function Enable-FlgCopierCert { [FlgCopierCert]::Install() }
 
 $IsWindowsOs = $false
 try {
@@ -291,6 +320,7 @@ function Add-FlgFujiSmbContact {
 # ---- RICOH Web Image Monitor login: port of RICOH使用者計數下載.exe 1.0.1 (Login/Get/Post/Prepare/Read/AddCookie) ----
 function Invoke-FlgRicohHttp {
     param([Net.CookieContainer]$Cookies, [string]$Method, [string]$Url, [string]$Form, [string]$Referer, [hashtable]$Headers)
+    Enable-FlgCopierCert
     $req = [Net.HttpWebRequest][Net.WebRequest]::Create($Url)
     $req.CookieContainer = $Cookies
     $req.UserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36'
@@ -377,7 +407,7 @@ function Add-FlgRicohSmbEntry {
     # SOAP http://IP/DH/udirectory, not the Web Image Monitor address wizard.
     # On MP C6004ex the wizard returns "too many users" / session-timeout HTML, and SOAP port 21 returns result code 302.
     # The body must be UTF-8 bytes. Windows PowerShell 5.1 Invoke-WebRequest stores CJK names as "??".
-    # The path is \\<PC hostname>\<share name> (user rule).
+    # The path must be \\<this PC's IPv4>\share. A computer-name UNC is stored, but the copier often cannot resolve it.
     param([string]$CopierIp, [string]$Name, [string]$Path, [string]$User, [string]$Pass, [string]$AdminUser = 'admin', [string]$AdminPass = '', [string]$Lang = 'tw', [int]$Port = 80)
     $hostName = $(if ($Port -eq 80) { $CopierIp } else { "${CopierIp}:$Port" })
     $ns = 'http://www.ricoh.co.jp/xmlns/soap/rdh/udirectory'
@@ -406,28 +436,38 @@ $Inner
 </s:Envelope>
 "@
     }
-    function Send-FlgSoap([string]$Action, [string]$Xml) {
-        $req = [Net.HttpWebRequest]::Create("http://$hostName/DH/udirectory")
+    function Send-FlgSoapOnce([string]$Url, [string]$Action, [byte[]]$Bytes) {
+        Enable-FlgCopierCert
+        $req = [Net.HttpWebRequest]::Create($Url)
         $req.Method = 'POST'
+        $req.AllowAutoRedirect = $false
         $req.ContentType = 'text/xml; charset=utf-8'
         $req.Timeout = 90000
         $req.ReadWriteTimeout = 90000
         $req.Headers.Add('SOAPAction', ($ns + '#' + $Action))
-        $bytes = [Text.Encoding]::UTF8.GetBytes($Xml)
-        $req.ContentLength = $bytes.Length
+        $req.ContentLength = $Bytes.Length
         $st = $req.GetRequestStream()
-        try { $st.Write($bytes, 0, $bytes.Length) } finally { $st.Close() }
+        try { $st.Write($Bytes, 0, $Bytes.Length) } finally { $st.Close() }
+        $resp = $null
         try {
             $resp = [Net.HttpWebResponse]$req.GetResponse()
         } catch [System.Net.WebException] {
-            $txt = ''
             $er = $_.Exception.Response
+            $code = 0
+            try { if ($er) { $code = [int]$er.StatusCode } } catch {}
+            if ($code -ge 300 -and $code -lt 400 -and $er) {
+                $loc = [string]$er.Headers['Location']
+                try { $er.Close() } catch {}
+                return [pscustomobject]@{ Redirect = $loc; Text = '' }
+            }
+            $txt = ''
             if ($er) {
                 try {
                     $sr = New-Object IO.StreamReader($er.GetResponseStream(), [Text.Encoding]::UTF8)
                     $txt = $sr.ReadToEnd()
                     $sr.Close()
                 } catch {}
+                try { $er.Close() } catch {}
             }
             $detail = ''
             if ($txt -match 'errorDescription>([^<]+)') { $detail = $Matches[1] }
@@ -438,11 +478,26 @@ $Inner
             throw $ex
         }
         try {
+            if ([int]$resp.StatusCode -ge 300 -and [int]$resp.StatusCode -lt 400) {
+                return [pscustomobject]@{ Redirect = [string]$resp.Headers['Location']; Text = '' }
+            }
             $sr = New-Object IO.StreamReader($resp.GetResponseStream(), [Text.Encoding]::UTF8)
             $txt = $sr.ReadToEnd()
             $sr.Close()
-            return $txt
+            return [pscustomobject]@{ Redirect = ''; Text = $txt }
         } finally { $resp.Close() }
+    }
+    function Send-FlgSoap([string]$Action, [string]$Xml) {
+        $bytes = [Text.Encoding]::UTF8.GetBytes($Xml)
+        $url = "http://$hostName/DH/udirectory"
+        $result = Send-FlgSoapOnce $url $Action $bytes
+        if ($result.Redirect) {
+            $next = [string]$result.Redirect
+            if ($next -notmatch '^https?://') { $next = ([Uri]::new([Uri]$url, $next)).AbsoluteUri }
+            $result = Send-FlgSoapOnce $next $Action $bytes
+            if ($result.Redirect) { throw ('SOAP redirect not followed: ' + $result.Redirect) }
+        }
+        return [string]$result.Text
     }
     function Read-FlgEntryMaps([string]$XmlText) {
         $doc = New-Object Xml.XmlDocument
@@ -989,7 +1044,7 @@ if ($isRicoh -and -not $useCurrent) {
     $abName = (Read-Host ((Get-FlgT '名稱（Enter = {0}）' 'Name (Enter = {0})') -f '掃描')).Trim()
     if (-not $abName) { $abName = '掃描' }   # 名稱 = 按鍵名稱
     $abUser = [string]$result.UserName   # both Ricoh recordings use the bare user name (scanner)
-    $abHost = $pc   # user rule: \\<PC hostname>\<share name>
+    $abHost = Get-FlgIpv4ForCopier $copier.Ip
     $abPath = "\\$abHost\$($result.ShareName)"
     Write-Info ((Get-FlgT '登錄到 {0} 通訊錄…' 'Adding to {0} address book…') -f $copier.Ip)
     $ab = Add-FlgRicohSmbEntry -CopierIp $copier.Ip -Name $abName -Path $abPath -User $abUser -Pass $result.Password
