@@ -184,6 +184,71 @@ function Get-LocalIPv4List {
     return @($list)
 }
 
+function Find-FlgCopiers {
+    # Parallel LAN scan: TCP 9100, then SNMP v2c/v1 'public' GET sysDescr / hrDeviceDescr
+    $hosts = New-Object System.Collections.ArrayList
+    foreach ($ip in @(Get-LocalIPv4List)) {
+        if ($ip -notmatch '^(\d+\.\d+\.\d+)\.\d+$') { continue }
+        $pre = $Matches[1]
+        for ($i = 1; $i -le 254; $i++) { $h = "$pre.$i"; if ($h -ne $ip -and $hosts -notcontains $h) { [void]$hosts.Add($h) } }
+    }
+    if ($hosts.Count -eq 0) { return @() }
+    Write-Info ((Get-FlgT '掃描區網影印機（TCP 9100 + SNMP）… {0} 台' 'Scanning LAN for copiers (TCP 9100 + SNMP)… {0} hosts') -f $hosts.Count)
+    $sb = {
+        param($Ip)
+        function L([int]$n) { if ($n -lt 0x80) { ,[byte[]]@($n) } else { ,[byte[]]@(0x81, $n) } }
+        function W([byte]$tag, [byte[]]$c) { ,([byte[]]@($tag) + (L $c.Length) + $c) }
+        function Get-Str($Ip, [byte[]]$oid, [int]$ver) {
+            $vb = W 0x30 (W 0x30 ($oid + [byte[]]@(5, 0)))
+            $pdu = W 0xA0 ([byte[]]@(2, 1, 1, 2, 1, 0, 2, 1, 0) + $vb)
+            $pkt = W 0x30 ([byte[]]@(2, 1, $ver) + (W 4 ([Text.Encoding]::ASCII.GetBytes('public'))) + $pdu)
+            $u = New-Object Net.Sockets.UdpClient
+            try {
+                $u.Client.ReceiveTimeout = 1200
+                [void]$u.Send($pkt, $pkt.Length, $Ip, 161)
+                $ep = New-Object Net.IPEndPoint ([Net.IPAddress]::Any, 0)
+                $r = $u.Receive([ref]$ep)
+                # last OCTET STRING in response = value
+                $i = 0; $val = $null
+                while ($i -lt $r.Length - 1) {
+                    $tag = $r[$i]; $len = [int]$r[$i + 1]; $hs = 2
+                    if ($len -ge 0x80) { $n = $len -band 0x7F; $len = 0; for ($k = 0; $k -lt $n; $k++) { $len = ($len -shl 8) -bor $r[$i + 2 + $k] }; $hs = 2 + $n }
+                    if ($tag -eq 0x30 -or $tag -ge 0xA0) { $i += $hs; continue }
+                    if ($tag -eq 4 -and ($i + $hs + $len) -le $r.Length) { $val = [Text.Encoding]::UTF8.GetString($r, $i + $hs, $len) }
+                    $i += $hs + $len
+                }
+                if ($val -and $val -ne 'public') { return $val.Trim([char]0).Trim() }
+            } catch {} finally { $u.Close() }
+            return $null
+        }
+        $tcp = New-Object Net.Sockets.TcpClient
+        $open = $false
+        try { $iar = $tcp.BeginConnect($Ip, 9100, $null, $null); if ($iar.AsyncWaitHandle.WaitOne(400, $false)) { $tcp.EndConnect($iar); $open = $tcp.Connected } } catch {} finally { $tcp.Close() }
+        $sysDescr = [byte[]]@(6, 8, 0x2B, 6, 1, 2, 1, 1, 1, 0)
+        $hrDev = [byte[]]@(6, 11, 0x2B, 6, 1, 2, 1, 0x19, 3, 2, 1, 3, 1)
+        if (-not $open) {
+            # quick SNMP-only probe (some copiers block 9100)
+            $m = Get-Str $Ip $sysDescr 1
+            if (-not $m) { return $null }
+        } else { $m = $null }
+        $hr = $null
+        foreach ($v in 1, 0) { $hr = Get-Str $Ip $hrDev $v; if ($hr) { break } }
+        if (-not $m) { foreach ($v in 1, 0) { $m = Get-Str $Ip $sysDescr $v; if ($m) { break } } }
+        $model = $m
+        if ($hr -and ($hr -match '(?i)RICOH|SHARP|FUJI|XEROX|Apeos|Canon|KONICA|bizhub|Kyocera|Epson|Brother|HP|Printer|MFP')) { $model = $hr }
+        if (-not $model) { $model = $(if ($open) { '?' } else { $null }) }
+        if (-not $model) { return $null }
+        if ($model.Contains("`n")) { $model = ($model -split "`n")[0].Trim() }
+        return [pscustomobject]@{ Ip = $Ip; Model = $model }
+    }
+    $pool = [runspacefactory]::CreateRunspacePool(1, 64); $pool.Open()
+    $jobs = foreach ($h in $hosts) { $ps = [powershell]::Create().AddScript($sb).AddArgument($h); $ps.RunspacePool = $pool; [pscustomobject]@{ PS = $ps; H = $ps.BeginInvoke() } }
+    $found = New-Object System.Collections.ArrayList
+    foreach ($j in $jobs) { try { foreach ($r in $j.PS.EndInvoke($j.H)) { if ($r) { [void]$found.Add($r) } } } catch {}; $j.PS.Dispose() }
+    $pool.Close(); $pool.Dispose()
+    return @($found | Sort-Object { [version]$_.Ip })
+}
+
 function Request-Elevation {
     Write-WarnMsg '需要系統管理員權限，即將跳出 UAC 提示…'
     $boot = 'https://lanyen007.github.io/FLGPQT/drivers/smb.ps1'
@@ -475,7 +540,7 @@ if ($who -eq '0') { Write-Info ('已' + (Get-FlgExitLabel) + '。'); return }
 if ($who -eq '2') { $useCurrent = $true }
 
 $userName = 'scanner'
-$password = 'scanner1234'
+$password = 'scanner'
 if (-not $useCurrent) {
     $uIn = (Read-Host '本機使用者名稱（預設 scan）').Trim()
     if ($uIn -eq '0') { Write-Info ('已' + (Get-FlgExitLabel) + '。'); return }
@@ -499,15 +564,38 @@ try {
 $ips = Get-LocalIPv4List
 $pc = $env:COMPUTERNAME
 
-Write-Host ''
-Write-Host '======== 請把下列資料填到影印機 ========' -ForegroundColor Yellow
-foreach ($ip in $ips) {
-    Write-Host ("  路徑（IP）：  \\{0}\{1}" -f $ip, $result.ShareName) -ForegroundColor Green
+$copiers = @()
+try { $copiers = @(Find-FlgCopiers) } catch { Write-WarnMsg ((Get-FlgT '掃描影印機失敗：' 'Copier scan failed: ') + $_.Exception.Message) }
+$copier = $null
+if ($copiers.Count -eq 1) { $copier = $copiers[0] }
+elseif ($copiers.Count -gt 1) {
+    Write-Host ''
+    Write-Host (Get-FlgT '找到多台影印機：' 'Multiple copiers found:') -ForegroundColor White
+    for ($i = 0; $i -lt $copiers.Count; $i++) { Write-Host ('  [{0}] {1}  {2}' -f ($i + 1), $copiers[$i].Ip, $copiers[$i].Model) }
+    $pick = (Read-Host (Get-FlgT '選擇要設定的機器編號（Enter=1）' 'Pick the copier number (Enter=1)')).Trim()
+    $pn = 1; if (-not [int]::TryParse($pick, [ref]$pn) -or $pn -lt 1 -or $pn -gt $copiers.Count) { $pn = 1 }
+    $copier = $copiers[$pn - 1]
 }
-Write-Host ("  路徑（名稱）：\\{0}\{1}" -f $pc, $result.ShareName) -ForegroundColor Green
-Write-Host ("  使用者：      {0}" -f $result.AccessAccount) -ForegroundColor Green
-Write-Host ("  密碼：        {0}" -f $result.Password) -ForegroundColor Green
-Write-Host ("  本機資料夾：  {0}" -f $result.Folder) -ForegroundColor DarkGray
+$userShown = $(if ($useCurrent) { [string]$result.AccessAccount } else { "$pc\$($result.UserName)" })
+
+Write-Host ''
+Write-Host ('======== ' + (Get-FlgT 'SMB 設定' 'SMB setup') + ' ========') -ForegroundColor Yellow
+if ($copier) {
+    Write-Host ((Get-FlgT '  抓到機器名稱：' '  Copier model: ') + $copier.Model) -ForegroundColor Green
+    Write-Host ((Get-FlgT '  抓到機器 IP：  ' '  Copier IP:    ') + $copier.Ip) -ForegroundColor Green
+} else {
+    Write-Host (Get-FlgT '  抓到機器名稱：（未找到，請確認影印機已開機並開啟 SNMP）' '  Copier model: (not found; check the copier is on and SNMP is enabled)') -ForegroundColor DarkYellow
+    Write-Host (Get-FlgT '  抓到機器 IP：  （未找到）' '  Copier IP:    (not found)') -ForegroundColor DarkYellow
+}
+Write-Host ''
+Write-Host (Get-FlgT '登錄資訊' 'Login info') -ForegroundColor White
+Write-Host ((Get-FlgT '  主機名稱  {0}（設定的電腦主機名稱）' '  Host name  {0} (this PC host name)') -f $pc) -ForegroundColor Green
+Write-Host ((Get-FlgT '  共用名稱  {0}（設定固定資料夾名稱）' '  Share name {0} (fixed shared folder name)') -f $result.ShareName) -ForegroundColor Green
+Write-Host ((Get-FlgT '  使用者名稱 {0}（電腦主機\設定的登錄使用者）' '  User name  {0} (PC host\login user)') -f $userShown) -ForegroundColor Green
+Write-Host ((Get-FlgT '  密碼      {0}（預設使用者登錄密碼）' '  Password   {0} (default login password)') -f $result.Password) -ForegroundColor Green
+Write-Host ((Get-FlgT '  本機資料夾 {0}' '  Local folder {0}') -f $result.Folder) -ForegroundColor DarkGray
+foreach ($ip in $ips) { Write-Host ((Get-FlgT '  路徑（IP） \\{0}\{1}' '  Path (IP)  \\{0}\{1}') -f $ip, $result.ShareName) -ForegroundColor DarkGray }
+
 Write-Host ''
 Write-Host '各品牌提示：' -ForegroundColor Cyan
 Write-Host '  Ricoh：掃描到資料夾 → SMB／FTP 選 SMB；路徑 \\IP\scan 或 /scan；填網域可留空或填電腦名。'
