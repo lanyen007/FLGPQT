@@ -3,7 +3,8 @@
 $ErrorActionPreference = 'Stop'
 
 try {
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    # Old RICOH (e.g. MP C6004ex) may only speak TLS 1.0/1.1.
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls
 } catch {
 }
 

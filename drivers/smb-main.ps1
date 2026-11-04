@@ -7,7 +7,38 @@ $ErrorActionPreference = 'Stop'
 $script:FlgSmbLog = Join-Path ([IO.Path]::GetTempPath()) 'lanyen_smb.log'
 trap { Write-FlgSmbLog ('FATAL: ' + ($_ | Out-String) + $_.ScriptStackTrace); Write-Host ('錯誤 / Error: ' + $_.Exception.Message) -ForegroundColor Red; Write-Host ('Log: ' + $script:FlgSmbLog) -ForegroundColor Yellow; try { [void](Read-Host 'Press Enter / 按 Enter 結束') } catch {}; break }
 function Write-FlgSmbLog([string]$Message) { try { Add-Content -LiteralPath $script:FlgSmbLog -Value ('{0:yyyy-MM-dd HH:mm:ss} {1}' -f (Get-Date), $Message) -Encoding UTF8 } catch {} }
-try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
+# Old RICOH (e.g. MP C6004ex) may only speak TLS 1.0/1.1, and copiers redirect SOAP to HTTPS with a self-signed cert.
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls } catch {}
+# 192.168.x.x 會把 SOAP 從 HTTP 轉到 HTTPS，憑證是自簽的。只接受區網位址。
+try {
+if (-not ('FlgCopierCert' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System.Net;
+using System.Net.Security;
+using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
+public static class FlgCopierCert {
+    public static bool Allow(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors errors) {
+        if (errors == SslPolicyErrors.None) return true;
+        HttpWebRequest req = sender as HttpWebRequest;
+        if (req == null || req.RequestUri == null) return false;
+        IPAddress ip;
+        if (!IPAddress.TryParse(req.RequestUri.Host, out ip)) return false;
+        if (ip.AddressFamily != AddressFamily.InterNetwork) return false;
+        byte[] b = ip.GetAddressBytes();
+        if (b[0] == 10 || b[0] == 127) return true;
+        if (b[0] == 192 && b[1] == 168) return true;
+        if (b[0] == 172 && b[1] >= 16 && b[1] <= 31) return true;
+        return false;
+    }
+    public static void Install() {
+        ServicePointManager.ServerCertificateValidationCallback = new RemoteCertificateValidationCallback(Allow);
+    }
+}
+'@
+}
+} catch { Write-FlgSmbLog ('cert helper: ' + $_.Exception.Message) }
+try { [FlgCopierCert]::Install() } catch {}
 
 $IsWindowsOs = $false
 try {
@@ -389,6 +420,7 @@ function Add-FlgRicohSmbEntry {
     # The path is \\<PC hostname>\<share name> (user rule).
     param([string]$CopierIp, [string]$Name, [string]$Path, [string]$User, [string]$Pass, [string]$AdminUser = 'admin', [string]$AdminPass = '', [string]$Lang = 'tw', [int]$Port = 80)
     $hostName = $(if ($Port -eq 80) { $CopierIp } else { "${CopierIp}:$Port" })
+    $script:FlgSoapUrl = $null
     $ns = 'http://www.ricoh.co.jp/xmlns/soap/rdh/udirectory'
     function XmlEscape([string]$s) {
         if ($null -eq $s) { return '' }
@@ -416,7 +448,21 @@ $Inner
 "@
     }
     function Send-FlgSoap([string]$Action, [string]$Xml) {
-        $req = [Net.HttpWebRequest]::Create("http://$hostName/DH/udirectory")
+        # Copier may 301/302/307 the SOAP POST to https://; re-POST there (HttpWebRequest would turn it into a GET).
+        if (-not $script:FlgSoapUrl) { $script:FlgSoapUrl = "http://$hostName/DH/udirectory" }
+        for ($hop = 0; $hop -lt 4; $hop++) {
+            $r = Send-FlgSoapOnce $script:FlgSoapUrl $Action $Xml
+            if (-not $r.Redirect) { return $r.Text }
+            $next = [string]$r.Redirect
+            if ($next -notmatch '^https?://') { $next = ([Uri]::new([Uri]$script:FlgSoapUrl, $next)).AbsoluteUri }
+            Write-FlgSmbLog ('SOAP redirect -> ' + $next)
+            $script:FlgSoapUrl = $next
+        }
+        throw ('SOAP redirect loop: ' + $script:FlgSoapUrl)
+    }
+    function Send-FlgSoapOnce([string]$Url, [string]$Action, [string]$Xml) {
+        $req = [Net.HttpWebRequest]::Create($Url)
+        $req.AllowAutoRedirect = $false
         $req.Method = 'POST'
         $req.ContentType = 'text/xml; charset=utf-8'
         $req.Timeout = 90000
@@ -428,9 +474,11 @@ $Inner
         try { $st.Write($bytes, 0, $bytes.Length) } finally { $st.Close() }
         try {
             $resp = [Net.HttpWebResponse]$req.GetResponse()
+            if ([int]$resp.StatusCode -ge 300 -and [int]$resp.StatusCode -lt 400) { $loc = [string]$resp.Headers['Location']; $resp.Close(); return [pscustomobject]@{ Redirect = $loc; Text = '' } }
         } catch [System.Net.WebException] {
             $txt = ''
             $er = $_.Exception.Response
+            if ($er -and [int]$er.StatusCode -ge 300 -and [int]$er.StatusCode -lt 400 -and $er.Headers['Location']) { return [pscustomobject]@{ Redirect = [string]$er.Headers['Location']; Text = '' } }
             if ($er) {
                 try {
                     $sr = New-Object IO.StreamReader($er.GetResponseStream(), [Text.Encoding]::UTF8)
@@ -450,7 +498,7 @@ $Inner
             $sr = New-Object IO.StreamReader($resp.GetResponseStream(), [Text.Encoding]::UTF8)
             $txt = $sr.ReadToEnd()
             $sr.Close()
-            return $txt
+            return [pscustomobject]@{ Redirect = ''; Text = $txt }
         } finally { $resp.Close() }
     }
     function Read-FlgEntryMaps([string]$XmlText) {
