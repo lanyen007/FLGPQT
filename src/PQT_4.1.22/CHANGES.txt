@@ -1,3 +1,21 @@
+PQT007 4.1.22 變更說明（以 4.1.21 為基礎）
+
+【修正：FUJI XEROX／ApeosPort-VII 設備名稱 UTF-8 中文亂碼】
+狀況：較新全錄／FUJIFILM（例如 ApeosPort-VII）以 UTF-8 送出設備名稱。
+舊版 Xerox 路徑會用 Shift-JIS（CP932）一起評分，合法 UTF-8 中文被誤判，
+「竹興非營利-2643」顯示成「遶ｹ闊磯撼辯溷茜-2643」。
+
+修正（Repair-SnmpText，行為已在 main 的 a45b1e5，本版標為 4.1.22）：
+1. 嚴格 UTF-8 解碼成功、結果含非 ASCII、且不含替代字（U+FFFD）或造字區時，直接採用，不再與 CP932／Big5 比分。
+2. 字串已是亂碼、需用系統編碼回推原始位元組再解時，UTF-8（65001）加分由 +10 調為 +30。
+
+【編譯】此目錄只有原始碼，沒有 PQT.exe。
+請在 Windows 執行：
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\Compile-PQT.ps1"
+產出同目錄 PQT.exe，檔案版本 4.1.22.0。
+Linux 無法用 ps2exe 編成 Windows 執行檔，請勿放上假的 PQT.exe。
+下載與自動更新仍指向 DW_tools 的 PQT.exe 與 version.json；編好後需另行更新該倉庫，線上版才會變成 4.1.22。
+
 PQT007 4.1.21 變更說明（以 4.1.20 為基礎）
 
 【排程抄表連續三天都執行】
