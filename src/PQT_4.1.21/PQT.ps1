@@ -1181,7 +1181,7 @@ function Repair-SnmpText {
                                 $decoded = $encTo.GetString($asBytes).TrimEnd([char]0).Trim()
                                 if (-not (Test-SnmpDecodedText $decoded)) { continue }
                                 $bonus = 0
-                                if ($toPage -eq 65001) { $bonus += 10 }
+                                if ($toPage -eq 65001) { $bonus += 30 }
                                 if ($vendor -eq "xerox" -and $toPage -eq 932) { $bonus += 8 }
                                 $sc = (Get-SnmpDecodedScore $decoded) + $bonus
                                 if ($sc -gt $bestScore) { $bestScore = $sc; $best = $decoded }
@@ -1205,6 +1205,9 @@ function Repair-SnmpText {
 
         try {
             $u = $utf8Strict.GetString($rawBytes).TrimEnd([char]0).Trim()
+            # Valid strict UTF-8 with non-ASCII is almost never accidental (CP932/Big5 bytes rarely form valid UTF-8).
+            # Newer FUJI XEROX/FUJIFILM (e.g. ApeosPort-VII) send UTF-8; trying 932 first gave mojibake like 遶ｹ闊磯撼辯溷茜.
+            if ((Test-SnmpDecodedText $u) -and ($u -match '[^\x00-\x7F]')) { return $u }
             if (Test-SnmpDecodedText $u) {
                 $sc = (Get-SnmpDecodedScore $u) + 8
                 if ($sc -gt $bestScore) { $bestScore = $sc; $best = $u }
