@@ -10,7 +10,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$script:AppVersion = "4.1.21"
+$script:AppVersion = "4.1.22"
 $script:InstallDir = "C:\FLGPQT"
 $script:DefaultUpdateUrl = "https://raw.githubusercontent.com/lanyen007/DW_tools/main/version.json"
 $script:DefaultDownloadUrl = "https://github.com/lanyen007/DW_tools/raw/main/PQT.exe"
@@ -2132,6 +2132,10 @@ function Show-ErrorBox {
 function Get-PqtChangelogText {
     $text = @"
 PQT007　　目前版本 $($script:AppVersion)
+
+【4.1.22】
+• 修正 FUJI XEROX／FUJIFILM（ApeosPort-VII 等）設備名稱：合法 UTF-8 中文直接採用，避免被 Shift-JIS（CP932）評成亂碼（「竹興非營利-2643」不再顯示成「遶ｹ闊磯撼辯溷茜-2643」）
+• 已是亂碼字串、需回推原始位元組時，UTF-8（65001）加分由 +10 調為 +30
 
 【4.1.21】
 • 排程抄表改為連續三天都執行：抄表日前一天、當天、後一天各查一次（例：15 號→14、15、16；1 號→上月最後一天 30／31、1、2）
