@@ -14,7 +14,10 @@ PQT007 4.1.22 變更說明（以 4.1.21 為基礎）
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\Compile-PQT.ps1"
 產出同目錄 PQT.exe，檔案版本 4.1.22.0。
 Linux 無法用 ps2exe 編成 Windows 執行檔，請勿放上假的 PQT.exe。
-下載與自動更新仍指向 DW_tools 的 PQT.exe 與 version.json；編好後需另行更新該倉庫，線上版才會變成 4.1.22。
+4.1.22 程式仍讀 DW_tools 的 version.json 與 PQT.exe，本目錄不放執行檔。
+已發布的 4.1.2～4.1.21 固定讀 https://raw.githubusercontent.com/lanyen007/FLGPQT/main/version.json
+（欄位 version、url、notes）。倉庫根目錄的 version.json 提供 4.1.22，url 指向
+https://github.com/lanyen007/DW_tools/raw/main/PQT.exe，不在本倉庫再放一份 PQT.exe。
 
 PQT007 4.1.21 變更說明（以 4.1.20 為基礎）
 
