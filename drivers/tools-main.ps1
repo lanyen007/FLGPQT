@@ -92,17 +92,10 @@ function Test-FlgOffline {
 }
 
 function Invoke-FlgCounterHit([string]$Key) {
+    # Legacy telemetry endpoint retired; keep this as a safe no-op to avoid 404 noise.
     if ([string]::IsNullOrWhiteSpace($Key)) { return }
     if (Test-FlgOffline) { return }
-    try {
-        $req = [Net.HttpWebRequest]::Create(('https://abacus.jasoncameron.dev/hit/lanyen-de/' + $Key))
-        $req.Method = 'GET'
-        $req.Timeout = 2000
-        $req.ReadWriteTimeout = 2000
-        $req.KeepAlive = $false
-        $resp = $req.GetResponse()
-        $resp.Close()
-    } catch {}
+    return
 }
 
 function Format-Size([long]$Bytes) {
