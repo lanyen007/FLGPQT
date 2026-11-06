@@ -71,6 +71,28 @@ function Get-FlgRoot {
     }
     return $null
 }
+function Import-FlgPrintAssist {
+    if (Get-Command Save-FlgHttpWithProgress -ErrorAction SilentlyContinue) { return $true }
+    $local = $null
+    if (Get-Command Resolve-FlgOfflinePath -ErrorAction SilentlyContinue) {
+        $local = Resolve-FlgOfflinePath 'drivers\flg-print-assist.ps1'
+    }
+    if (-not $local -and $PSScriptRoot) {
+        $cand = Join-Path $PSScriptRoot 'flg-print-assist.ps1'
+        if (Test-Path -LiteralPath $cand) { $local = $cand }
+    }
+    $code = $null
+    if ($local) { $code = [IO.File]::ReadAllText($local) }
+    else {
+        try {
+            $bytes = (New-Object Net.WebClient).DownloadData('https://lanyen007.github.io/FLGPQT/drivers/flg-print-assist.ps1?t=' + [DateTime]::UtcNow.Ticks)
+            $code = [Text.Encoding]::UTF8.GetString($bytes).TrimStart([char]0xFEFF)
+        } catch { return $false }
+    }
+    if (-not $code) { return $false }
+    . ([scriptblock]::Create($code))
+    return [bool](Get-Command Save-FlgHttpWithProgress -ErrorAction SilentlyContinue)
+}
 function Resolve-FlgOfflinePath {
     param([Parameter(Mandatory = $true)][string]$Rel)
     $root = Get-FlgRoot
@@ -593,10 +615,16 @@ function Test-PrinterDriverInStore([string]$Name) {
     return [bool]$d
 }
 
-function Install-CloudDriverWindows($Driver, [string]$Ip, [string]$PrinterName) {
+function Install-CloudDriverWindows($Driver, [string]$Ip, [string]$PrinterName, [switch]$Retry) {
     $work = Join-Path $env:TEMP ('FLG-CloudDriver-' + [Guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $work -Force | Out-Null
-    $zipPath = Join-Path $work $Driver.zip_name
+    Import-FlgPrintAssist | Out-Null
+    $keepDir = $null
+    if (Get-Command Get-FlgDriverDownloadDir -ErrorAction SilentlyContinue) {
+        $keepDir = Get-FlgDriverDownloadDir -Child 'FLG-Drivers\Cloud'
+    }
+    if (-not $keepDir) { $keepDir = $work }
+    $zipPath = Join-Path $keepDir $Driver.zip_name
     $extractDir = Join-Path $work 'extract'
 
     try {
@@ -608,7 +636,11 @@ function Install-CloudDriverWindows($Driver, [string]$Ip, [string]$PrinterName) 
             }
             if (Test-FlgOffline) { Write-WarnMsg '本機無此驅動包，改從網路下載…' }
             Write-Host ("  " + $Driver.url)
-            Invoke-WebRequest -Uri $Driver.url -OutFile $zipPath -UseBasicParsing
+            if (Get-Command Save-FlgHttpWithProgress -ErrorAction SilentlyContinue) {
+                [void](Save-FlgHttpWithProgress -Url ([string]$Driver.url) -OutFile $zipPath)
+            } else {
+                Invoke-WebRequest -Uri $Driver.url -OutFile $zipPath -UseBasicParsing
+            }
         }
         if (-not (Test-Path -LiteralPath $zipPath)) { throw '下載失敗：找不到檔案。' }
 
@@ -641,10 +673,22 @@ function Install-CloudDriverWindows($Driver, [string]$Ip, [string]$PrinterName) 
         $drvName = [string]$Driver.driver_name
         $alt = [string]$Driver.driver_name_alt
         $inStore = (Test-PrinterDriverInStore $drvName) -or ($alt -and (Test-PrinterDriverInStore $alt))
-        if ($pnpCode -ne 0 -and $pnpCode -ne $null -and -not $inStore) {
-            throw ("pnputil 安裝驅動失敗（結束碼 $pnpCode）。驅動「$drvName」不在驅動程式存放區中。請確認套件完整且未被竄改（WHQL 目錄雜湊）。")
+        $rebootNote = $null
+        if (Get-Command Get-FlgPnpRebootNote -ErrorAction SilentlyContinue) { $rebootNote = Get-FlgPnpRebootNote $pnpCode }
+        if ($rebootNote) { Write-WarnMsg $rebootNote }
+        $pnpFailed = ($pnpCode -ne 0 -and $null -ne $pnpCode -and -not $inStore)
+        if (Get-Command Test-FlgPnpInstallFailed -ErrorAction SilentlyContinue) {
+            $pnpFailed = Test-FlgPnpInstallFailed -ExitCode $pnpCode -DriverInStore ([bool]$inStore)
         }
-        if ($pnpCode -ne 0 -and $pnpCode -ne $null -and $inStore) {
+        if ($pnpFailed) {
+            $pnpMsg = "FLG_DRIVER_INSTALL_FAILED: pnputil 安裝驅動失敗（結束碼 $pnpCode）。驅動「$drvName」不在驅動程式存放區中。請確認套件完整且未被竄改（WHQL 目錄雜湊）。"
+            if (-not $Retry -and (Get-Command Invoke-FlgInstallFailure -ErrorAction SilentlyContinue)) {
+                Invoke-FlgInstallFailure -Message $pnpMsg -RetryAction { Install-CloudDriverWindows -Driver $Driver -Ip $Ip -PrinterName $PrinterName -Retry }
+                return
+            }
+            throw $pnpMsg
+        }
+        if ($pnpCode -ne 0 -and $null -ne $pnpCode -and $inStore -and -not $rebootNote) {
             Write-WarnMsg ("pnputil 結束碼：$pnpCode（驅動已在存放區，繼續）")
         }
 
@@ -681,7 +725,18 @@ function Install-CloudDriverWindows($Driver, [string]$Ip, [string]$PrinterName) 
             Write-WarnMsg '同名印表機已存在，將移除後重建…'
             Remove-Printer -Name $PrinterName -ErrorAction Stop
         }
-        Add-Printer -Name $PrinterName -DriverName $drvName -PortName $portName -ErrorAction Stop
+        try {
+            Add-Printer -Name $PrinterName -DriverName $drvName -PortName $portName -ErrorAction Stop
+        } catch {
+            if (-not (Get-Printer -Name $PrinterName -ErrorAction SilentlyContinue)) {
+                $addMsg = "FLG_DRIVER_INSTALL_FAILED: 新增印表機失敗：" + $_.Exception.Message
+                if (-not $Retry -and (Get-Command Invoke-FlgInstallFailure -ErrorAction SilentlyContinue)) {
+                    Invoke-FlgInstallFailure -Message $addMsg -RetryAction { Install-CloudDriverWindows -Driver $Driver -Ip $Ip -PrinterName $PrinterName -Retry }
+                    return
+                }
+                throw $addMsg
+            }
+        }
         Write-Ok '印表機已新增'
 
         try {
@@ -886,7 +941,7 @@ try {
     Invoke-FlgCounterHit ('install-ok-' + $script:FlgBrandSlug)
 } catch {
     Invoke-FlgCounterHit ('install-fail-' + $script:FlgBrandSlug)
-    Write-ErrMsg ('安裝失敗：' + $_.Exception.Message)
+    Write-ErrMsg ('安裝失敗：' + ($_.Exception.Message -replace '^FLG_DRIVER_INSTALL_FAILED:\s*', ''))
     if ($_.ScriptStackTrace) { Write-Host $_.ScriptStackTrace -ForegroundColor DarkGray }
     return
 }

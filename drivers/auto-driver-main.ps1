@@ -78,6 +78,28 @@ function Get-FlgRoot {
     }
     return $null
 }
+function Import-FlgPrintAssist {
+    if (Get-Command Save-FlgHttpWithProgress -ErrorAction SilentlyContinue) { return $true }
+    $local = $null
+    if (Get-Command Resolve-FlgOfflinePath -ErrorAction SilentlyContinue) {
+        $local = Resolve-FlgOfflinePath 'drivers\flg-print-assist.ps1'
+    }
+    if (-not $local -and $PSScriptRoot) {
+        $cand = Join-Path $PSScriptRoot 'flg-print-assist.ps1'
+        if (Test-Path -LiteralPath $cand) { $local = $cand }
+    }
+    $code = $null
+    if ($local) { $code = [IO.File]::ReadAllText($local) }
+    else {
+        try {
+            $bytes = (New-Object Net.WebClient).DownloadData('https://lanyen007.github.io/FLGPQT/drivers/flg-print-assist.ps1?t=' + [DateTime]::UtcNow.Ticks)
+            $code = [Text.Encoding]::UTF8.GetString($bytes).TrimStart([char]0xFEFF)
+        } catch { return $false }
+    }
+    if (-not $code) { return $false }
+    . ([scriptblock]::Create($code))
+    return [bool](Get-Command Save-FlgHttpWithProgress -ErrorAction SilentlyContinue)
+}
 function Resolve-FlgOfflinePath {
     param([Parameter(Mandatory = $true)][string]$Rel)
     $root = Get-FlgRoot
@@ -773,7 +795,7 @@ function Download-MediaFire {
     $name = $(if ($PreferredName) { $PreferredName } else { [IO.Path]::GetFileName(([Uri]$direct).AbsolutePath) })
     $out = Join-Path $OutDir $name
     Write-Info "直連下載：$name"
-    Invoke-WebRequest -Uri $direct -OutFile $out -UseBasicParsing -MaximumRedirection 8 -UserAgent 'Mozilla/5.0'
+    Save-HttpWithProgress -Url $direct -OutFile $out -Headers @{ 'User-Agent' = 'Mozilla/5.0' }
     if (-not (Test-Path $out) -or (Get-Item $out).Length -lt 1024) { throw "MediaFire 下載失敗：$Url" }
     return $out
 }
@@ -781,14 +803,32 @@ function Save-HttpWithProgress {
     param([string]$Url, [string]$OutFile, [hashtable]$Headers = $null)
     Write-Info ("下載中…")
     Write-Host ("  " + $Url) -ForegroundColor DarkGray
-    if ($Headers) {
-        Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing -MaximumRedirection 8 -Headers $Headers
-    } else {
-        Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing -MaximumRedirection 8 -UserAgent 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) FLG-AutoDriver'
+    Import-FlgPrintAssist | Out-Null
+    if (-not $Headers) { $Headers = @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) FLG-AutoDriver' } }
+    if (Get-Command Save-FlgHttpWithProgress -ErrorAction SilentlyContinue) {
+        [void](Save-FlgHttpWithProgress -Url $Url -OutFile $OutFile -Headers $Headers)
+        return
     }
+    Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing -MaximumRedirection 8 -Headers $Headers
+}
+function Set-FlgAutoDestRoot {
+    Import-FlgPrintAssist | Out-Null
+    $root = $null
+    if (Get-Command Get-FlgDownloadsFolder -ErrorAction SilentlyContinue) {
+        try { $root = Get-FlgDownloadsFolder } catch {}
+    }
+    if (-not $root) {
+        $profile = ''
+        try { $profile = [Environment]::GetFolderPath('UserProfile') } catch {}
+        if ([string]::IsNullOrWhiteSpace($profile)) { $profile = [string]$env:USERPROFILE }
+        if ([string]::IsNullOrWhiteSpace($profile)) { throw '找不到 Windows 下載資料夾' }
+        $root = Join-Path $profile 'Downloads'
+    }
+    $script:DestRoot = Join-Path $root 'lanyen-drivers'
 }
 function Download-CatalogItem {
     param($Item, [string]$ModelLabel)
+    Set-FlgAutoDestRoot
     $label = $(if ($ModelLabel) { $ModelLabel } else { [string]$Item.model })
     $safe = ($label -replace '[\\/:*?"<>|]', '_').Trim()
     if (-not $safe) { $safe = 'unknown' }
@@ -875,6 +915,7 @@ function Download-CloudUniversalZip {
     param($Driver, [string]$ModelLabel)
     $safe = (($ModelLabel -replace '[\\/:*?"<>|]', '_').Trim())
     if (-not $safe) { $safe = [string]$Driver.brand }
+    Set-FlgAutoDestRoot
     $modelDir = Join-Path $DestRoot ($safe + '_UPD')
     Ensure-Dir $modelDir
     $zipPath = Join-Path $modelDir $Driver.zip_name
@@ -941,14 +982,15 @@ function Request-Elevation([string]$BootstrapUrl) {
 }
 
 function Install-UniversalDriver {
-    param($Driver, [string]$Ip, [string]$PrinterName)
+    param($Driver, [string]$Ip, [string]$PrinterName, [switch]$Retry)
     if (-not $IsWindowsOs) {
         Write-WarnMsg '目前不是 Windows，略過實際安裝（僅驗證下載流程）。'
         return
     }
     $work = Join-Path $env:TEMP ('FLG-AutoDriver-' + [Guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $work -Force | Out-Null
-    $zipPath = Join-Path $work $Driver.zip_name
+    Set-FlgAutoDestRoot
+    $zipPath = Join-Path $DestRoot $Driver.zip_name
     $extractDir = Join-Path $work 'extract'
     try {
         Write-Info ("安裝用驅動包（約 {0:N1} MB）…" -f ($Driver.size / 1MB))
@@ -958,7 +1000,7 @@ function Install-UniversalDriver {
                 throw ('離線版找不到驅動包：' + $Driver.zip_name)
             }
             if (Test-FlgOffline) { Write-WarnMsg '本機無此驅動包，改從網路下載…' }
-            Invoke-WebRequest -Uri $Driver.url -OutFile $zipPath -UseBasicParsing
+            Save-HttpWithProgress -Url ([string]$Driver.url) -OutFile $zipPath
         }
         $actual = Get-FileSha256 $zipPath
         $expect = ([string]$Driver.sha256).ToLowerInvariant()
@@ -979,8 +1021,21 @@ function Install-UniversalDriver {
         $drvName = [string]$Driver.driver_name
         $alt = [string]$Driver.driver_name_alt
         $inStore = (Test-PrinterDriverInStore $drvName) -or ($alt -and (Test-PrinterDriverInStore $alt))
-        if ($pnpCode -ne 0 -and $pnpCode -ne $null -and -not $inStore) {
-            throw ("pnputil 安裝驅動失敗（結束碼 $pnpCode）。")
+        Import-FlgPrintAssist | Out-Null
+        $rebootNote = $null
+        if (Get-Command Get-FlgPnpRebootNote -ErrorAction SilentlyContinue) { $rebootNote = Get-FlgPnpRebootNote $pnpCode }
+        if ($rebootNote) { Write-WarnMsg $rebootNote }
+        $pnpFailed = ($pnpCode -ne 0 -and $null -ne $pnpCode -and -not $inStore)
+        if (Get-Command Test-FlgPnpInstallFailed -ErrorAction SilentlyContinue) {
+            $pnpFailed = Test-FlgPnpInstallFailed -ExitCode $pnpCode -DriverInStore ([bool]$inStore)
+        }
+        if ($pnpFailed) {
+            $pnpMsg = "FLG_DRIVER_INSTALL_FAILED: pnputil 安裝驅動失敗（結束碼 $pnpCode）。"
+            if (-not $Retry -and (Get-Command Invoke-FlgInstallFailure -ErrorAction SilentlyContinue)) {
+                Invoke-FlgInstallFailure -Message $pnpMsg -RetryAction { Install-UniversalDriver -Driver $Driver -Ip $Ip -PrinterName $PrinterName -Retry }
+                return
+            }
+            throw $pnpMsg
         }
         if (-not (Get-PrinterDriver -Name $drvName -ErrorAction SilentlyContinue)) {
             try { Add-PrinterDriver -Name $drvName -ErrorAction Stop }
@@ -1002,7 +1057,18 @@ function Install-UniversalDriver {
             Write-WarnMsg '同名印表機已存在，將移除後重建…'
             Remove-Printer -Name $PrinterName -ErrorAction Stop
         }
-        Add-Printer -Name $PrinterName -DriverName $drvName -PortName $portName -ErrorAction Stop
+        try {
+            Add-Printer -Name $PrinterName -DriverName $drvName -PortName $portName -ErrorAction Stop
+        } catch {
+            if (-not (Get-Printer -Name $PrinterName -ErrorAction SilentlyContinue)) {
+                $addMsg = "FLG_DRIVER_INSTALL_FAILED: 新增印表機失敗：" + $_.Exception.Message
+                if (-not $Retry -and (Get-Command Invoke-FlgInstallFailure -ErrorAction SilentlyContinue)) {
+                    Invoke-FlgInstallFailure -Message $addMsg -RetryAction { Install-UniversalDriver -Driver $Driver -Ip $Ip -PrinterName $PrinterName -Retry }
+                    return
+                }
+                throw $addMsg
+            }
+        }
         try {
             Set-PrintConfiguration -PrinterName $PrinterName -Color $false -DuplexingMode OneSided -ErrorAction Stop
             Write-Ok '已設定預設：黑白、單面'
@@ -1751,7 +1817,7 @@ try {
         Invoke-ProcessPrinter -Ip $ip -CloudCatalog $cloud -Install | Out-Null
     }
 } catch {
-    Write-ErrMsg ('失敗：' + $_.Exception.Message)
+    Write-ErrMsg ('失敗：' + ($_.Exception.Message -replace '^FLG_DRIVER_INSTALL_FAILED:\s*', ''))
     if ($_.ScriptStackTrace) { Write-Host $_.ScriptStackTrace -ForegroundColor DarkGray }
     return
 }

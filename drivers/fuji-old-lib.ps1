@@ -275,12 +275,41 @@ function Find-FujiOldInfFile {
     return [string]$hits[0]
 }
 
+function Import-FlgPrintAssist {
+    if (Get-Command Save-FlgHttpWithProgress -ErrorAction SilentlyContinue) { return $true }
+    $local = $null
+    if (Get-Command Resolve-FlgOfflinePath -ErrorAction SilentlyContinue) {
+        $local = Resolve-FlgOfflinePath 'drivers\flg-print-assist.ps1'
+    }
+    if (-not $local -and $PSScriptRoot) {
+        $cand = Join-Path $PSScriptRoot 'flg-print-assist.ps1'
+        if (Test-Path -LiteralPath $cand) { $local = $cand }
+    }
+    $code = $null
+    if ($local) { $code = [IO.File]::ReadAllText($local) }
+    else {
+        try {
+            $bytes = (New-Object Net.WebClient).DownloadData('https://lanyen007.github.io/FLGPQT/drivers/flg-print-assist.ps1?t=' + [DateTime]::UtcNow.Ticks)
+            $code = [Text.Encoding]::UTF8.GetString($bytes).TrimStart([char]0xFEFF)
+        } catch { return $false }
+    }
+    if (-not $code) { return $false }
+    . ([scriptblock]::Create($code))
+    return [bool](Get-Command Save-FlgHttpWithProgress -ErrorAction SilentlyContinue)
+}
 function Save-FujiOldExe {
     param([Parameter(Mandatory = $true)][string]$Url, [Parameter(Mandatory = $true)][string]$Filename)
-    $root = $env:USERPROFILE
-    if ([string]::IsNullOrWhiteSpace($root)) { $root = [IO.Path]::GetTempPath() }
-    $dir = Join-Path $root 'Downloads\lanyen-drivers\舊版 FUJI'
-    if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    Import-FlgPrintAssist | Out-Null
+    if (Get-Command Get-FlgDriverDownloadDir -ErrorAction SilentlyContinue) {
+        $dir = Get-FlgDriverDownloadDir -Child 'lanyen-drivers\舊版 FUJI'
+    } else {
+        $root = ''
+        try { $root = [Environment]::GetFolderPath('UserProfile') } catch {}
+        if ([string]::IsNullOrWhiteSpace($root)) { $root = $env:USERPROFILE }
+        if ([string]::IsNullOrWhiteSpace($root)) { $root = [IO.Path]::GetTempPath() }
+        $dir = Join-Path $root 'Downloads\lanyen-drivers\舊版 FUJI'
+        if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    }
     $dest = Join-Path $dir $Filename
     $copied = $false
     if (Get-Command Resolve-FlgOfflinePath -ErrorAction SilentlyContinue) {
@@ -305,7 +334,11 @@ function Save-FujiOldExe {
         }
         Write-Info ('下載舊版 FUJI：' + $Filename)
         Write-Host ('  ' + $Url) -ForegroundColor DarkGray
-        Invoke-WebRequest -Uri $Url -OutFile $dest -UseBasicParsing
+        if (Get-Command Save-FlgHttpWithProgress -ErrorAction SilentlyContinue) {
+            [void](Save-FlgHttpWithProgress -Url $Url -OutFile $dest)
+        } else {
+            Invoke-WebRequest -Uri $Url -OutFile $dest -UseBasicParsing
+        }
     }
     if (-not (Test-Path -LiteralPath $dest)) { throw ('舊版 FUJI 安裝檔下載失敗：' + $Filename) }
     if ((Get-Item -LiteralPath $dest).Length -lt 1MB) { throw ('舊版 FUJI 安裝檔太小：' + $Filename) }
@@ -319,7 +352,8 @@ function Install-FujiOldDriverPackage {
         [Parameter(Mandatory = $true)][string]$PrinterName,
         [string]$ExePath,
         [string]$DownloadUrl,
-        [string]$DownloadName
+        [string]$DownloadName,
+        [switch]$Retry
     )
     if ([string]::IsNullOrWhiteSpace($ExePath)) {
         if ([string]::IsNullOrWhiteSpace($DownloadUrl) -or [string]::IsNullOrWhiteSpace($DownloadName)) {
@@ -349,8 +383,23 @@ function Install-FujiOldDriverPackage {
         } else {
             $inStore = [bool](Get-PrinterDriver -Name $DriverName -ErrorAction SilentlyContinue)
         }
-        if ($pnpCode -ne 0 -and $null -ne $pnpCode -and -not $inStore) {
-            throw ('pnputil 安裝驅動失敗（結束碼 ' + $pnpCode + '）。')
+        Import-FlgPrintAssist | Out-Null
+        $rebootNote = $null
+        if (Get-Command Get-FlgPnpRebootNote -ErrorAction SilentlyContinue) { $rebootNote = Get-FlgPnpRebootNote $pnpCode }
+        if ($rebootNote) { Write-WarnMsg $rebootNote }
+        $pnpFailed = ($pnpCode -ne 0 -and $null -ne $pnpCode -and -not $inStore)
+        if (Get-Command Test-FlgPnpInstallFailed -ErrorAction SilentlyContinue) {
+            $pnpFailed = Test-FlgPnpInstallFailed -ExitCode $pnpCode -DriverInStore ([bool]$inStore)
+        }
+        if ($pnpFailed) {
+            $pnpMsg = 'FLG_DRIVER_INSTALL_FAILED: pnputil 安裝驅動失敗（結束碼 ' + $pnpCode + '）。'
+            if (-not $Retry -and (Get-Command Invoke-FlgInstallFailure -ErrorAction SilentlyContinue)) {
+                Invoke-FlgInstallFailure -Message $pnpMsg -RetryAction {
+                    Install-FujiOldDriverPackage -DriverName $DriverName -Ip $Ip -PrinterName $PrinterName -ExePath $ExePath -DownloadUrl $DownloadUrl -DownloadName $DownloadName -Retry
+                }
+                return
+            }
+            throw $pnpMsg
         }
         if (-not (Get-PrinterDriver -Name $DriverName -ErrorAction SilentlyContinue)) {
             Add-PrinterDriver -Name $DriverName -ErrorAction Stop
@@ -366,7 +415,20 @@ function Install-FujiOldDriverPackage {
             Write-WarnMsg '同名印表機已存在，將移除後重建…'
             Remove-Printer -Name $PrinterName -ErrorAction Stop
         }
-        Add-Printer -Name $PrinterName -DriverName $DriverName -PortName $portName -ErrorAction Stop
+        try {
+            Add-Printer -Name $PrinterName -DriverName $DriverName -PortName $portName -ErrorAction Stop
+        } catch {
+            if (-not (Get-Printer -Name $PrinterName -ErrorAction SilentlyContinue)) {
+                $addMsg = 'FLG_DRIVER_INSTALL_FAILED: 新增印表機失敗：' + $_.Exception.Message
+                if (-not $Retry -and (Get-Command Invoke-FlgInstallFailure -ErrorAction SilentlyContinue)) {
+                    Invoke-FlgInstallFailure -Message $addMsg -RetryAction {
+                        Install-FujiOldDriverPackage -DriverName $DriverName -Ip $Ip -PrinterName $PrinterName -ExePath $ExePath -DownloadUrl $DownloadUrl -DownloadName $DownloadName -Retry
+                    }
+                    return
+                }
+                throw $addMsg
+            }
+        }
         try {
             Set-PrintConfiguration -PrinterName $PrinterName -Color $false -DuplexingMode OneSided -ErrorAction Stop
             Write-Ok '已設定預設：黑白、單面'
