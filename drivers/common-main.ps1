@@ -97,6 +97,28 @@ function Get-FlgRoot {
     }
     return $null
 }
+function Import-FlgPrintAssist {
+    if (Get-Command Save-FlgHttpWithProgress -ErrorAction SilentlyContinue) { return $true }
+    $local = $null
+    if (Get-Command Resolve-FlgOfflinePath -ErrorAction SilentlyContinue) {
+        $local = Resolve-FlgOfflinePath 'drivers\flg-print-assist.ps1'
+    }
+    if (-not $local -and $PSScriptRoot) {
+        $cand = Join-Path $PSScriptRoot 'flg-print-assist.ps1'
+        if (Test-Path -LiteralPath $cand) { $local = $cand }
+    }
+    $code = $null
+    if ($local) { $code = [IO.File]::ReadAllText($local) }
+    else {
+        try {
+            $bytes = (New-Object Net.WebClient).DownloadData('https://lanyen007.github.io/FLGPQT/drivers/flg-print-assist.ps1?t=' + [DateTime]::UtcNow.Ticks)
+            $code = [Text.Encoding]::UTF8.GetString($bytes).TrimStart([char]0xFEFF)
+        } catch { return $false }
+    }
+    if (-not $code) { return $false }
+    . ([scriptblock]::Create($code))
+    return [bool](Get-Command Save-FlgHttpWithProgress -ErrorAction SilentlyContinue)
+}
 function Resolve-FlgOfflinePath {
     param([Parameter(Mandatory = $true)][string]$Rel)
     $root = Get-FlgRoot
@@ -220,6 +242,14 @@ function Save-HttpFile {
         [Parameter(Mandatory = $true)][string]$OutFile,
         [hashtable]$Headers = $null
     )
+    Import-FlgPrintAssist | Out-Null
+    if (Get-Command Save-FlgHttpWithProgress -ErrorAction SilentlyContinue) {
+        $saved = Save-FlgHttpWithProgress -Url $Url -OutFile $OutFile -Headers $Headers
+        if (-not (Test-Path -LiteralPath $saved) -or ((Get-Item -LiteralPath $saved).Length -lt 64)) {
+            throw "下載失敗或檔案過小：$Url"
+        }
+        return
+    }
     $tmp = "$OutFile.partial"
     try {
         $wc = New-Object Net.WebClient
@@ -315,7 +345,7 @@ function Download-MediaFire {
         $name = $PreferredName
         if (-not $name) { $name = [Uri]::UnescapeDataString(([Uri]$Url).Segments[-1]) }
         $outPath = Join-Path $OutDir $name
-        Invoke-WebRequest -Uri $Url -OutFile $outPath -UseBasicParsing -MaximumRedirection 8 -UserAgent 'Mozilla/5.0'
+        Save-HttpFile -Url $Url -OutFile $outPath -Headers @{ 'User-Agent' = 'Mozilla/5.0' }
         return $outPath
     }
 
@@ -338,16 +368,32 @@ function Download-MediaFire {
     }
     $outPath = Join-Path $OutDir $name
     Write-Info "直連下載：$name"
-    Invoke-WebRequest -Uri $direct -OutFile $outPath -UseBasicParsing -MaximumRedirection 5 -UserAgent 'Mozilla/5.0'
+    Save-HttpFile -Url $direct -OutFile $outPath -Headers @{ 'User-Agent' = 'Mozilla/5.0' }
     if (-not (Test-Path -LiteralPath $outPath) -or ((Get-Item -LiteralPath $outPath).Length -lt 1024)) {
         throw "MediaFire 下載失敗：$Url"
     }
     return $outPath
 }
 
+function Set-FlgCatalogDestRoot {
+    Import-FlgPrintAssist | Out-Null
+    $root = $null
+    if (Get-Command Get-FlgDownloadsFolder -ErrorAction SilentlyContinue) {
+        try { $root = Get-FlgDownloadsFolder } catch {}
+    }
+    if (-not $root) {
+        $profile = ''
+        try { $profile = [Environment]::GetFolderPath('UserProfile') } catch {}
+        if ([string]::IsNullOrWhiteSpace($profile)) { $profile = [string]$env:USERPROFILE }
+        if ([string]::IsNullOrWhiteSpace($profile)) { throw '找不到 Windows 下載資料夾' }
+        $root = Join-Path $profile 'Downloads'
+    }
+    $script:DestRoot = Join-Path $root ("FLG-Drivers\" + $FlgDriverBrand)
+}
 function Download-DriverItem {
     param($Item)
 
+    Set-FlgCatalogDestRoot
     Ensure-Dir $DestRoot
     $modelDir = Join-Path $DestRoot (($Item.model -replace '[\\/:*?"<>|]', '_').Trim())
     Ensure-Dir $modelDir
@@ -405,33 +451,33 @@ function Download-DriverItem {
             $durl = Get-DropboxDirect $url
             if (-not $pref) { $pref = 'dropbox-download.bin' }
             $path = Join-Path $modelDir $pref
-            Invoke-WebRequest -Uri $durl -OutFile $path -UseBasicParsing -MaximumRedirection 8
+            Save-HttpFile -Url $durl -OutFile $path
         }
         'ricoh' {
             if (-not $pref) { $pref = ([Uri]$url).Segments[-1] }
             $path = Join-Path $modelDir $pref
-            Invoke-WebRequest -Uri $url -OutFile $path -UseBasicParsing -MaximumRedirection 5 -UserAgent 'Mozilla/5.0'
+            Save-HttpFile -Url $url -OutFile $path
         }
         'http' {
             if (-not $pref) { $pref = ([Uri]$url).Segments[-1] }
             $path = Join-Path $modelDir $pref
-            Invoke-WebRequest -Uri $url -OutFile $path -UseBasicParsing -MaximumRedirection 8 -UserAgent 'Mozilla/5.0'
+            Save-HttpFile -Url $url -OutFile $path
         }
         'sharp' {
             if (-not $pref) { $pref = ([Uri]$url).Segments[-1] }
             $path = Join-Path $modelDir $pref
-            Invoke-WebRequest -Uri $url -OutFile $path -UseBasicParsing -MaximumRedirection 5 -UserAgent 'Mozilla/5.0'
+            Save-HttpFile -Url $url -OutFile $path
         }
         'fujifilm' {
             if (-not $pref) { $pref = ([Uri]$url).Segments[-1] }
             $path = Join-Path $modelDir $pref
             $headers = @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'; 'Referer' = 'https://support-fb.fujifilm.com/' }
-            Invoke-WebRequest -Uri $url -OutFile $path -UseBasicParsing -MaximumRedirection 8 -Headers $headers
+            Save-HttpFile -Url $url -OutFile $path -Headers $headers
         }
         default {
             if (-not $pref) { $pref = 'download.bin' }
             $path = Join-Path $modelDir $pref
-            Invoke-WebRequest -Uri $url -OutFile $path -UseBasicParsing -MaximumRedirection 8 -UserAgent 'Mozilla/5.0'
+            Save-HttpFile -Url $url -OutFile $path
         }
     }
 
@@ -487,7 +533,37 @@ function Install-InfDrivers {
         return
     }
     $root = Split-Path -Parent $InfPaths[0]
-    & pnputil.exe /add-driver "$root\*.inf" /subdirs /install
+    $runPnp = {
+        & pnputil.exe /add-driver "$root\*.inf" /subdirs /install | ForEach-Object { Write-Host ("  " + $_) }
+        return $LASTEXITCODE
+    }
+    $code = & $runPnp
+    Import-FlgPrintAssist | Out-Null
+    $note = $null
+    if (Get-Command Get-FlgPnpRebootNote -ErrorAction SilentlyContinue) { $note = Get-FlgPnpRebootNote $code }
+    if ($note) { Write-WarnMsg $note; return }
+    $failed = $true
+    if (Get-Command Test-FlgPnpInstallFailed -ErrorAction SilentlyContinue) {
+        $failed = Test-FlgPnpInstallFailed -ExitCode $code -DriverInStore $false
+    } elseif ($code -eq 0 -or $null -eq $code) { $failed = $false }
+    if (-not $failed) { return }
+    $msg = 'FLG_DRIVER_INSTALL_FAILED: pnputil 安裝驅動失敗（結束碼 ' + $code + '）。'
+    $decision = 'stop'
+    if (Get-Command Invoke-FlgReportDriverInstallFailure -ErrorAction SilentlyContinue) {
+        $decision = Invoke-FlgReportDriverInstallFailure -ErrorMessage $msg
+    }
+    if ($decision -eq 'retry') {
+        $code = & $runPnp
+        $note = $null
+        if (Get-Command Get-FlgPnpRebootNote -ErrorAction SilentlyContinue) { $note = Get-FlgPnpRebootNote $code }
+        if ($note) { Write-WarnMsg $note; return }
+        if (Get-Command Test-FlgPnpInstallFailed -ErrorAction SilentlyContinue) {
+            $failed = Test-FlgPnpInstallFailed -ExitCode $code -DriverInStore $false
+        }
+        if (-not $failed) { return }
+        $msg = 'FLG_DRIVER_INSTALL_FAILED: 重試後仍然失敗（結束碼 ' + $code + '）。'
+    }
+    Write-ErrMsg ($msg -replace '^FLG_DRIVER_INSTALL_FAILED:\s*', '')
 }
 
 function After-Download {
@@ -835,5 +911,6 @@ while ($true) {
     }
 }
 
+Set-FlgCatalogDestRoot
 Write-Host ''
 Write-Ok "下載目錄：$DestRoot"
