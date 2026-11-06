@@ -1,0 +1,5 @@
+{
+  "version": "4.1.22",
+  "url": "https://github.com/lanyen007/DW_tools/raw/main/PQT.exe",
+  "notes": "修正 Fuji／ApeosPort-VII 中文裝置名稱被解成亂碼（UTF-8 優先）；含 4.1.21 排程抄表三天執行"
+}
