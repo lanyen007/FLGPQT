@@ -183,6 +183,24 @@ try {
 }
 Remove-Variable __ricohLib, __ricohLocal, __ricohUrl, __ricohBytes -ErrorAction SilentlyContinue
 
+# Sharp 機型驅動。SNMP 機型對得上才裝專用驅動，連接埠開啟 SNMP；對不上仍用通用驅動。
+try {
+    $__sharpLib = $null
+    $__sharpLocal = Resolve-FlgOfflinePath 'drivers\sharp-model-lib.ps1'
+    if ($__sharpLocal) {
+        $__sharpLib = [IO.File]::ReadAllText($__sharpLocal, [Text.Encoding]::UTF8)
+    } else {
+        $__sharpUrl = 'https://lanyen007.github.io/FLGPQT/drivers/sharp-model-lib.ps1?t=' + [DateTime]::UtcNow.Ticks
+        $__sharpBytes = (New-Object Net.WebClient).DownloadData($__sharpUrl)
+        $__sharpLib = [Text.Encoding]::UTF8.GetString($__sharpBytes)
+    }
+    if ($__sharpLib.Length -gt 0 -and [int][char]$__sharpLib[0] -eq 0xFEFF) { $__sharpLib = $__sharpLib.Substring(1) }
+    . ([scriptblock]::Create($__sharpLib))
+} catch {
+    Write-WarnMsg ('Sharp 機型對照表載入失敗，改走原本驅動：' + $_.Exception.Message)
+}
+Remove-Variable __sharpLib, __sharpLocal, __sharpUrl, __sharpBytes -ErrorAction SilentlyContinue
+
 function Invoke-FlgCounterHit([string]$Key) {
     # Legacy telemetry endpoint retired; keep this as a safe no-op to avoid 404 noise.
     if ([string]::IsNullOrWhiteSpace($Key)) { return }
@@ -1077,6 +1095,26 @@ function Resolve-ModelAndDrivers {
             return [pscustomobject]$ricohResult
         }
     }
+    if (Get-Command Find-SharpModelDriver -ErrorAction SilentlyContinue) {
+        $sharpHit = Find-SharpModelDriver $ModelText
+        if ($sharpHit) {
+            $sharpResult = [ordered]@{
+                Brand = 'Sharp'
+                Model = $ModelText
+                CatalogItem = $null
+                Candidates = @()
+                CloudDriver = $null
+                SupportUrl = $null
+                Ambiguous = $false
+                SharpModel = $true
+                SharpDriverName = [string]$sharpHit.DriverName
+                SharpPackageId = [string]$sharpHit.PackageId
+            }
+            Write-Ok ("對應 Sharp 機型驅動：$($sharpHit.DriverName)")
+            Write-Host ("  驅動包：$($sharpHit.Package.File)  v$($sharpHit.Package.Version)") -ForegroundColor DarkGray
+            return [pscustomobject]$sharpResult
+        }
+    }
     if (Get-Command Find-FujiOldDriver -ErrorAction SilentlyContinue) {
         $oldHit = Find-FujiOldDriver $ModelText
         if ($oldHit) {
@@ -1199,6 +1237,8 @@ function Invoke-ProcessPrinter {
     $downloaded = $null
     if ($resolved.RicohModel) {
         Write-Info ('使用機型 PCL6：' + $resolved.RicohDriverName)
+    } elseif ($resolved.SharpModel) {
+        Write-Info ('使用 Sharp 機型驅動：' + $resolved.SharpDriverName)
     } elseif ($resolved.CatalogItem) {
         try {
             $downloaded = Download-CatalogItem -Item $resolved.CatalogItem -ModelLabel $model
@@ -1226,6 +1266,14 @@ function Invoke-ProcessPrinter {
             Write-Info ("準備安裝印表機：$printerName")
             Install-RicohModelDriverPackage -DriverName ([string]$resolved.RicohDriverName) -PackageId ([string]$resolved.RicohPackageId) -Ip $Ip -PrinterName $printerName
             Invoke-FlgCounterHit 'install-ok-ricoh'
+        } elseif ($resolved.SharpModel) {
+            if (-not (Get-Command Install-SharpModelDriverPackage -ErrorAction SilentlyContinue)) {
+                throw '找不到 Sharp 機型安裝程序。'
+            }
+            $printerName = Get-PrinterDisplayName -Prefix 'SHARP' -Model $model -Ip $Ip
+            Write-Info ("準備安裝印表機：$printerName")
+            Install-SharpModelDriverPackage -DriverName ([string]$resolved.SharpDriverName) -PackageId ([string]$resolved.SharpPackageId) -Ip $Ip -PrinterName $printerName
+            Invoke-FlgCounterHit 'install-ok-sharp'
         } elseif ($resolved.FujiOld) {
             if (-not $downloaded) { throw '舊版 FUJI 驅動下載失敗，未安裝通用驅動。' }
             if (-not (Get-Command Install-FujiOldDriverPackage -ErrorAction SilentlyContinue)) {
@@ -1251,7 +1299,7 @@ function Invoke-ProcessPrinter {
         }
     }
 
-    if (-not $SkipAfterMenu -and -not ($Install -and ($resolved.FujiOld -or $resolved.RicohModel))) { Show-AfterMenu $downloaded }
+    if (-not $SkipAfterMenu -and -not ($Install -and ($resolved.FujiOld -or $resolved.RicohModel -or $resolved.SharpModel))) { Show-AfterMenu $downloaded }
     return [pscustomobject]@{ Ip = $Ip; Model = $model; Brand = $resolved.Brand; Downloaded = $downloaded }
 }
 
@@ -1618,7 +1666,7 @@ function Show-ScanTable($Found) {
 # ---- main ----
 Write-Host ''
 Write-Host ('======== ' + (Get-FlgT 'lanyen 工具箱 自動驅動安裝' 'lanyen Toolkit Auto driver install') + ' ========') -ForegroundColor White
-Write-Host (Get-FlgT '區網掃描（9100／SNMP）→ 對照表內的 Ricoh 機型裝該型 PCL6（MP C2003–C6004 含 ex、IM C300／C2000–C8000、Aficio MP C4502／C5502，以及同包的 J／SR／SP／Pro）；舊版 FUJI 裝舊版驅動；其餘用雲端通用驅動' 'LAN scan (9100/SNMP) → Ricoh models in the map use that model PCL6 (MP C2003-C6004 including ex, IM C300/C2000-C8000, Aficio MP C4502/C5502, plus J/SR/SP/Pro in the same packages); legacy FUJI uses the old installer; other models use the cloud driver') -ForegroundColor Gray
+Write-Host (Get-FlgT '區網掃描（9100／SNMP）→ 對照表內的 Ricoh 機型裝該型 PCL6；Sharp 對照表內的機型裝該型驅動並開啟連接埠 SNMP（AR-M236／AR-266、MX-1800～7001、MX-M260FG、MX-M266N、MX-M452N、MX-M465N、MX-M5070、MX-2651／MX-M5071 等同包機型）；舊版 FUJI 裝舊版驅動；其餘用雲端通用驅動' 'LAN scan (9100/SNMP) → Ricoh models in the map use that model PCL6; Sharp models in the map use that model driver with SNMP enabled on the port (AR-M236/AR-266, MX-1800-7001, MX-M260FG, MX-M266N, MX-M452N, MX-M465N, MX-M5070, MX-2651/MX-M5071 and the other models in those packages); legacy FUJI uses the old installer; other models use the cloud driver') -ForegroundColor Gray
 Write-Host ''
 
 if ($script:Mode -eq 'scan') {
@@ -1726,6 +1774,12 @@ try {
                 if ($resolved.RicohModel) {
                     $downloaded = Save-RicohModelPackage -PackageId ([string]$resolved.RicohPackageId)
                     Write-Ok ("機型驅動：$($resolved.RicohDriverName)")
+                    Show-AfterMenu $downloaded
+                    return
+                }
+                if ($resolved.SharpModel) {
+                    $downloaded = Save-SharpModelPackage -PackageId ([string]$resolved.SharpPackageId)
+                    Write-Ok ("機型驅動：$($resolved.SharpDriverName)")
                     Show-AfterMenu $downloaded
                     return
                 }
