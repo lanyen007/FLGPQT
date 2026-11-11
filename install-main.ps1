@@ -17,7 +17,8 @@ $InstallRoot = Join-Path $env:LOCALAPPDATA 'FLG'
 
 $Tools = @(
     @{ Key = 'PQT';                  File = 'PQT.exe';                      Title = 'PQT（影印機計數器／排程抄表）' }
-    @{ Key = 'RICOH使用者計數下載'; File = 'RICOH使用者計數下載.exe';     Title = 'RICOH 使用者計數下載（可自動更新）' }
+    # RemoteFile is the ASCII object on DW_tools. File stays the on-disk name.
+    @{ Key = 'RICOH使用者計數下載'; File = 'RICOH使用者計數下載.exe'; RemoteFile = 'UserCounterDownload.exe'; Title = 'RICOH 使用者計數下載（可自動更新）' }
 )
 
 function Write-Info([string]$Message) {
@@ -168,15 +169,70 @@ function New-Shortcut {
     $sc.Save()
 }
 
+function Install-PqtLauncher {
+    param([Parameter(Mandatory = $true)][string]$DestDir)
+    $vbsPath = Join-Path $DestDir 'Start-PQT.vbs'
+    # Prefer the freshly installed copy so a reinstall still replaces C:\FLGPQT.
+    # After the first run deletes that copy, fall back to C:\FLGPQT\PQT.exe.
+    $vbs = @'
+Set fso = CreateObject("Scripting.FileSystemObject")
+Set sh = CreateObject("WScript.Shell")
+localExe = fso.BuildPath(fso.GetParentFolderName(WScript.ScriptFullName), "PQT.exe")
+installed = "C:\FLGPQT\PQT.exe"
+target = ""
+If fso.FileExists(localExe) Then
+  target = localExe
+ElseIf fso.FileExists(installed) Then
+  target = installed
+End If
+If target = "" Then
+  MsgBox "找不到 PQT.exe。" & vbCrLf & "請重新執行安裝，或確認 C:\FLGPQT\PQT.exe 是否存在。", vbExclamation, "PQT"
+  WScript.Quit 1
+End If
+sh.CurrentDirectory = fso.GetParentFolderName(target)
+sh.Run """" & target & """", 1, False
+'@
+    $enc = New-Object System.Text.UnicodeEncoding $false, $true
+    [IO.File]::WriteAllText($vbsPath, $vbs, $enc)
+    return $vbsPath
+}
+
+function New-PqtShortcut {
+    param(
+        [Parameter(Mandatory = $true)][string]$ShortcutPath,
+        [Parameter(Mandatory = $true)][string]$LauncherVbs,
+        [Parameter(Mandatory = $true)][string]$IconExe,
+        [string]$WorkingDirectory = ''
+    )
+    $dir = Split-Path -Parent $ShortcutPath
+    if (-not (Test-Path -LiteralPath $dir)) {
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    }
+    $wscript = Join-Path $env:SystemRoot 'System32\wscript.exe'
+    $wsh = New-Object -ComObject WScript.Shell
+    $sc = $wsh.CreateShortcut($ShortcutPath)
+    $sc.TargetPath = $wscript
+    $sc.Arguments = '//Nologo "' + $LauncherVbs + '"'
+    if ($WorkingDirectory) {
+        $sc.WorkingDirectory = $WorkingDirectory
+    } else {
+        $sc.WorkingDirectory = Split-Path -Parent $LauncherVbs
+    }
+    $sc.IconLocation = "$IconExe,0"
+    $sc.Save()
+}
+
 function Install-OneTool {
     param(
         [Parameter(Mandatory = $true)]$Item
     )
     $key = $Item.Key
     $file = $Item.File
+    $remoteFile = [string]$Item.RemoteFile
+    if ([string]::IsNullOrWhiteSpace($remoteFile)) { $remoteFile = $file }
     $destDir = Join-Path $InstallRoot $key
     $destPath = Join-Path $destDir $file
-    $url = "$RawBase/$file"
+    $url = "$RawBase/$remoteFile"
 
     if (-not (Test-Path -LiteralPath $destDir)) {
         New-Item -ItemType Directory -Path $destDir -Force | Out-Null
@@ -208,11 +264,16 @@ function Install-OneTool {
 
     $desktop = Get-DesktopPath
     $deskLnk = Join-Path $desktop ($key + '.lnk')
-    New-Shortcut -ShortcutPath $deskLnk -TargetPath $destPath -WorkingDirectory $destDir
-
     $smDir = Get-StartMenuProgramsPath
     $smLnk = Join-Path $smDir ($key + '.lnk')
-    New-Shortcut -ShortcutPath $smLnk -TargetPath $destPath -WorkingDirectory $destDir
+    if ($key -eq 'PQT') {
+        $launcher = Install-PqtLauncher -DestDir $destDir
+        New-PqtShortcut -ShortcutPath $deskLnk -LauncherVbs $launcher -IconExe $destPath -WorkingDirectory $destDir
+        New-PqtShortcut -ShortcutPath $smLnk -LauncherVbs $launcher -IconExe $destPath -WorkingDirectory $destDir
+    } else {
+        New-Shortcut -ShortcutPath $deskLnk -TargetPath $destPath -WorkingDirectory $destDir
+        New-Shortcut -ShortcutPath $smLnk -TargetPath $destPath -WorkingDirectory $destDir
+    }
 
     Write-Ok "已安裝 $key → $destPath"
     return $destPath
