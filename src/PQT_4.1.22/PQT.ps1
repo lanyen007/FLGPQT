@@ -10,11 +10,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$script:AppVersion = "4.1.22"
+$script:AppVersion = "4.1.23"
 $script:InstallDir = "C:\FLGPQT"
 $script:DefaultUpdateUrl = "https://raw.githubusercontent.com/lanyen007/DW_tools/main/version.json"
 $script:DefaultDownloadUrl = "https://github.com/lanyen007/DW_tools/raw/main/PQT.exe"
-$script:GitHubCommitsApi = "https://api.github.com/repos/lanyen007/DW_tools/commits/main"
 
 $procFile = $null
 try { $procFile = [Diagnostics.Process]::GetCurrentProcess().MainModule.FileName } catch {}
@@ -209,31 +208,169 @@ function Start-PqtFromInstallDir {
     Start-Process -FilePath (Join-Path $env:SystemRoot "System32\cmd.exe") -ArgumentList $cmd -WindowStyle Hidden
 }
 
+function Show-PqtFirstRunNotice {
+    param([string]$Text)
+    try {
+        Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
+        [Windows.Forms.MessageBox]::Show(
+            $Text,
+            "PQT007",
+            [Windows.Forms.MessageBoxButtons]::OK,
+            [Windows.Forms.MessageBoxIcon]::Information
+        ) | Out-Null
+    } catch {}
+}
+
+function Test-PqtSameFilePath {
+    param([string]$Left, [string]$Right)
+    if ([string]::IsNullOrWhiteSpace($Left) -or [string]::IsNullOrWhiteSpace($Right)) { return $false }
+    try {
+        $a = [IO.Path]::GetFullPath($Left).TrimEnd('\')
+        $b = [IO.Path]::GetFullPath($Right).TrimEnd('\')
+        return ($a -ieq $b)
+    } catch {
+        return ($Left.Trim() -ieq $Right.Trim())
+    }
+}
+
+function Get-PqtShortcutDirs {
+    $dirs = @()
+    foreach ($name in @(
+        'Desktop', 'CommonDesktopDirectory', 'Programs', 'CommonPrograms', 'Startup', 'CommonStartup'
+    )) {
+        try {
+            $p = [Environment]::GetFolderPath($name)
+            if (-not [string]::IsNullOrWhiteSpace($p)) { $dirs += $p }
+        } catch {}
+    }
+    foreach ($p in @(
+        (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\lanyen 工具箱'),
+        (Join-Path $env:APPDATA 'Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar'),
+        (Join-Path $env:APPDATA 'Microsoft\Internet Explorer\Quick Launch\User Pinned\StartMenu')
+    )) {
+        if (-not [string]::IsNullOrWhiteSpace($p)) { $dirs += $p }
+    }
+    return $dirs
+}
+
+function Update-PqtLaunchPointers {
+    param(
+        [Parameter(Mandatory = $true)][string]$OldExe,
+        [Parameter(Mandatory = $true)][string]$NewExe,
+        [switch]$IncludeAnyPqtExe
+    )
+    # $true = no shortcut or startup command still points at the old file, so it can be deleted.
+    $safeToDelete = $true
+    $wsh = $null
+    try { $wsh = New-Object -ComObject WScript.Shell } catch { return $false }
+    $seen = @{}
+    $found = New-Object System.Collections.Generic.List[string]
+    foreach ($dir in (Get-PqtShortcutDirs)) {
+        if ([string]::IsNullOrWhiteSpace($dir) -or -not (Test-Path -LiteralPath $dir)) { continue }
+        try {
+            Get-ChildItem -LiteralPath $dir -Filter '*.lnk' -File -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+                $k = $_.FullName.ToLowerInvariant()
+                if (-not $seen.ContainsKey($k)) {
+                    $seen[$k] = $true
+                    [void]$found.Add($_.FullName)
+                }
+            }
+        } catch {}
+    }
+    foreach ($lnkPath in $found) {
+        try {
+            $sc = $wsh.CreateShortcut($lnkPath)
+            $target = [string]$sc.TargetPath
+            $argText = [string]$sc.Arguments
+            if (Test-PqtSameFilePath $target $NewExe) { continue }
+            $pointsOld = Test-PqtSameFilePath $target $OldExe
+            $mentionsLauncher = ($argText -match 'Start-PQT\.vbs') -or ($target -match 'Start-PQT\.vbs')
+            $targetName = ''
+            try { $targetName = [IO.Path]::GetFileName($target) } catch {}
+            $pointsPqtExe = $IncludeAnyPqtExe -and ($targetName -ieq 'PQT.exe')
+            if (-not ($pointsOld -or $mentionsLauncher -or $pointsPqtExe)) { continue }
+            $sc.TargetPath = $NewExe
+            if ($mentionsLauncher) { $sc.Arguments = '' }
+            $sc.WorkingDirectory = [IO.Path]::GetDirectoryName($NewExe)
+            $sc.IconLocation = ($NewExe + ',0')
+            $sc.Save()
+        } catch {
+            $safeToDelete = $false
+        }
+    }
+    foreach ($lnkPath in $found) {
+        try {
+            $sc = $wsh.CreateShortcut($lnkPath)
+            $target = [string]$sc.TargetPath
+            $argText = [string]$sc.Arguments
+            if (Test-PqtSameFilePath $target $OldExe) { $safeToDelete = $false }
+            if ($argText -and ($argText.IndexOf($OldExe, [StringComparison]::OrdinalIgnoreCase) -ge 0)) {
+                $safeToDelete = $false
+            }
+        } catch {
+            $safeToDelete = $false
+        }
+    }
+    try {
+        $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+        $runName = 'PQT4'
+        $current = [string](Get-ItemPropertyValue -LiteralPath $runKey -Name $runName -ErrorAction Stop)
+        if (-not [string]::IsNullOrWhiteSpace($current) -and ($current.IndexOf($OldExe, [StringComparison]::OrdinalIgnoreCase) -ge 0)) {
+            try {
+                $updated = [regex]::Replace(
+                    $current,
+                    [regex]::Escape($OldExe),
+                    $NewExe.Replace('$', '$$'),
+                    [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+                )
+                Set-ItemProperty -LiteralPath $runKey -Name $runName -Value $updated -Type String
+                $check = [string](Get-ItemPropertyValue -LiteralPath $runKey -Name $runName -ErrorAction Stop)
+                if ($check.IndexOf($OldExe, [StringComparison]::OrdinalIgnoreCase) -ge 0) { $safeToDelete = $false }
+            } catch {
+                $safeToDelete = $false
+            }
+        }
+    } catch {}
+    return $safeToDelete
+}
+
 function Invoke-PqtFirstRunInstall {
     if (-not $isCompiled) { return $false }
     if (Test-PqtAtInstallDir) { return $false }
     $oldExe = $scriptFile
+    $destExe = $null
     try {
         $destExe = Copy-PqtIntoInstallDir
-        Start-PqtFromInstallDir -DestExe $destExe -OldExe $oldExe
-        return $true
     } catch {
-        if (Test-IsAdmin) { throw }
+        if (Test-IsAdmin) {
+            Show-PqtFirstRunNotice ("無法安裝到 C:\FLGPQT，將從目前位置繼續開啟。`r`n" + $_.Exception.Message)
+            return $false
+        }
+        $elevated = $null
         try {
-            $p = Start-Process -FilePath $scriptFile -ArgumentList @("-Action", "Install") -Verb RunAs -Wait -PassThru
+            $elevated = Start-Process -FilePath $scriptFile -ArgumentList @('-Action', 'Install') -Verb RunAs -Wait -PassThru
         } catch {
-            throw "需要系統管理員權限才能安裝到 C:\FLGPQT"
+            Show-PqtFirstRunNotice "沒有取得系統管理員權限，所以這次沒有安裝到 C:\FLGPQT。`r`n程式會從目前的位置繼續開啟，桌面和開始功能表的捷徑仍可使用。"
+            return $false
         }
-        if (-not $p -or $p.ExitCode -ne 0) {
-            throw "安裝到 C:\FLGPQT 失敗或已取消"
+        if (-not $elevated -or $elevated.ExitCode -ne 0) {
+            Show-PqtFirstRunNotice "安裝到 C:\FLGPQT 沒有完成。`r`n程式會從目前的位置繼續開啟，捷徑仍可使用。"
+            return $false
         }
-        $destExe = Join-Path $script:InstallDir "PQT.exe"
+        $destExe = Join-Path $script:InstallDir 'PQT.exe'
         if (-not (Test-Path -LiteralPath $destExe)) {
-            throw "安裝後找不到 C:\FLGPQT\PQT.exe"
+            Show-PqtFirstRunNotice "安裝後找不到 C:\FLGPQT\PQT.exe。`r`n程式會從目前的位置繼續開啟。"
+            return $false
         }
-        Start-PqtFromInstallDir -DestExe $destExe -OldExe $oldExe
-        return $true
     }
+    $deleteOld = ''
+    try {
+        if (Update-PqtLaunchPointers -OldExe $oldExe -NewExe $destExe -IncludeAnyPqtExe) { $deleteOld = $oldExe }
+    } catch {
+        $deleteOld = ''
+    }
+    Start-PqtFromInstallDir -DestExe $destExe -OldExe $deleteOld
+    return $true
 }
 
 function Get-PqtAppIcon {
@@ -2133,6 +2270,12 @@ function Get-PqtChangelogText {
     $text = @"
 PQT007　　目前版本 $($script:AppVersion)
 
+【4.1.23】
+• 第一次執行安裝到 C:\FLGPQT 後，桌面與開始功能表捷徑會改指到新位置
+• 取消系統管理員授權時改為說明原因，並從目前位置繼續開啟
+• 版本比對支援四段版號（例如 4.1.22.1）；三段版號仍照常比較
+• 讀不到 version.json 時直接說明原因，不再從 GitHub 提交說明猜測版號
+
 【4.1.22】
 • 修正 FUJI XEROX／FUJIFILM（ApeosPort-VII 等）設備名稱：合法 UTF-8 中文直接採用，避免被 Shift-JIS（CP932）評成亂碼（「竹興非營利-2643」不再顯示成「遶ｹ闊磯撼辯溷茜-2643」）
 • 已是亂碼字串、需回推原始位元組時，UTF-8（65001）加分由 +10 調為 +30
@@ -2237,34 +2380,51 @@ PQT007　　目前版本 $($script:AppVersion)
 function ConvertTo-PqtVersion {
     param([string]$Text)
     $t = ([string]$Text).Trim()
-    if ($t -match '(\d+\.\d+(?:\.\d+)?)') {
-        try { return [version]$Matches[1] } catch {}
+    # Two, three, or four numeric segments. Missing parts compare as 0,
+    # so 4.1.22 equals 4.1.22.0 and is older than 4.1.22.1.
+    if ($t -notmatch '(\d+\.\d+(?:\.\d+){0,2})') { return $null }
+    $raw = [string]$Matches[1]
+    $bits = $raw.Split('.')
+    $maj = [int]$bits[0]
+    $min = [int]$bits[1]
+    $bld = 0
+    $rev = 0
+    if ($bits.Length -ge 3) { $bld = [int]$bits[2] }
+    if ($bits.Length -ge 4) { $rev = [int]$bits[3] }
+    try {
+        $value = New-Object System.Version $maj, $min, $bld, $rev
+    } catch {
+        return $null
     }
-    return $null
+    return [pscustomobject]@{ Raw = $raw; Value = $value }
 }
 
 function Get-PqtRemoteVersionInfo {
     param([string]$JsonUrl)
     $headers = @{ "User-Agent" = "PQT-FLGPQT" }
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    if (-not [string]::IsNullOrWhiteSpace($JsonUrl)) {
-        try {
-            $resp = Invoke-WebRequest -Uri $JsonUrl -Headers $headers -UseBasicParsing -TimeoutSec 20
-            $info = $resp.Content | ConvertFrom-Json
-            $ver = ConvertTo-PqtVersion ([string]$info.version)
-            if ($ver) {
-                $dl = [string]$info.url
-                if ([string]::IsNullOrWhiteSpace($dl)) { $dl = $script:DefaultDownloadUrl }
-                return @{ Version = $ver; Url = $dl; Notes = [string]$info.notes }
-            }
-        } catch {}
+    if ([string]::IsNullOrWhiteSpace($JsonUrl)) {
+        throw "沒有版本檔網址，無法檢查更新。"
     }
-    $resp = Invoke-WebRequest -Uri $script:GitHubCommitsApi -Headers $headers -UseBasicParsing -TimeoutSec 20
-    $c = $resp.Content | ConvertFrom-Json
-    $msg = [string]$c.commit.message
-    $ver = ConvertTo-PqtVersion $msg
-    if (-not $ver) { throw "GitHub 上找不到 version.json，也無法從提交說明讀取版本號" }
-    return @{ Version = $ver; Url = $script:DefaultDownloadUrl; Notes = $msg }
+    $resp = $null
+    try {
+        $resp = Invoke-WebRequest -Uri $JsonUrl -Headers $headers -UseBasicParsing -TimeoutSec 20
+    } catch {
+        throw ("讀不到版本檔 version.json，請檢查網路後再試。詳細原因：" + $_.Exception.Message)
+    }
+    $info = $null
+    try {
+        $info = $resp.Content | ConvertFrom-Json
+    } catch {
+        throw "版本檔 version.json 不是有效的 JSON，無法判斷是否有新版。"
+    }
+    $ver = ConvertTo-PqtVersion ([string]$info.version)
+    if (-not $ver) {
+        throw "版本檔 version.json 裡沒有可用的版號，無法判斷是否有新版。"
+    }
+    $dl = [string]$info.url
+    if ([string]::IsNullOrWhiteSpace($dl)) { $dl = $script:DefaultDownloadUrl }
+    return @{ Version = $ver; Url = $dl; Notes = [string]$info.notes }
 }
 
 function Test-PqtExeFile {
@@ -2308,11 +2468,12 @@ function Invoke-PqtUpdateCheck {
         $info = Get-PqtRemoteVersionInfo -JsonUrl $script:DefaultUpdateUrl
         $remote = $info.Version
         $local = ConvertTo-PqtVersion $script:AppVersion
+        if (-not $remote -or -not $local) { throw "無法比較版本號。" }
         $notes = [string]$info.Notes
         $dl = [string]$info.Url
         if (-not $dl) { $dl = $script:DefaultDownloadUrl }
-        if ($remote -le $local) {
-            $text = "已是最新版本 {0}" -f $local
+        if ($remote.Value -le $local.Value) {
+            $text = "已是最新版本 {0}" -f $local.Raw
             if ($script:UpdateResultLabel) { $script:UpdateResultLabel.Text = $text }
             Write-PqtLog $text
             if (-not $Auto) {
@@ -2320,7 +2481,7 @@ function Invoke-PqtUpdateCheck {
             }
             return
         }
-        $text = "有新版本 {0}（目前 {1}）" -f $remote, $local
+        $text = "有新版本 {0}（目前 {1}）" -f $remote.Raw, $local.Raw
         if ($script:UpdateResultLabel) { $script:UpdateResultLabel.Text = $text }
         Write-PqtLog $text
         if (-not $Auto) {
@@ -2332,7 +2493,7 @@ function Invoke-PqtUpdateCheck {
                 return
             }
         } else {
-            Write-PqtLog ("自動更新：下載 {0}" -f $remote)
+            Write-PqtLog ("自動更新：下載 {0}" -f $remote.Raw)
             if ($script:NotifyIcon) {
                 try { $script:NotifyIcon.ShowBalloonTip(4000, "PQT007", "發現新版本，正在自動更新", [Windows.Forms.ToolTipIcon]::Info) } catch {}
             }
@@ -2347,7 +2508,7 @@ function Invoke-PqtUpdateCheck {
             throw "下載的檔案不是有效的程式，請稍後再試"
         }
         if ($script:UpdateResultLabel) { $script:UpdateResultLabel.Text = "正在取代程式並重新啟動..." }
-        Write-PqtLog ("已下載新版本 {0}，即將重新啟動" -f $remote)
+        Write-PqtLog ("已下載新版本 {0}，即將重新啟動" -f $remote.Raw)
         Install-PqtDownloadedExe -DownloadedPath $tmp
     } catch {
         $err = $_.Exception.Message
@@ -3750,6 +3911,14 @@ if (-not [string]::IsNullOrWhiteSpace($Action)) {
 
 if (Invoke-PqtFirstRunInstall) {
     return
+}
+if ($isCompiled -and (Test-PqtAtInstallDir) -and $scriptFile) {
+    try {
+        $legacyExe = Join-Path $env:LOCALAPPDATA "FLG\PQT\PQT.exe"
+        if (-not (Test-PqtSameFilePath $legacyExe $scriptFile)) {
+            [void](Update-PqtLaunchPointers -OldExe $legacyExe -NewExe $scriptFile)
+        }
+    } catch {}
 }
 
 $createdNew = $false
