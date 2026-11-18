@@ -661,6 +661,249 @@ $Inner
     }
 }
 
+# ---- SHARP (MX series) web UI address book: replay of sharpMX-M5070.har ----
+# GET /addressbook_entry.html -> POST action=tab_06 (網路資料夾頁籤) -> POST action=addrbook_smbadd_btn -> POST action=submitbtn
+# Every page carries a one-time token2, so each POST re-reads the whole form from the previous response (browser rules).
+# Fields: ggt_textbox(11)=搜尋號碼 (N+1), (14)=位址名稱, (17)=起始字母, (178)=路徑, (179)=用戶, (180)=密碼 + ggt_checkbox(181)=變更密碼
+function Invoke-FlgSharpHttp([string]$Method, [string]$Rel, [string]$Body = $null) {
+    $url = $script:FlgSharpBase + $Rel
+    $req = [Net.HttpWebRequest]::Create($url)
+    $req.Method = $Method; $req.CookieContainer = $script:FlgSharpCookies
+    $req.UserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) lanyen-smb'
+    $req.Accept = 'text/html,*/*'; $req.KeepAlive = $false; $req.AllowAutoRedirect = $true
+    $req.Timeout = 20000; $req.ReadWriteTimeout = 20000
+    $req.Headers.Add('Accept-Language', 'zh-TW,zh;q=0.9')
+    $req.ServicePoint.Expect100Continue = $false
+    if ($Method -eq 'POST') {
+        $bytes = [Text.Encoding]::ASCII.GetBytes($Body)
+        $req.ContentType = 'application/x-www-form-urlencoded'; $req.Referer = $url; $req.Headers.Add('Origin', $script:FlgSharpBase)
+        $req.ContentLength = $bytes.Length
+        $s = $req.GetRequestStream(); $s.Write($bytes, 0, $bytes.Length); $s.Close()
+    }
+    try { $resp = $req.GetResponse() } catch [Net.WebException] { if ($_.Exception.Response) { $resp = $_.Exception.Response } else { throw } }
+    $ms = New-Object IO.MemoryStream; $rs = $resp.GetResponseStream(); $rs.CopyTo($ms); $rs.Close()
+    $raw = $ms.ToArray(); $ct = [string]$resp.ContentType; $code = [int]$resp.StatusCode; $final = $resp.ResponseUri.PathAndQuery; $resp.Close()
+    $enc = [Text.Encoding]::UTF8
+    if ($ct -match '(?i)charset\s*=\s*"?(big5|x-big5|cp950)') { $enc = [Text.Encoding]::GetEncoding(950) }
+    $script:FlgSharpEnc = $enc
+    $html = $enc.GetString($raw)
+    Write-FlgSmbLog ("SHARP HTTP $Method $Rel -> $code len=" + $html.Length)
+    if ($code -ge 400) { throw ("HTTP {0} {1}" -f $code, $Rel) }
+    return [pscustomobject]@{ Html = $html; Url = $final }
+}
+function Get-FlgSharpAttrs([string]$tag) {
+    $h = @{}
+    $inner = $tag -replace '^<\w+', '' -replace '/?>$', ''
+    foreach ($m in [regex]::Matches($inner, '(?is)([\w:\-\(\)]+)\s*=\s*(?:"([^"]*)"|''([^'']*)''|([^\s>]+))')) {
+        $v = $(if ($m.Groups[2].Success) { $m.Groups[2].Value } elseif ($m.Groups[3].Success) { $m.Groups[3].Value } else { $m.Groups[4].Value })
+        $h[$m.Groups[1].Value.ToLower()] = [Net.WebUtility]::HtmlDecode($v)
+    }
+    $stripped = [regex]::Replace($inner, '(?s)"[^"]*"|''[^'']*''', '""')
+    foreach ($b in 'checked', 'disabled', 'selected', 'multiple') { if ($stripped -match "(?i)(^|\s)$b(\s|=|$)" -and -not $h.ContainsKey($b)) { $h[$b] = '' } }
+    return $h
+}
+function Get-FlgSharpForm([string]$html, [string]$formName) {
+    $m = [regex]::Match($html, "(?is)<form\b[^>]*name\s*=\s*""$formName""[^>]*>(.*?)(</form>|$)")
+    if ($m.Success) { return $m.Groups[1].Value } else { return $null }
+}
+function Get-FlgSharpFields([string]$formHtml) {
+    $list = New-Object System.Collections.ArrayList
+    foreach ($m in [regex]::Matches($formHtml, '(?is)<input\b[^>]*>|<select\b[^>]*>.*?</select>|<textarea\b[^>]*>.*?</textarea>')) {
+        $t = $m.Value
+        $a = Get-FlgSharpAttrs ([regex]::Match($t, '(?is)^<\w+[^>]*>').Value)
+        $name = $a['name']
+        if (-not $name -or $a.ContainsKey('disabled')) { continue }
+        if ($t -match '(?is)^<input') {
+            $type = $(if ($a['type']) { $a['type'].ToLower() } else { 'text' })
+            if ($type -in 'button', 'image', 'submit', 'reset', 'file') { continue }
+            if ($type -in 'checkbox', 'radio') { if ($a.ContainsKey('checked')) { [void]$list.Add(@($name, $(if ($a.ContainsKey('value')) { $a['value'] } else { 'on' }))) }; continue }
+            [void]$list.Add(@($name, $(if ($a.ContainsKey('value')) { $a['value'] } else { '' })))
+        } elseif ($t -match '(?is)^<select') {
+            $opts = @()
+            foreach ($o in [regex]::Matches($t, '(?is)<option\b([^>]*)>(.*?)(?=<option\b|</select>)')) {
+                $oa = Get-FlgSharpAttrs ('<option ' + $o.Groups[1].Value + '>')
+                $val = $(if ($oa.ContainsKey('value')) { $oa['value'] } else { ([Net.WebUtility]::HtmlDecode(($o.Groups[2].Value -replace '<[^>]+>', ''))).Trim() })
+                $opts += , @($val, $oa.ContainsKey('selected'))
+            }
+            $sel = @($opts | Where-Object { $_[1] })
+            if ($a.ContainsKey('multiple')) { foreach ($s in $sel) { [void]$list.Add(@($name, $s[0])) } }
+            elseif ($sel.Count -gt 0) { [void]$list.Add(@($name, $sel[-1][0])) }
+            elseif ($opts.Count -gt 0) { [void]$list.Add(@($name, $opts[0][0])) }
+        } else {
+            [void]$list.Add(@($name, [Net.WebUtility]::HtmlDecode([regex]::Match($t, '(?is)^<textarea[^>]*>(.*?)</textarea>').Groups[1].Value)))
+        }
+    }
+    return , $list
+}
+function Set-FlgSharpField($list, [string]$name, [string]$value) {
+    for ($i = 0; $i -lt $list.Count; $i++) { if ($list[$i][0] -eq $name) { $list[$i] = @($name, $value); return } }
+    [void]$list.Add(@($name, $value))
+}
+function Remove-FlgSharpField($list, [string]$name) { for ($i = $list.Count - 1; $i -ge 0; $i--) { if ($list[$i][0] -eq $name) { $list.RemoveAt($i) } } }
+function Get-FlgSharpField($list, [string]$name) { foreach ($f in $list) { if ($f[0] -eq $name) { return $f[1] } }; return $null }
+function ConvertTo-FlgSharpBody($list) {
+    $enc = $script:FlgSharpEnc; if (-not $enc) { $enc = [Text.Encoding]::UTF8 }
+    $parts = foreach ($f in $list) {
+        $kv = foreach ($s in @($f[0], $f[1])) {
+            $sb = New-Object Text.StringBuilder
+            foreach ($b in $enc.GetBytes([string]$s)) {
+                if (($b -ge 0x30 -and $b -le 0x39) -or ($b -ge 0x41 -and $b -le 0x5A) -or ($b -ge 0x61 -and $b -le 0x7A) -or $b -in 0x2D, 0x5F, 0x2E, 0x2A) { [void]$sb.Append([char]$b) }
+                elseif ($b -eq 0x20) { [void]$sb.Append('+') } else { [void]$sb.Append(('%{0:X2}' -f $b)) }
+            }
+            $sb.ToString()
+        }
+        $kv[0] + '=' + $kv[1]
+    }
+    return ($parts -join '&')
+}
+function Get-FlgSharpMessage([string]$html) {
+    $m = [regex]::Match($html, '(?is)<p\s+class="(\w*)"\s+id="err_msg"[^>]*>(.*?)</p>')
+    if (-not $m.Success) { return $null }
+    $txt = (([Net.WebUtility]::HtmlDecode(($m.Groups[2].Value -replace '<[^>]+>', ' '))).Trim() -replace '\s+', ' ').Trim('"', ' ')
+    return [pscustomobject]@{ Ok = ($m.Groups[1].Value -eq 'ok'); Text = $txt }
+}
+function Invoke-FlgSharpLogin([string]$ReturnPage, [string]$AdminPass) {
+    $r = Invoke-FlgSharpHttp GET ('/login.html?/' + $ReturnPage)
+    $formHtml = $null
+    foreach ($f in [regex]::Matches($r.Html, '(?is)<form\b[^>]*>(.*?)(</form>|$)')) { if ($f.Groups[1].Value -match '(?i)type\s*=\s*"?password') { $formHtml = $f.Groups[1].Value; break } }
+    if (-not $formHtml) { return $false }
+    $fields = Get-FlgSharpFields $formHtml
+    foreach ($s in [regex]::Matches($formHtml, '(?is)<select\b[^>]*>.*?</select>')) {
+        $sname = (Get-FlgSharpAttrs ([regex]::Match($s.Value, '(?is)^<select[^>]*>').Value))['name']
+        foreach ($o in [regex]::Matches($s.Value, '(?is)<option\b([^>]*)>(.*?)(?=<option\b|</select>)')) {
+            if ($o.Groups[2].Value -match '(?i)管理員|管理员|Admin') { Set-FlgSharpField $fields $sname ((Get-FlgSharpAttrs ('<option ' + $o.Groups[1].Value + '>'))['value']) }
+        }
+    }
+    foreach ($i in [regex]::Matches($formHtml, '(?is)<input\b[^>]*>')) {
+        $a = Get-FlgSharpAttrs $i.Value
+        $type = $(if ($a['type']) { $a['type'].ToLower() } else { 'text' })
+        if ($type -eq 'password') { Set-FlgSharpField $fields $a['name'] $AdminPass }
+        elseif ($type -eq 'text' -and $a['name'] -and -not (Get-FlgSharpField $fields $a['name'])) { Set-FlgSharpField $fields $a['name'] 'admin' }
+        elseif ($type -in 'button', 'submit' -and $a['value'] -match '(?i)登入|登录|Login|OK') {
+            if ($null -ne (Get-FlgSharpField $fields 'action')) { Set-FlgSharpField $fields 'action' $a['name'] } else { Set-FlgSharpField $fields $a['name'] $a['value'] }
+        }
+    }
+    if ($null -ne (Get-FlgSharpField $fields 'ordinate')) { Set-FlgSharpField $fields 'ordinate' '0' }
+    $r2 = Invoke-FlgSharpHttp POST $r.Url (ConvertTo-FlgSharpBody $fields)
+    $msg = Get-FlgSharpMessage $r2.Html
+    $stillLogin = ($r2.Html -match '(?is)<input[^>]*type\s*=\s*"?password') -and -not (Get-FlgSharpForm $r2.Html 'adrbook') -and -not (Get-FlgSharpForm $r2.Html 'addressentry')
+    $ok = -not $stillLogin -and -not ($msg -and -not $msg.Ok)
+    Write-FlgSmbLog ("SHARP login ok=$ok")
+    return $ok
+}
+function Get-FlgSharpPage([string]$Page, [string]$FormName, [string]$AdminPass) {
+    $r = Invoke-FlgSharpHttp GET ('/' + $Page)
+    if (-not (Get-FlgSharpForm $r.Html $FormName) -and -not $script:FlgSharpLoginTried) {
+        $script:FlgSharpLoginTried = $true
+        if ($AdminPass -and (Invoke-FlgSharpLogin $Page $AdminPass)) { $r = Invoke-FlgSharpHttp GET ('/' + $Page) }
+    }
+    if (-not (Get-FlgSharpForm $r.Html $FormName)) {
+        if ($r.Html -match '(?is)type\s*=\s*"?password') { throw 'SHARP_LOGIN_REQUIRED' }
+        throw ((Get-FlgT '讀不到 {0} 的表單（機型／韌體不同，或有人正在編輯通訊錄）。' 'Could not read the {0} form (different model/firmware, or the address book is being edited).') -f $Page)
+    }
+    return $r
+}
+function Get-FlgSharpRows([string]$html) {
+    $rows = @()
+    $tb = [regex]::Match($html, '(?is)<table[^>]*class="matrix"[^>]*>.*?<tbody>(.*?)</tbody>')
+    if (-not $tb.Success) { return $rows }
+    foreach ($tr in [regex]::Matches($tb.Groups[1].Value, '(?is)<tr\b[^>]*>(.*?)</tr>')) {
+        $cells = @(foreach ($td in [regex]::Matches($tr.Groups[1].Value, '(?is)<td\b[^>]*>(.*?)</td>')) { (([Net.WebUtility]::HtmlDecode(($td.Groups[1].Value -replace '<[^>]+>', ' '))) -replace '[\s\u200e\u200f\u202a-\u202e]+', ' ').Trim() })
+        if ($cells.Count -lt 2) { continue }
+        for ($k = $cells.Count - 1; $k -ge 0; $k--) { if ($cells[$k] -match '^\d{1,4}$') { $rows += [pscustomobject]@{ No = [int]$cells[$k]; Name = $cells[0] }; break } }
+    }
+    return $rows
+}
+function Get-FlgSharpList([string]$AdminPass) {
+    $r = Get-FlgSharpPage 'addressbook.html' 'adrbook' $AdminPass
+    $html = $r.Html
+    $tm = [regex]::Match($html, '(?is)(?:全部位址|All Addresses)[:：]?\s*</label>(?:\s|&nbsp;)*(\d+)')
+    $total = $(if ($tm.Success) { [int]$tm.Groups[1].Value } else { -1 })
+    if ($total -eq 0) { return [pscustomobject]@{ Total = 0; Rows = @(); Complete = $true } }
+    $f = Get-FlgSharpFields (Get-FlgSharpForm $html 'adrbook')
+    if ((Get-FlgSharpField $f 'ggt_select(9)') -ne '4') {
+        Set-FlgSharpField $f 'ggt_select(9)' '4'; Set-FlgSharpField $f 'action' 'ggt_select(9)'; Set-FlgSharpField $f 'ordinate' '0'
+        $html = (Invoke-FlgSharpHttp POST '/addressbook.html' (ConvertTo-FlgSharpBody $f)).Html
+    }
+    $all = @(Get-FlgSharpRows $html)
+    $guard = 0
+    while ($guard -lt 30 -and $html -match '(?is)<input\b(?=[^>]*name="nextbtn")(?![^>]*disabled)[^>]*>') {
+        $guard++
+        $f = Get-FlgSharpFields (Get-FlgSharpForm $html 'adrbook')
+        Set-FlgSharpField $f 'action' 'nextbtn'; Set-FlgSharpField $f 'ordinate' '0'
+        $html = (Invoke-FlgSharpHttp POST '/addressbook.html' (ConvertTo-FlgSharpBody $f)).Html
+        $all += @(Get-FlgSharpRows $html)
+    }
+    $uniq = @($all | Sort-Object No -Unique)
+    return [pscustomobject]@{ Total = $total; Rows = $uniq; Complete = ($total -lt 0 -or $uniq.Count -ge $total) }
+}
+function Add-FlgSharpSmbEntry {
+    # Returns Ok / Auth (needs admin password) / Index (搜尋號碼) / Message. AdminPass '' = try without login first.
+    param([string]$CopierIp, [string]$Name, [string]$Initial = 'A', [string]$Path, [string]$User, [string]$Pass, [string]$AdminPass = 'admin')
+    $script:FlgSharpBase = 'http://' + $CopierIp
+    $script:FlgSharpCookies = New-Object Net.CookieContainer
+    $script:FlgSharpEnc = [Text.Encoding]::UTF8
+    $script:FlgSharpLoginTried = $false
+    try {
+        $list = Get-FlgSharpList $AdminPass
+        $hit = @($list.Rows | Where-Object { $_.Name -eq $Name })
+        if ($hit.Count -gt 0) {
+            Write-FlgSmbLog ("SHARP name exists no=$($hit[0].No)")
+            return [pscustomobject]@{ Ok = $true; Auth = $false; Index = [string]$hit[0].No; Existed = $true; Message = (Get-FlgT '同名位址已存在，未重複新增。' 'An entry with this name already exists; not added again.') }
+        }
+        $no = ''
+        if ($list.Complete) {
+            $nums = @($list.Rows | ForEach-Object { $_.No })
+            if ($nums.Count -eq 0) { $no = '1' }
+            else {
+                $max = [int](($nums | Measure-Object -Maximum).Maximum)
+                if ($max -lt 2000) { $no = [string]($max + 1) } else { for ($n = 1; $n -le 2000; $n++) { if ($nums -notcontains $n) { $no = [string]$n; break } } }
+            }
+        }
+        Write-FlgSmbLog ("SHARP total=$($list.Total) parsed=$($list.Rows.Count) next=$no")
+        # 1) new entry page -> 2) network folder tab
+        $r = Get-FlgSharpPage 'addressbook_entry.html' 'addressentry' $AdminPass
+        $f = Get-FlgSharpFields (Get-FlgSharpForm $r.Html 'addressentry')
+        Set-FlgSharpField $f 'action' 'tab_06'; Set-FlgSharpField $f 'ordinate' '0'; Set-FlgSharpField $f 'ggt_select(7)' '1'
+        Set-FlgSharpField $f 'ggt_textbox(11)' $no; Set-FlgSharpField $f 'ggt_textbox(14)' $Name; Set-FlgSharpField $f 'ggt_textbox(17)' $Initial
+        Remove-FlgSharpField $f 'ggt_checkbox(24)'
+        $r = Invoke-FlgSharpHttp POST '/addressbook_entry.html' (ConvertTo-FlgSharpBody $f)
+        $m = Get-FlgSharpMessage $r.Html
+        if (($m -and -not $m.Ok) -or -not (Get-FlgSharpForm $r.Html 'addressentry')) { throw ((Get-FlgT '切換網路資料夾頁籤失敗：' 'Switching to the network folder tab failed: ') + $(if ($m) { $m.Text } else { '' })) }
+        # 3) 增加此位址
+        $f = Get-FlgSharpFields (Get-FlgSharpForm $r.Html 'addressentry')
+        Set-FlgSharpField $f 'action' 'addrbook_smbadd_btn'; Set-FlgSharpField $f 'ordinate' '0'
+        Set-FlgSharpField $f 'ggt_textbox(11)' $no; Set-FlgSharpField $f 'ggt_textbox(14)' $Name; Set-FlgSharpField $f 'ggt_textbox(17)' $Initial
+        Set-FlgSharpField $f 'ggt_select(177)' '0'; Set-FlgSharpField $f 'ggt_textbox(178)' $Path; Set-FlgSharpField $f 'ggt_textbox(179)' $User
+        if ($Pass) { Set-FlgSharpField $f 'ggt_checkbox(181)' '1'; Set-FlgSharpField $f 'ggt_textbox(180)' $Pass } else { Remove-FlgSharpField $f 'ggt_checkbox(181)' }
+        $r = Invoke-FlgSharpHttp POST '/addressbook_entry.html' (ConvertTo-FlgSharpBody $f)
+        $m = Get-FlgSharpMessage $r.Html
+        if ($m -and -not $m.Ok) { throw ((Get-FlgT '增加網路資料夾位址失敗：' 'Adding the network folder failed: ') + $m.Text) }
+        $f = Get-FlgSharpFields (Get-FlgSharpForm $r.Html 'addressentry')
+        $sel = Get-FlgSharpField $f 'ggt_select(177)'
+        if (-not $sel -or $sel -eq '0') { throw (Get-FlgT '網路資料夾位址沒有加入（路徑或帳密被拒）。' 'The network folder was not added (path or credentials rejected).') }
+        # 4) 發送
+        Set-FlgSharpField $f 'action' 'submitbtn'; Set-FlgSharpField $f 'ordinate' '0'
+        $r = Invoke-FlgSharpHttp POST '/addressbook_entry.html' (ConvertTo-FlgSharpBody $f)
+        $m = Get-FlgSharpMessage $r.Html
+        if (-not $m -or -not $m.Ok) { throw ((Get-FlgT '發送失敗：' 'Submit failed: ') + $(if ($m) { $m.Text } else { '(no message)' })) }
+        $got = Get-FlgSharpField (Get-FlgSharpFields (Get-FlgSharpForm $r.Html 'addressentry')) 'ggt_textbox(11)'
+        if ($got -match '^\d+$') { $no = $got }
+        # 5) read back
+        $after = Get-FlgSharpList $AdminPass
+        $back = @($after.Rows | Where-Object { $_.Name -eq $Name })
+        Write-FlgSmbLog ("SHARP submitted no=$no readback=" + ($back | Out-String).Trim())
+        if ($back.Count -eq 0 -and $after.Complete) { return [pscustomobject]@{ Ok = $false; Auth = $false; Index = $no; Message = (Get-FlgT '已送出但通訊錄清單找不到這筆，請到機器網頁確認。' 'Submitted, but the entry is not in the address list; check the copier web page.') } }
+        if ($back.Count -gt 0) { $no = [string]$back[0].No }
+        return [pscustomobject]@{ Ok = $true; Auth = $false; Index = $no; Message = $m.Text }
+    } catch {
+        $msg = [string]$_.Exception.Message
+        Write-FlgSmbLog ('SHARP error: ' + $msg)
+        if ($msg -eq 'SHARP_LOGIN_REQUIRED') { return [pscustomobject]@{ Ok = $false; Auth = $true; Message = (Get-FlgT '影印機要求管理員登入，或管理員密碼錯誤。' 'The copier requires an admin login, or the admin password is wrong.') } }
+        return [pscustomobject]@{ Ok = $false; Auth = $false; Message = $msg }
+    }
+}
+
 function Request-Elevation {
     Write-WarnMsg '需要系統管理員權限，即將跳出 UAC 提示…'
     $boot = 'https://lanyen007.github.io/FLGPQT/drivers/smb.ps1'
@@ -1001,8 +1244,30 @@ if ($copier) {
 }
 $isFuji = ($copier -and ([string]$copier.Model -match '(?i)FUJI\s*XEROX|FUJIFILM|Apeos|DocuCentre'))
 $isRicoh = ($copier -and -not $isFuji -and ([string]$copier.Model -match '(?i)RICOH'))
-if ($isFuji -or $isRicoh) {
-    if ($isRicoh -and -not $useCurrent) { $userShown = [string]$result.UserName }
+$isSharp = ($copier -and -not $isFuji -and -not $isRicoh -and ([string]$copier.Model -match '(?i)SHARP|\bMX-[A-Z0-9]'))
+if (-not $useCurrent -and -not ($isFuji -or $isRicoh -or $isSharp)) {
+    # 沒偵測到支援的廠牌：讓使用者手動選廠牌 + IP（自動偵測到 RICOH／FUJI／SHARP 時不會出現）
+    Write-Host ''
+    Write-Host (Get-FlgT '選擇影印機廠牌，自動登錄到通訊錄：' 'Pick the copier brand to add the address book entry:') -ForegroundColor White
+    Write-Host '  [1] RICOH'
+    Write-Host '  [2] SHARP'
+    Write-Host '  [3] FUJIFILM／富士全錄'
+    Write-Host ('  [Enter] ' + (Get-FlgT '略過' 'Skip'))
+    $bp = (Read-Host (Get-FlgT '請輸入編號' 'Enter number')).Trim()
+    if ($bp -in '1', '2', '3') {
+        $defIp = $(if ($copier) { [string]$copier.Ip } else { '' })
+        $mip = (Read-Host ((Get-FlgT '影印機 IP（Enter = {0}）' 'Copier IP (Enter = {0})') -f $defIp)).Trim()
+        if (-not $mip) { $mip = $defIp }
+        if ($mip) {
+            $brandName = @{ '1' = 'RICOH'; '2' = 'SHARP'; '3' = 'FUJIFILM' }[$bp]
+            $copier = [pscustomobject]@{ Ip = $mip; Model = ($brandName + (Get-FlgT '（手動選擇）' ' (manual)')) }
+            $isRicoh = ($bp -eq '1'); $isSharp = ($bp -eq '2'); $isFuji = ($bp -eq '3')
+            Write-FlgSmbLog ("manual brand=$brandName ip=$mip")
+        }
+    }
+}
+if ($isFuji -or $isRicoh -or $isSharp) {
+    if (($isRicoh -or $isSharp) -and -not $useCurrent) { $userShown = [string]$result.UserName }
     Write-Host ''
     Write-Host (Get-FlgT '登錄資訊' 'Login info') -ForegroundColor White
     Write-Host ((Get-FlgT '  主機名稱  {0}（設定的電腦主機名稱）' '  Host name  {0} (this PC host name)') -f $pc) -ForegroundColor Green
@@ -1012,10 +1277,10 @@ if ($isFuji -or $isRicoh) {
     Write-Host ((Get-FlgT '  本機資料夾 {0}' '  Local folder {0}') -f $result.Folder) -ForegroundColor DarkGray
 } elseif ($copier) {
     Write-Host ''
-    Write-Host (Get-FlgT '  此廠牌的掃描登錄資訊暫不支援（目前只支援 FUJIFILM／富士全錄、RICOH）。' '  Scan login info for this brand is not supported yet (FUJIFILM / Fuji Xerox and RICOH only for now).') -ForegroundColor DarkYellow
+    Write-Host (Get-FlgT '  此廠牌的掃描登錄資訊暫不支援（目前只支援 FUJIFILM／富士全錄、RICOH、SHARP）。' '  Scan login info for this brand is not supported yet (FUJIFILM / Fuji Xerox, RICOH and SHARP only for now).') -ForegroundColor DarkYellow
 } else {
     Write-Host ''
-    Write-Host (Get-FlgT '  未偵測到 FUJIFILM／富士全錄或 RICOH 機器，略過登錄資訊。' '  No FUJIFILM / Fuji Xerox or RICOH copier detected; login info skipped.') -ForegroundColor DarkYellow
+    Write-Host (Get-FlgT '  未偵測到 FUJIFILM／富士全錄、RICOH 或 SHARP 機器，略過登錄資訊。' '  No FUJIFILM / Fuji Xerox, RICOH or SHARP copier detected; login info skipped.') -ForegroundColor DarkYellow
 }
 try {
 if ($isFuji -and -not $useCurrent) {
@@ -1075,12 +1340,43 @@ if ($isRicoh -and -not $useCurrent) {
     Write-ErrMsg ((Get-FlgT '自動登錄發生錯誤：' 'Automatic add error: ') + $_.Exception.Message)
     if ($copier) { Write-Host ((Get-FlgT '  請開啟 http://{0}/ 手動輸入上面的登錄資訊。記錄檔：{1}' '  Open http://{0}/ and enter the login info above manually. Log: {1}') -f $copier.Ip, $script:FlgSmbLog) -ForegroundColor Yellow }
 }
+try {
+if ($isSharp -and -not $useCurrent) {
+    Write-Host ''
+    $abName = (Read-Host ((Get-FlgT '位址名稱（Enter = {0}）' 'Address name (Enter = {0})') -f $pc)).Trim()
+    if (-not $abName) { $abName = $pc }
+    if ($abName.Length -gt 36) { $abName = $abName.Substring(0, 36) }
+    $abInit = (Read-Host (Get-FlgT '起始字母（Enter = A）' 'Initial (Enter = A)')).Trim()
+    if (-not $abInit) { $abInit = 'A' }
+    $abUser = [string]$result.UserName   # HAR: 用戶名稱 = scanner (bare user name)
+    $abPath = "\\$pc\$($result.ShareName)"
+    Write-Info ((Get-FlgT '登錄到 {0} 通訊錄（SHARP 網路資料夾）…' 'Adding to {0} address book (SHARP network folder)…') -f $copier.Ip)
+    $ab = Add-FlgSharpSmbEntry -CopierIp $copier.Ip -Name $abName -Initial $abInit -Path $abPath -User $abUser -Pass $result.Password -AdminPass 'admin'
+    if (-not $ab.Ok -and $ab.Auth) {
+        Write-WarnMsg $ab.Message
+        Write-WarnMsg (Get-FlgT '請輸入影印機管理員密碼（Enter = 略過）。' 'Enter the copier admin password (Enter = skip).')
+        $ap = Read-Host (Get-FlgT '管理員密碼' 'Admin password')
+        if ($ap) { $ab = Add-FlgSharpSmbEntry -CopierIp $copier.Ip -Name $abName -Initial $abInit -Path $abPath -User $abUser -Pass $result.Password -AdminPass $ap }
+    }
+    Write-FlgSmbLog ('SHARP result: ' + ($ab | Out-String))
+    if ($ab.Ok) {
+        Write-Ok ((Get-FlgT '已登錄到影印機通訊錄：{0}（搜尋號碼 {1}，路徑 {2}，使用者 {3}）{4}' 'Added to copier address book: {0} (no. {1}, path {2}, user {3}) {4}') -f $abName, $ab.Index, $abPath, $abUser, $(if ($ab.Existed) { $ab.Message } else { '' }))
+    } else {
+        Write-ErrMsg ((Get-FlgT '自動登錄失敗：' 'Automatic add failed: ') + $ab.Message)
+        Write-Host ((Get-FlgT '  請開啟 http://{0}/ → 位址目錄 → 增加 → 網路資料夾，手動輸入上面的登錄資訊。' '  Open http://{0}/ → Address Book → Add → Network Folder, and enter the login info above manually.') -f $copier.Ip) -ForegroundColor Yellow
+    }
+}
+} catch {
+    Write-FlgSmbLog ('SHARP address book error: ' + ($_ | Out-String) + $_.ScriptStackTrace)
+    Write-ErrMsg ((Get-FlgT '自動登錄發生錯誤：' 'Automatic add error: ') + $_.Exception.Message)
+    if ($copier) { Write-Host ((Get-FlgT '  請開啟 http://{0}/ 手動輸入上面的登錄資訊。記錄檔：{1}' '  Open http://{0}/ and enter the login info above manually. Log: {1}') -f $copier.Ip, $script:FlgSmbLog) -ForegroundColor Yellow }
+}
 foreach ($ip in $ips) { Write-Host ((Get-FlgT '  路徑（IP） \\{0}\{1}' '  Path (IP)  \\{0}\{1}') -f $ip, $result.ShareName) -ForegroundColor DarkGray }
 
 Write-Host ''
 Write-Host '各品牌提示：' -ForegroundColor Cyan
 Write-Host '  Ricoh：掃描到資料夾 → SMB／FTP 選 SMB；路徑 \\IP\scan 或 /scan；填網域可留空或填電腦名。'
-Write-Host '  Sharp：Network Folder / SMB；Host=電腦 IP，Directory=scan 或 \scan。'
+Write-Host '  Sharp：位址目錄 → 增加 → 網路資料夾；路徑 \\電腦名稱\scan；用戶名稱 scanner（本工具可自動登錄）。'
 Write-Host '  FUJIFILM／全錄：SMB 傳輸；共用名稱 scan；使用者 PC名\scan。'
 Write-Host '  Canon：檔案傳送 → Windows (SMB)；主機名稱填 IP；資料夾路徑 \scan。'
 Write-Host '  美樂達／KM：SMB；Host=IP；File Path=\scan；User=PC名\scan。'
